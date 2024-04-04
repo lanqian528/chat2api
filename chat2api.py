@@ -27,8 +27,7 @@ async def send_conversation(request: Request, session=Depends(create_shared_asyn
     if stream:
         return StreamingResponse(chat_service.send_conversation_for_stream(data), media_type="text/event-stream")
     else:
-        res = await chat_service.send_conversation(data)
-        return JSONResponse(res, media_type="application/json")
+        return JSONResponse(await chat_service.send_conversation(data), media_type="application/json")
 
 
 if __name__ == "__main__":

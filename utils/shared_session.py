@@ -10,8 +10,7 @@ async def create_shared_async_session():
     selected_browsers = random.choice(browsers)
     async with AsyncSession(
             impersonate=selected_browsers,
-            http_version=CurlHttpVersion.V2TLS,
-    ) as session:
+            http_version=CurlHttpVersion.V2TLS, timeout=600) as session:
         yield session
 
 
@@ -20,5 +19,5 @@ def create_shared_session():
     browsers = ["chrome120", "chrome99_android"]
     selected_browsers = random.choice(browsers)
     session = requests.Session(impersonate=selected_browsers,
-                               http_version=CurlHttpVersion.V2TLS, timeout=15)
+                               http_version=CurlHttpVersion.V2TLS, timeout=600)
     return session

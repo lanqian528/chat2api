@@ -16,6 +16,7 @@ python chat2api.py
 ```
 
 ### Docker部署
+
 您需要安装Docker和Docker Compose。
 
 ```bash
@@ -26,11 +27,14 @@ docker run -d \
 ```
 
 ### Docker Compose部署
+
 创建一个新的目录，例如chat2api，并进入该目录：
+
 ```bash
 mkdir chat2api
 cd chat2api
 ```
+
 在此目录中下载库中的docker-compose.yml文件：
 
 ```bash
@@ -54,6 +58,7 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 默认情况不需要设置，除非你有需求
 
 ### 环境变量
+
 ```
 PROXY_URL=http://username:password@proxy:port
 CHATGPT_BASE_URL=https://chat.openai.com/backend-anon
@@ -63,6 +68,7 @@ HISTORY_DISABLED=true
 [//]: # (## 鸣谢)
 
 [//]: # ()
+
 [//]: # (感谢各位大佬的pr支持，感谢。)
 
 ## License

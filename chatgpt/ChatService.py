@@ -81,21 +81,17 @@ async def stream_response(response, model, max_tokens):
 
 
 async def chat_response(resp, model, prompt_tokens, max_tokens):
+    last_resp = None
+    for i in resp:
+        if i != "" and i != "data: [DONE]" and i.startswith("data: "):
+            last_resp = i
+    resp = json.loads(last_resp[6:])
+
     chat_id = f"chatcmpl-{''.join(random.choice(string.ascii_letters + string.digits) for _ in range(29))}"
     chat_object = "chat.completion"
     created_time = int(time.time())
     index = 0
-
-    message_content = ""
-    async for chunk in resp.aiter_lines():
-        chunk = chunk.decode("utf-8")
-        if not chunk.startswith("data: "):
-            continue
-        chunk_data = json.loads(chunk[6:])
-        if chunk_data["message"]["metadata"].get("is_complete"):
-            message_content = chunk_data["message"]["content"]["parts"][0]
-            break
-
+    message_content = resp["message"]["content"]["parts"][0]
     message_content, completion_tokens, finish_reason = split_tokens_from_content(message_content, max_tokens, model)
     message = {
         "role": "assistant",
@@ -146,7 +142,6 @@ def api_messages_to_chat(api_messages):
 
 class ChatService:
     def __init__(self, session):
-        self.chat_request = None
         self.session = session
         self.session.proxies = {
             "http": proxy_url,
@@ -155,6 +150,9 @@ class ChatService:
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/"
         self.oai_device_id = str(uuid.uuid4())
         self.chat_token = None
+
+        self.headers = None
+        self.chat_request = None
 
     async def get_chat_requirements(self):
         url = f'{chatgpt_base_url}/sentinel/chat-requirements'
@@ -224,12 +222,19 @@ class ChatService:
         model = model_proxy.get(model, model)
         max_tokens = data.get("max_tokens", 2147483647)
 
-        async with aclosing(
-                await self.session.post(url, headers=self.headers, json=self.chat_request, stream=True)) as r:
+        # async with aclosing(await self.session.post(url, headers=self.headers, json=self.chat_request, stream=True)) as r:
+
+        async with self.session.stream("POST", url, headers=self.headers, json=self.chat_request) as r:
             if r.status_code != 200:
                 raise HTTPException(status_code=r.status_code, detail=r.text)
             async for chunk in stream_response(r, model, max_tokens):
                 yield chunk
+
+            # async for chunk in r.aiter_content():
+            #     print("Status: ", r.status_code)
+            #     assert r.status_code == 200
+            #     print("CHUNK", chunk)
+            #     yield chunk
 
     async def send_conversation(self, data):
         url = f'{chatgpt_base_url}/conversation'
@@ -239,8 +244,10 @@ class ChatService:
         prompt_tokens = num_tokens_from_messages(api_messages, model)
         max_tokens = data.get("max_tokens", 2147483647)
 
-        async with aclosing(
-                await self.session.post(url, headers=self.headers, json=self.chat_request, stream=True)) as r:
+        # async with aclosing(await self.session.post(url, headers=self.headers, json=self.chat_request, stream=True)) as r:
+
+        async with self.session.stream("POST", url, headers=self.headers, json=self.chat_request) as r:
             if r.status_code != 200:
                 raise HTTPException(status_code=r.status_code, detail=r.text)
-            return await chat_response(r, model, prompt_tokens, max_tokens)
+            resp = (await r.atext()).split("\n")
+            return await chat_response(resp, model, prompt_tokens, max_tokens)
