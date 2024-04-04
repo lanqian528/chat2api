@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  app:
+    image: lanqian528/chat2api:latest
+    container_name: chat2api
+    restart: unless-stopped
+    ports:
+      - '5005:5005'
+#    environment:
+#      - PROXY_URL=http://username:password@proxy:port
+#      - CHATGPT_BASE_URL=https://chat.openai.com/backend-anon
+#      - HISTORY_DISABLED=true
