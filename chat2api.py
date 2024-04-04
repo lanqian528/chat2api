@@ -15,9 +15,10 @@ chat_requirements_token_list = []
 
 
 @app.post("/v1/chat/completions")
-async def send_conversation(request: Request, session=Depends(create_shared_async_session)):
+# async def send_conversation(request: Request, session=Depends(create_shared_async_session)):
+async def send_conversation(request: Request):
     data = await request.json()
-    chat_service = ChatService(session)
+    chat_service = ChatService()
     try:
         await chat_service.get_chat_requirements()
     except:

@@ -5,6 +5,7 @@ import time
 import uuid
 from contextlib import aclosing
 
+from curl_cffi import requests
 from fastapi import HTTPException
 
 from api.chat_completions import num_tokens_from_messages, model_system_fingerprint, model_proxy, \
@@ -141,9 +142,9 @@ def api_messages_to_chat(api_messages):
 
 
 class ChatService:
-    def __init__(self, session):
+    def __init__(self, session=None):
         self.session = session
-        self.session.proxies = {
+        self.proxies = {
             "http": proxy_url,
             "https": proxy_url,
         }
@@ -169,14 +170,16 @@ class ChatService:
             'sec-fetch-site': 'same-origin',
             'user-agent': self.user_agent
         }
-        r = await self.session.post(url, headers=headers, json={})
-        if r.status_code != 200:
-            raise HTTPException(status_code=r.status_code, detail=r.text)
-        else:
-            self.chat_token = r.json().get('token')
-            if not self.chat_token:
-                raise HTTPException(status_code=500, detail="Chat token not found")
-            return self.chat_token
+        # r = await self.session.post(url, headers=headers, json={}, proxies=self.proxies)
+        async with requests.AsyncSession() as s:
+            r = await s.post(url, headers=headers, json={}, proxies=self.proxies)
+            if r.status_code != 200:
+                raise HTTPException(status_code=r.status_code, detail=r.text)
+            else:
+                self.chat_token = r.json().get('token')
+                if not self.chat_token:
+                    raise HTTPException(status_code=500, detail="Chat token not found")
+                return self.chat_token
 
     def prepare_send_conversation(self, data):
         self.headers = {
@@ -222,19 +225,21 @@ class ChatService:
         model = model_proxy.get(model, model)
         max_tokens = data.get("max_tokens", 2147483647)
 
-        # async with aclosing(await self.session.post(url, headers=self.headers, json=self.chat_request, stream=True)) as r:
+        # async with aclosing(await self.session.post(url, headers=self.headers, json=self.chat_request, proxies=self.proxies, stream=True)) as r:
 
-        async with self.session.stream("POST", url, headers=self.headers, json=self.chat_request) as r:
+        # async with self.session.stream("POST", url, headers=self.headers, json=self.chat_request, proxies=self.proxies) as r:
+        #     async for chunk in r.aiter_content():
+        #         print("Status: ", r.status_code)
+        #         assert r.status_code == 200
+        #         print("CHUNK", chunk)
+        #         yield chunk
+
+        async with requests.AsyncSession() as s:
+            r = await s.post(url, headers=self.headers, json=self.chat_request, proxies=self.proxies, stream=True)
             if r.status_code != 200:
                 raise HTTPException(status_code=r.status_code, detail=r.text)
             async for chunk in stream_response(r, model, max_tokens):
                 yield chunk
-
-            # async for chunk in r.aiter_content():
-            #     print("Status: ", r.status_code)
-            #     assert r.status_code == 200
-            #     print("CHUNK", chunk)
-            #     yield chunk
 
     async def send_conversation(self, data):
         url = f'{chatgpt_base_url}/conversation'
@@ -244,9 +249,8 @@ class ChatService:
         prompt_tokens = num_tokens_from_messages(api_messages, model)
         max_tokens = data.get("max_tokens", 2147483647)
 
-        # async with aclosing(await self.session.post(url, headers=self.headers, json=self.chat_request, stream=True)) as r:
-
-        async with self.session.stream("POST", url, headers=self.headers, json=self.chat_request) as r:
+        async with requests.AsyncSession() as s:
+            r = await s.post(url, headers=self.headers, json=self.chat_request, proxies=self.proxies, stream=True)
             if r.status_code != 200:
                 raise HTTPException(status_code=r.status_code, detail=r.text)
             resp = (await r.atext()).split("\n")
