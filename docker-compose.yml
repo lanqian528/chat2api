@@ -7,7 +7,9 @@ services:
     restart: unless-stopped
     ports:
       - '5005:5005'
-#    environment:
-#      - PROXY_URL=http://username:password@proxy:port
-#      - CHATGPT_BASE_URL=https://chat.openai.com/backend-anon
-#      - HISTORY_DISABLED=true
+    environment:
+      - AUTHORIZATION=YOUR_AUTHORIZATION
+#      - FREE35_BASE_URL=https://chat.openai.com/backend-anon
+#      - CHATGPT_BASE_URL=https://chat.openai.com/backend-api
+#      - HISTORY_DISABLED=false
+#      - PROXY_URL=YOUR_PROXY_URL
