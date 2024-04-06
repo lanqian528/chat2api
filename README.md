@@ -56,7 +56,7 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 ## 常见问题
 
 - 当返回错误代码`403`时：这意味着当前IP地址被 CF 盾拦截，请尝试更换IP地址，或者在环境变量 `PROXY_URL` 中设置代理。
-- 来自`Xiaofei`的礼物：将环境变量设置为 `CHATGPT_BASE_URL=http://api.angelxf.me:8080/api` ，可无视CF盾和IP问题。
+- 来自`Xiaofei`的礼物：将环境变量设置为 `FREE35_BASE_URL=https://auroraxf.glitch.me/api` 或 `FREE35_BASE_URL=https://api.angelxf.cf/api` ，可无视CF盾和IP问题。
 
 ## 高级设置
 
