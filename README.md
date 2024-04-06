@@ -1,8 +1,8 @@
 # CHAT2API
 
-免费的GPT3.5 api
+🌟无需账号即可使用免费、无限的gpt3.5，目前只能转gpt3.5
 
-### 注：仅ip属地支持免登录使用ChatGpt可以使用
+🔍以假乱真，回复格式与真实api完全一致，支持max_tokens，stream等参数
 
 ## Deploy
 
@@ -52,6 +52,10 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
      "stream": true
    }'
 ```
+## 常见问题
+
+- 当返回错误代码`403`时：这意味着当前IP地址被 CF 盾拦截，请尝试更换IP地址，或者在环境变量 `PROXY_URL` 中设置代理。
+- 来自`Xiaofei`的礼物：将环境变量设置为 `CHATGPT_BASE_URL=http://api.angelxf.me:8080/api` ，可无视CF盾和IP问题。
 
 ## 高级设置
 

@@ -1,12 +1,9 @@
 import warnings
 
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 
 from chatgpt.ChatService import ChatService
-from utils.shared_session import create_shared_async_session
-
-warnings.filterwarnings('ignore')
 
 app = FastAPI()
 
@@ -15,13 +12,16 @@ chat_requirements_token_list = []
 
 
 @app.post("/v1/chat/completions")
-# async def send_conversation(request: Request, session=Depends(create_shared_async_session)):
 async def send_conversation(request: Request):
-    data = await request.json()
-    chat_service = ChatService()
     try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+    try:
+        chat_service = ChatService()
         await chat_service.get_chat_requirements()
     except:
+        chat_service = ChatService()
         await chat_service.get_chat_requirements()
     chat_service.prepare_send_conversation(data)
     stream = data.get("stream", False)

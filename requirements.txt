@@ -1,4 +1,4 @@
 fastapi
-curl_cffi
+httpx
 uvicorn
 tiktoken

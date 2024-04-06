@@ -3,9 +3,8 @@ import random
 import string
 import time
 import uuid
-from contextlib import aclosing
 
-from curl_cffi import requests
+import httpx
 from fastapi import HTTPException
 
 from api.chat_completions import num_tokens_from_messages, model_system_fingerprint, model_proxy, \
@@ -18,27 +17,22 @@ async def stream_response(response, model, max_tokens):
     chat_id = f"chatcmpl-{''.join(random.choice(string.ascii_letters + string.digits) for _ in range(29))}"
     system_fingerprint_list = model_system_fingerprint.get(model, None)
     system_fingerprint = random.choice(system_fingerprint_list) if system_fingerprint_list else None
+    created_time = int(time.time())
     completion_tokens = -1
     len_last_content = 0
     end = False
-    status = None
     async for chunk in response.aiter_lines():
         if end:
             yield f"data: [DONE]\n\n"
             break
         try:
-            chunk = chunk.decode("utf-8")
             if chunk == "data: [DONE]":
                 yield f"data: [DONE]\n\n"
             elif not chunk.startswith("data: "):
                 continue
             else:
                 chunk_old_data = json.loads(chunk[6:])
-                if chunk_old_data["message"]["status"] == "in_progress":
-                    status = "in_progress"
-                if status != "in_progress":
-                    continue
-                if not chunk_old_data["message"]["author"]["role"] == "assistant":
+                if not chunk_old_data["message"]["status"] == "in_progress" and not chunk_old_data["message"]["metadata"].get("finish_details", {}):
                     continue
                 content = chunk_old_data["message"]["content"]["parts"][0]
                 if not content:
@@ -47,7 +41,7 @@ async def stream_response(response, model, max_tokens):
                     delta = {"content": content[len_last_content:]}
                 len_last_content = len(content)
                 finish_reason = None
-                if chunk_old_data["message"]["end_turn"]:
+                if chunk_old_data["message"]["metadata"].get("finish_details", {}):
                     delta = {}
                     finish_reason = "stop"
                     end = True
@@ -55,13 +49,10 @@ async def stream_response(response, model, max_tokens):
                     delta = {}
                     finish_reason = "length"
                     end = True
-                if completion_tokens > max_tokens:
-                    yield f"data: [DONE]\n\n"
-                    break
                 chunk_new_data = {
                     "id": chat_id,
                     "object": "chat.completion.chunk",
-                    "created": int(time.time()),
+                    "created": created_time,
                     "model": model,
                     "choices": [
                         {
@@ -83,9 +74,10 @@ async def stream_response(response, model, max_tokens):
 
 async def chat_response(resp, model, prompt_tokens, max_tokens):
     last_resp = None
-    for i in resp:
+    for i in reversed(resp):
         if i != "" and i != "data: [DONE]" and i.startswith("data: "):
             last_resp = i
+            break
     resp = json.loads(last_resp[6:])
 
     chat_id = f"chatcmpl-{''.join(random.choice(string.ascii_letters + string.digits) for _ in range(29))}"
@@ -143,11 +135,7 @@ def api_messages_to_chat(api_messages):
 
 class ChatService:
     def __init__(self, session=None):
-        self.session = session
-        self.proxies = {
-            "http": proxy_url,
-            "https": proxy_url,
-        }
+        self.s = httpx.AsyncClient(proxies=proxy_url)
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/"
         self.oai_device_id = str(uuid.uuid4())
         self.chat_token = None
@@ -170,16 +158,14 @@ class ChatService:
             'sec-fetch-site': 'same-origin',
             'user-agent': self.user_agent
         }
-        # r = await self.session.post(url, headers=headers, json={}, proxies=self.proxies)
-        async with requests.AsyncSession() as s:
-            r = await s.post(url, headers=headers, json={}, proxies=self.proxies)
-            if r.status_code != 200:
-                raise HTTPException(status_code=r.status_code, detail=r.text)
-            else:
-                self.chat_token = r.json().get('token')
-                if not self.chat_token:
-                    raise HTTPException(status_code=500, detail="Chat token not found")
-                return self.chat_token
+        r = await self.s.post(url, headers=headers, json={})
+        if r.status_code != 200:
+            raise HTTPException(status_code=r.status_code, detail=r.text)
+        else:
+            self.chat_token = r.json().get('token')
+            if not self.chat_token:
+                raise HTTPException(status_code=500, detail="Chat token not found")
+            return self.chat_token
 
     def prepare_send_conversation(self, data):
         self.headers = {
@@ -225,21 +211,12 @@ class ChatService:
         model = model_proxy.get(model, model)
         max_tokens = data.get("max_tokens", 2147483647)
 
-        # async with aclosing(await self.session.post(url, headers=self.headers, json=self.chat_request, proxies=self.proxies, stream=True)) as r:
-
-        # async with self.session.stream("POST", url, headers=self.headers, json=self.chat_request, proxies=self.proxies) as r:
-        #     async for chunk in r.aiter_content():
-        #         print("Status: ", r.status_code)
-        #         assert r.status_code == 200
-        #         print("CHUNK", chunk)
-        #         yield chunk
-
-        async with requests.AsyncSession() as s:
-            r = await s.post(url, headers=self.headers, json=self.chat_request, proxies=self.proxies, stream=True)
-            if r.status_code != 200:
-                raise HTTPException(status_code=r.status_code, detail=r.text)
-            async for chunk in stream_response(r, model, max_tokens):
-                yield chunk
+        r = await self.s.send(
+            self.s.build_request("POST", url, headers=self.headers, json=self.chat_request, timeout=600), stream=True)
+        if r.status_code != 200:
+            raise HTTPException(status_code=r.status_code, detail=r.text)
+        async for chunk in stream_response(r, model, max_tokens):
+            yield chunk
 
     async def send_conversation(self, data):
         url = f'{chatgpt_base_url}/conversation'
@@ -249,9 +226,9 @@ class ChatService:
         prompt_tokens = num_tokens_from_messages(api_messages, model)
         max_tokens = data.get("max_tokens", 2147483647)
 
-        async with requests.AsyncSession() as s:
-            r = await s.post(url, headers=self.headers, json=self.chat_request, proxies=self.proxies, stream=True)
-            if r.status_code != 200:
-                raise HTTPException(status_code=r.status_code, detail=r.text)
-            resp = (await r.atext()).split("\n")
-            return await chat_response(resp, model, prompt_tokens, max_tokens)
+        r = await self.s.send(
+            self.s.build_request("POST", url, headers=self.headers, json=self.chat_request, timeout=600), stream=False)
+        if r.status_code != 200:
+            raise HTTPException(status_code=r.status_code, detail=r.text)
+        resp = r.text.split("\n")
+        return await chat_response(resp, model, prompt_tokens, max_tokens)
