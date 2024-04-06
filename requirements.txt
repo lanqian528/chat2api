@@ -2,3 +2,4 @@ fastapi
 httpx
 uvicorn
 tiktoken
+python-dotenv

@@ -1,8 +1,8 @@
 # CHAT2API
 
-🌟无需账号即可使用免费、无限的gpt3.5，目前只能转gpt3.5
+🌟无需账号即可使用免费、无限的gpt3.5，目前只能转gpt3.5的api
 
-🔍以假乱真，回复格式与真实api完全一致，支持max_tokens，stream等参数
+🔍以假乱真，回复格式与真实api完全一致，支持max_tokens，stream等参数，并且支持token数计算
 
 ## Deploy
 
@@ -52,6 +52,7 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
      "stream": true
    }'
 ```
+
 ## 常见问题
 
 - 当返回错误代码`403`时：这意味着当前IP地址被 CF 盾拦截，请尝试更换IP地址，或者在环境变量 `PROXY_URL` 中设置代理。
@@ -64,9 +65,11 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 ### 环境变量
 
 ```
-PROXY_URL=http://username:password@proxy:port
-CHATGPT_BASE_URL=https://chat.openai.com/backend-anon
-HISTORY_DISABLED=true
+AUTHORIZATION=YOUR_AUTHORIZATION
+FREE35_BASE_URL=https://chat.openai.com/backend-anon
+CHATGPT_BASE_URL=https://chat.openai.com/backend-api
+HISTORY_DISABLED=false
+PROXY_URL=YOUR_PROXY_URL
 ```
 
 [//]: # (## 鸣谢)
