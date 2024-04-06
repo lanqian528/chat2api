@@ -136,7 +136,6 @@ def api_messages_to_chat(api_messages):
 
 class ChatService:
     def __init__(self):
-        print(f"Proxy URL: {proxy_url}")
         self.s = httpx.AsyncClient(proxies=proxy_url, timeout=30)
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0"
         self.oai_device_id = str(uuid.uuid4())
