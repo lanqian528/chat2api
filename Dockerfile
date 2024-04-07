@@ -8,4 +8,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 5005
 
-CMD ["python", "chat2api.py"]
+CMD ["python", "app.py"]
