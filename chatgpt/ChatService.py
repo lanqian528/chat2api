@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from api.chat_completions import num_tokens_from_messages, model_system_fingerprint, model_proxy, \
     split_tokens_from_content
 from utils.Logger import Logger
-from utils.config import history_disabled, proxy_url, free35_base_url
+from utils.config import history_disabled, free35_base_url_list, proxy_url_list
 
 
 async def stream_response(response, model, max_tokens):
@@ -136,7 +136,8 @@ def api_messages_to_chat(api_messages):
 
 class ChatService:
     def __init__(self):
-        self.s = httpx.AsyncClient(proxies=proxy_url, timeout=30)
+        self.s = httpx.AsyncClient(proxies=random.choice(proxy_url_list), timeout=30)
+        self.free35_base_url = random.choice(free35_base_url_list)
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0"
         self.oai_device_id = str(uuid.uuid4())
         self.chat_token = None
@@ -145,7 +146,7 @@ class ChatService:
         self.chat_request = None
 
     async def get_chat_requirements(self):
-        url = f'{free35_base_url}/sentinel/chat-requirements'
+        url = f'{self.free35_base_url}/sentinel/chat-requirements'
         headers = {
             'accept': '*/*',
             'accept-language': 'en-US,en;q=0.9',
@@ -208,7 +209,7 @@ class ChatService:
         return self.chat_request
 
     async def send_conversation_for_stream(self, data):
-        url = f'{free35_base_url}/conversation'
+        url = f'{self.free35_base_url}/conversation'
         model = data.get("model", "gpt-3.5-turbo-0125")
         model = model_proxy.get(model, model)
         max_tokens = data.get("max_tokens", 2147483647)
@@ -221,7 +222,7 @@ class ChatService:
             yield chunk
 
     async def send_conversation(self, data):
-        url = f'{free35_base_url}/conversation'
+        url = f'{self.free35_base_url}/conversation'
         model = data.get("model", "gpt-3.5-turbo-0125")
         model = model_proxy.get(model, model)
         api_messages = data.get("messages", [])

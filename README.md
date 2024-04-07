@@ -65,11 +65,10 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 ### 环境变量
 
 ```
-AUTHORIZATION=YOUR_AUTHORIZATION
-FREE35_BASE_URL=https://chat.openai.com/backend-anon
-CHATGPT_BASE_URL=https://chat.openai.com/backend-api
+AUTHORIZATION=your_first_token, your_second_token
+FREE35_BASE_URL=https://chat.openai.com/backend-anon, https://auroraxf.glitch.me/api, https://api.angelxf.cf/api
 HISTORY_DISABLED=false
-PROXY_URL=YOUR_PROXY_URL
+PROXY_URL=your_first_proxy, your_second_proxy
 ```
 
 [//]: # (## 鸣谢)

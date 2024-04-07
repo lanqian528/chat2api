@@ -37,4 +37,4 @@ async def send_conversation(request: Request, verified: bool = Depends(verify_to
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("chat2api:app", host="0.0.0.0", port=5005)
+    uvicorn.run("app:app", host="0.0.0.0", port=5005)

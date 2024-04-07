@@ -7,9 +7,8 @@ services:
     restart: unless-stopped
     ports:
       - '5005:5005'
-    environment:
-      - AUTHORIZATION=YOUR_AUTHORIZATION
-#      - FREE35_BASE_URL=https://chat.openai.com/backend-anon
-#      - CHATGPT_BASE_URL=https://chat.openai.com/backend-api
+#    environment:
+#      - AUTHORIZATION=your_first_token, your_second_token
+#      - FREE35_BASE_URL=https://chat.openai.com/backend-anon, https://auroraxf.glitch.me/api, https://api.angelxf.cf/api
 #      - HISTORY_DISABLED=false
-#      - PROXY_URL=YOUR_PROXY_URL
+#      - PROXY_URL=your_first_proxy, your_second_proxy
