@@ -12,6 +12,8 @@ from api.chat_completions import num_tokens_from_messages, model_system_fingerpr
 from utils.Logger import Logger
 from utils.config import history_disabled, free35_base_url_list, proxy_url_list
 
+moderation_message = "I'm sorry, I cannot provide or engage in any content related to pornography, violence, or any unethical material. If you have any other questions or need assistance, please feel free to let me know. I'll do my best to provide support and assistance."
+
 
 async def stream_response(response, model, max_tokens):
     chat_id = f"chatcmpl-{''.join(random.choice(string.ascii_letters + string.digits) for _ in range(29))}"
@@ -32,24 +34,28 @@ async def stream_response(response, model, max_tokens):
                 continue
             else:
                 chunk_old_data = json.loads(chunk[6:])
-                if not chunk_old_data["message"]["status"] == "in_progress" and not chunk_old_data["message"][
-                    "metadata"].get("finish_details", {}):
-                    continue
-                content = chunk_old_data["message"]["content"]["parts"][0]
-                if not content:
-                    delta = {"role": "assistant", "content": ""}
-                else:
-                    delta = {"content": content[len_last_content:]}
-                len_last_content = len(content)
                 finish_reason = None
-                if chunk_old_data["message"]["metadata"].get("finish_details", {}):
-                    delta = {}
-                    finish_reason = "stop"
+                if chunk_old_data.get("type") == "moderation":
+                    delta = {"role": "assistant", "content": moderation_message}
+                    finish_reason = "moderation"
                     end = True
-                if completion_tokens == max_tokens:
-                    delta = {}
-                    finish_reason = "length"
-                    end = True
+                elif chunk_old_data.get("message").get("status") == "in_progress" or chunk_old_data.get("message").get("metadata").get("finish_details", {}):
+                    content = chunk_old_data["message"]["content"]["parts"][0]
+                    if not content:
+                        delta = {"role": "assistant", "content": ""}
+                    else:
+                        delta = {"content": content[len_last_content:]}
+                    len_last_content = len(content)
+                    if chunk_old_data["message"]["metadata"].get("finish_details", {}):
+                        delta = {}
+                        finish_reason = "stop"
+                        end = True
+                    if completion_tokens == max_tokens:
+                        delta = {}
+                        finish_reason = "length"
+                        end = True
+                else:
+                    continue
                 chunk_new_data = {
                     "id": chat_id,
                     "object": "chat.completion.chunk",
@@ -85,8 +91,13 @@ async def chat_response(resp, model, prompt_tokens, max_tokens):
     chat_object = "chat.completion"
     created_time = int(time.time())
     index = 0
-    message_content = resp["message"]["content"]["parts"][0]
-    message_content, completion_tokens, finish_reason = split_tokens_from_content(message_content, max_tokens, model)
+    if resp.get("type") == "moderation":
+        message_content = moderation_message
+        completion_tokens = 53
+        finish_reason = "moderation"
+    else:
+        message_content = resp["message"]["content"]["parts"][0]
+        message_content, completion_tokens, finish_reason = split_tokens_from_content(message_content, max_tokens, model)
     message = {
         "role": "assistant",
         "content": message_content,
