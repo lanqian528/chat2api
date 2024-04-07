@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 
 from utils.Logger import Logger
@@ -11,7 +12,7 @@ chatgpt_base_url = os.getenv('CHATGPT_BASE_URL', 'https://chat.openai.com/backen
 history_disabled_str = os.getenv('HISTORY_DISABLED', 'false').replace(' ', '')
 history_disabled = history_disabled_str.lower() in ['true', '1', 't', 'y', 'yes']
 proxy_url = os.getenv('PROXY_URL').replace(' ', '')
-
+retry_times = int(os.getenv('RETRY_TIMES', 3))
 
 authorization_list = authorization.split(',') if authorization else [authorization]
 free35_base_url_list = free35_base_url.split(',') if free35_base_url else [free35_base_url]
@@ -22,3 +23,5 @@ Logger.info("Environment variables (no AUTHORIZATION):")
 Logger.info("FREE35_BASE_URL:       " + str(free35_base_url_list))
 Logger.info("CHATGPT_BASE_URL:      " + str(chatgpt_base_url_list))
 Logger.info("PROXY_URL:             " + str(proxy_url_list))
+Logger.info("HISTORY_DISABLED:      " + str(history_disabled))
+Logger.info("RETRY_TIMES:           " + str(retry_times))

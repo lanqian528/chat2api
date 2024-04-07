@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse, JSONResponse
 
 from chatgpt.ChatService import ChatService
 from utils.authorization import verify_token
-from utils.retry import retry
+from utils.retry import async_retry
 
 app = FastAPI()
 
@@ -23,10 +23,10 @@ async def send_conversation(request: Request, verified: bool = Depends(verify_to
     async def to_send_conversation(data):
         chat_service = ChatService()
         await chat_service.get_chat_requirements()
-        chat_service.prepare_send_conversation(data)
         return chat_service
 
-    chat_service = await retry(to_send_conversation, data)
+    chat_service = await async_retry(to_send_conversation, data)
+    chat_service.prepare_send_conversation(data)
     stream = data.get("stream", False)
     if stream:
         return StreamingResponse(chat_service.send_conversation_for_stream(data), media_type="text/event-stream")

@@ -160,14 +160,23 @@ class ChatService:
             'sec-fetch-site': 'same-origin',
             'user-agent': self.user_agent
         }
-        r = await self.s.post(url, headers=headers, json={})
-        if r.status_code != 200:
-            raise HTTPException(status_code=r.status_code, detail=r.text)
-        else:
-            self.chat_token = r.json().get('token')
-            if not self.chat_token:
-                raise HTTPException(status_code=500, detail="Chat token not found")
-            return self.chat_token
+        try:
+            r = await self.s.post(url, headers=headers, json={})
+            if r.status_code == 200:
+                self.chat_token = r.json().get('token')
+                if not self.chat_token:
+                    raise HTTPException(status_code=502, detail=f"Failed to get chat token: {r.text}")
+                return self.chat_token
+            else:
+                if r.status_code == 403:
+                    raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
+                elif r.status_code == 429:
+                    raise HTTPException(status_code=r.status_code, detail="rate-limit")
+                raise HTTPException(status_code=r.status_code, detail=r.text)
+        except HTTPException as e:
+            raise HTTPException(status_code=e.status_code, detail=e.detail)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to request.")
 
     def prepare_send_conversation(self, data):
         self.headers = {

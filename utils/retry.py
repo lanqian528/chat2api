@@ -1,23 +1,26 @@
 from utils.Logger import Logger
+from fastapi import HTTPException
+
+from utils.config import retry_times
 
 
-async def async_retry(func, *args, max_retries=3, **kwargs):
-    for attempt in range(max_retries):
+async def async_retry(func, *args, max_retries=retry_times, **kwargs):
+    for attempt in range(max_retries + 1):
         try:
             result = await func(*args, **kwargs)
             return result
-        except Exception as e:
-            Logger.info(f"{func.__name__} 运行出错: {e}, 正在重试第 {attempt + 1} 次...")
-    else:
-        Logger.info(f"{func.__name__} 重试 {max_retries} 次后仍然失败.")
+        except HTTPException as e:
+            if attempt == max_retries:
+                raise HTTPException(status_code=e.status_code, detail=e.detail)
+            Logger.info(f"Retry {attempt + 1} failed with status code {e.status_code}. Retrying...")
 
 
-def retry(func, *args, max_retries=3, **kwargs):
-    for attempt in range(max_retries):
+def retry(func, *args, max_retries=retry_times, **kwargs):
+    for attempt in range(max_retries + 1):
         try:
             result = func(*args, **kwargs)
             return result
-        except Exception as e:
-            Logger.info(f"{func.__name__} 运行出错: {e}, 正在重试第 {attempt + 1} 次...")
-    else:
-        Logger.info(f"{func.__name__} 重试 {max_retries} 次后仍然失败.")
+        except HTTPException as e:
+            if attempt == max_retries:
+                raise HTTPException(status_code=e.status_code, detail=e.detail)
+            Logger.info(f"Attempt {attempt + 1} failed with status code {e.status_code}. Retrying...")
