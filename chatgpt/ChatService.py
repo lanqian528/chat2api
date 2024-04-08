@@ -74,7 +74,6 @@ async def stream_response(response, model, max_tokens):
                 completion_tokens += 1
                 yield f"data: {json.dumps(chunk_new_data)}\n\n"
         except Exception as e:
-            Logger.error(f"Error: {str(e)}")
             Logger.error(f"Error: {chunk}")
             continue
 
@@ -82,22 +81,25 @@ async def stream_response(response, model, max_tokens):
 async def chat_response(resp, model, prompt_tokens, max_tokens):
     last_resp = None
     for i in reversed(resp):
-        if i != "" and i != "data: [DONE]" and i.startswith("data: "):
-            last_resp = i
-            break
-    resp = json.loads(last_resp[6:])
+        if i != "data: [DONE]" and i.startswith("data: "):
+            try:
+                last_resp = json.loads(i[6:])
+                break
+            except Exception as e:
+                Logger.error(f"Error: {i}")
+                continue
 
-    chat_id = f"chatcmpl-{''.join(random.choice(string.ascii_letters + string.digits) for _ in range(29))}"
-    chat_object = "chat.completion"
-    created_time = int(time.time())
-    index = 0
-    if resp.get("type") == "moderation":
+    if last_resp.get("type") == "moderation":
         message_content = moderation_message
         completion_tokens = 53
         finish_reason = "moderation"
     else:
-        message_content = resp["message"]["content"]["parts"][0]
+        message_content = last_resp["message"]["content"]["parts"][0]
         message_content, completion_tokens, finish_reason = split_tokens_from_content(message_content, max_tokens, model)
+    chat_id = f"chatcmpl-{''.join(random.choice(string.ascii_letters + string.digits) for _ in range(29))}"
+    chat_object = "chat.completion"
+    created_time = int(time.time())
+    index = 0
     message = {
         "role": "assistant",
         "content": message_content,
