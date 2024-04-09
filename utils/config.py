@@ -6,12 +6,12 @@ from utils.Logger import Logger
 
 load_dotenv()
 
-authorization = os.getenv('AUTHORIZATION').replace(' ', '')
+authorization = os.getenv('AUTHORIZATION', '').replace(' ', '')
 free35_base_url = os.getenv('FREE35_BASE_URL', 'https://chat.openai.com/backend-anon').replace(' ', '')
 chatgpt_base_url = os.getenv('CHATGPT_BASE_URL', 'https://chat.openai.com/backend-api').replace(' ', '')
 history_disabled_str = os.getenv('HISTORY_DISABLED', 'false').replace(' ', '')
 history_disabled = history_disabled_str.lower() in ['true', '1', 't', 'y', 'yes']
-proxy_url = os.getenv('PROXY_URL').replace(' ', '')
+proxy_url = os.getenv('PROXY_URL', '').replace(' ', '')
 retry_times = int(os.getenv('RETRY_TIMES', 3))
 
 authorization_list = authorization.split(',') if authorization else [authorization]
