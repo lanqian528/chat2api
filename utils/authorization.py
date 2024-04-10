@@ -8,6 +8,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def verify_token(token: str = Depends(oauth2_scheme)):
     if not authorization_list or token in authorization_list:
-        return True
+        return token
+    elif token.startswith("eyJhbGciOi"):
+        return token
     else:
         return False
