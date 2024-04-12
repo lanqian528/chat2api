@@ -1,4 +1,4 @@
-from utils.Logger import Logger
+from utils.Logger import logger
 from fastapi import HTTPException
 
 from utils.config import retry_times
@@ -12,7 +12,7 @@ async def async_retry(func, *args, max_retries=retry_times, **kwargs):
         except HTTPException as e:
             if attempt == max_retries:
                 raise HTTPException(status_code=e.status_code, detail=e.detail)
-            Logger.info(f"Retry {attempt + 1} failed with status code {e.status_code}. Retrying...")
+            logger.info(f"Retry {attempt + 1} failed with status code {e.status_code}. Retrying...")
 
 
 def retry(func, *args, max_retries=retry_times, **kwargs):
@@ -23,4 +23,4 @@ def retry(func, *args, max_retries=retry_times, **kwargs):
         except HTTPException as e:
             if attempt == max_retries:
                 raise HTTPException(status_code=e.status_code, detail=e.detail)
-            Logger.info(f"Attempt {attempt + 1} failed with status code {e.status_code}. Retrying...")
+            logger.info(f"Attempt {attempt + 1} failed with status code {e.status_code}. Retrying...")
