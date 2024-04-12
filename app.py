@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
 from chatgpt.ChatService import ChatService
 from utils.authorization import verify_token
@@ -35,7 +35,7 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
     try:
         request_data = await request.json()
     except Exception:
-        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+        raise HTTPException(status_code=400, detail={"error": "Invalid JSON body"})
 
     # 对话前先决条件准备
     chat_service = await async_retry(to_send_conversation, request_data, access_token)
@@ -43,8 +43,8 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
 
     # 发送对话
     stream = request_data.get("stream", False)
-    if stream:
-        # 流式响应
+    if stream is True:
+     # 流式响应
         return StreamingResponse(await chat_service.send_conversation_for_stream(), media_type="text/event-stream")
     else:
         # 非流式响应
@@ -53,4 +53,9 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5005)
+    log_config = uvicorn.config.LOGGING_CONFIG
+    default_format = "%(asctime)s | %(levelname)s | %(message)s"
+    access_format = r'%(asctime)s | %(levelname)s | %(client_addr)s: %(request_line)s %(status_code)s'
+    log_config["formatters"]["default"]["fmt"] = default_format
+    log_config["formatters"]["access"]["fmt"] = access_format
+    uvicorn.run("app:app", host="0.0.0.0", port=5005)

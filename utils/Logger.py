@@ -1,12 +1,12 @@
 import logging
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)s | %(message)s')
+
 
 class Logger:
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)s | %(message)s')
-
     @staticmethod
     def info(message):
-        logging.info("\033[0;32m" + str(message) + "\033[0m")
+        logging.info(str(message))
 
     @staticmethod
     def warning(message):
@@ -19,3 +19,6 @@ class Logger:
     @staticmethod
     def debug(message):
         logging.debug("\033[0;37m" + str(message) + "\033[0m")
+
+
+logger = Logger()
