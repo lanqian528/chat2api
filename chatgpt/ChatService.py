@@ -81,7 +81,7 @@ async def stream_response(response, model, max_tokens):
 async def chat_response(resp, model, prompt_tokens, max_tokens):
     last_resp = None
     for i in reversed(resp):
-        if i != "data: [DONE]" and i.startswith("data: "):
+        if i != "data: [DONE]" and i.startswith("data: ") and '"message":' in i:
             try:
                 last_resp = json.loads(i[6:])
                 break
