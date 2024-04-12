@@ -7,11 +7,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 
 def verify_token(token: str = Depends(oauth2_scheme)):
-    if not token:
-        return None
-    if not authorization_list or token in authorization_list:
+    if not authorization_list:
         return token
-    elif token.startswith("eyJhbGciOi"):
+    elif token in authorization_list:
+        return token
+    elif token and token.startswith("eyJhbGciOi"):
         return token
     else:
         raise HTTPException(status_code=401, detail="Not authenticated")

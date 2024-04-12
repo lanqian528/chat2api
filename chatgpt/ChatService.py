@@ -39,21 +39,21 @@ async def stream_response(response, model, max_tokens):
                     delta = {"role": "assistant", "content": moderation_message}
                     finish_reason = "moderation"
                     end = True
-                elif chunk_old_data.get("message").get("status") == "in_progress" or chunk_old_data.get("message").get("metadata").get("finish_details", {}):
+                elif chunk_old_data.get("message").get("status") == "in_progress":
                     content = chunk_old_data["message"]["content"]["parts"][0]
                     if not content:
                         delta = {"role": "assistant", "content": ""}
                     else:
                         delta = {"content": content[len_last_content:]}
                     len_last_content = len(content)
-                    if chunk_old_data["message"]["metadata"].get("finish_details", {}):
-                        delta = {}
-                        finish_reason = "stop"
-                        end = True
                     if completion_tokens == max_tokens:
                         delta = {}
                         finish_reason = "length"
                         end = True
+                elif chunk_old_data.get("message").get("metadata").get("finish_details"):
+                    delta = {}
+                    finish_reason = "stop"
+                    end = True
                 else:
                     continue
                 chunk_new_data = {
@@ -89,9 +89,11 @@ async def chat_response(resp, model, prompt_tokens, max_tokens):
     """
     last_resp = None
     for i in reversed(resp):
-        if i != "data: [DONE]" and i.startswith("data: ") and '"message":' in i:
+        if i != "data: [DONE]" and i.startswith("data: "):
             try:
                 last_resp = json.loads(i[6:])
+                if not last_resp.get("message"):
+                    raise
                 break
             except Exception:
                 Logger.error(f"Error: {i}")
@@ -111,8 +113,7 @@ async def chat_response(resp, model, prompt_tokens, max_tokens):
             }
         ],
         "usage": usage,
-        "system_fingerprint": system_fingerprint,
-        "conversation_id": last_resp["conversation_id"]
+        "system_fingerprint": system_fingerprint
     }
 
 
@@ -131,7 +132,8 @@ async def init_param(last_resp, max_tokens, model, prompt_tokens):
         finish_reason = "moderation"
     else:
         message_content = last_resp["message"]["content"]["parts"][0]
-        message_content, completion_tokens, finish_reason = split_tokens_from_content(message_content, max_tokens, model)
+        message_content, completion_tokens, finish_reason = split_tokens_from_content(message_content, max_tokens,
+                                                                                      model)
     message = {
         "role": "assistant",
         "content": message_content,
@@ -163,7 +165,10 @@ def api_messages_to_chat(api_messages):
 
 class ChatService:
     def __init__(self, data, access_token=None):
-        self.s = httpx.AsyncClient(proxies=random.choice(proxy_url_list), timeout=30, verify=False)
+        if proxy_url_list:
+            self.s = httpx.AsyncClient(timeout=30, verify=False, proxies=random.choice(proxy_url_list))
+        else:
+            self.s = httpx.AsyncClient(timeout=30, verify=False)
         self.free35_base_url = random.choice(free35_base_url_list)
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0"
         self.access_token = access_token
@@ -171,7 +176,6 @@ class ChatService:
         self.chat_token = None
 
         self.data = data
-        self.conversation_id = self.data.get("conversation_id", None)
         self.model = self.data.get("model", "gpt-3.5-turbo-0125")
         self.api_messages = self.data.get("messages", [])
         self.prompt_tokens = num_tokens_from_messages(self.api_messages, self.model)
@@ -200,7 +204,20 @@ class ChatService:
         try:
             r = await self.s.post(url, headers=headers, json={})
             if r.status_code == 200:
-                self.chat_token = r.json().get('token')
+                resp = r.json()
+
+                arkose = resp.get('arkose', {})
+                arkose_required = arkose.get('required')
+                if arkose_required:
+                    arkose_dx = arkose.get("dx")
+                    raise HTTPException(status_code=403, detail="Arkose required")
+
+                turnstile = resp.get('turnstile', {})
+                turnstile_required = turnstile.get('required')
+                if turnstile_required:
+                    raise HTTPException(status_code=403, detail="Turnstile required")
+
+                self.chat_token = resp.get('token')
                 if not self.chat_token:
                     raise HTTPException(status_code=502, detail=f"Failed to get chat token: {r.text}")
                 return self.chat_token
@@ -248,6 +265,7 @@ class ChatService:
         else:
             model = "text-davinci-002-render-sha"
         parent_message_id = f"{uuid.uuid4()}"
+        websocket_request_id = f"{uuid.uuid4()}"
         self.chat_request = {
             "action": "next",
             "messages": chat_messages,
@@ -261,9 +279,8 @@ class ChatService:
             "force_paragen_model_slug": "",
             "force_nulligen": False,
             "force_rate_limit": False,
+            "websocket_request_id": websocket_request_id,
         }
-        if self.conversation_id:
-            self.chat_request["conversation_id"] = self.conversation_id
         return self.chat_request
 
     async def send_conversation_for_stream(self):

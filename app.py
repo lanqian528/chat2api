@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
+
 from chatgpt.ChatService import ChatService
 from utils.authorization import verify_token
 from utils.retry import async_retry
@@ -28,7 +29,7 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
     :return: 对话结果
     """
     access_token = None
-    if token and token.startswith("ey"):
+    if token and token.startswith("eyJhbGciOi"):
         access_token = token
 
     # 入参格式校验
@@ -44,18 +45,18 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
     # 发送对话
     stream = request_data.get("stream", False)
     if stream is True:
-     # 流式响应
         return StreamingResponse(await chat_service.send_conversation_for_stream(), media_type="text/event-stream")
     else:
-        # 非流式响应
         return JSONResponse(await chat_service.send_conversation(), media_type="application/json")
 
 
 if __name__ == "__main__":
     import uvicorn
+
     log_config = uvicorn.config.LOGGING_CONFIG
     default_format = "%(asctime)s | %(levelname)s | %(message)s"
     access_format = r'%(asctime)s | %(levelname)s | %(client_addr)s: %(request_line)s %(status_code)s'
     log_config["formatters"]["default"]["fmt"] = default_format
     log_config["formatters"]["access"]["fmt"] = access_format
+
     uvicorn.run("app:app", host="0.0.0.0", port=5005)

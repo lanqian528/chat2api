@@ -8,9 +8,9 @@ load_dotenv()
 
 
 def is_true(stream):
-    if isinstance(stream, str):  # 检查是否为字符串
+    if isinstance(stream, str):
         return stream.lower() in ['true', '1', 't', 'y', 'yes']
-    elif isinstance(stream, int):  # 检查是否为整数
+    elif isinstance(stream, int):
         return stream == 1
     else:
         return False
@@ -24,10 +24,10 @@ history_disabled = is_true(history_disabled_str)
 proxy_url = os.getenv('PROXY_URL', '').replace(' ', '')
 retry_times = int(os.getenv('RETRY_TIMES', 3))
 
-authorization_list = authorization.split(',') if authorization else [authorization]
-free35_base_url_list = free35_base_url.split(',') if free35_base_url else [free35_base_url]
-chatgpt_base_url_list = chatgpt_base_url.split(',') if chatgpt_base_url else [chatgpt_base_url]
-proxy_url_list = proxy_url.split(',') if proxy_url else [proxy_url]
+authorization_list = authorization.split(',') if authorization else []
+free35_base_url_list = free35_base_url.split(',') if free35_base_url else []
+chatgpt_base_url_list = chatgpt_base_url.split(',') if chatgpt_base_url else []
+proxy_url_list = proxy_url.split(',') if proxy_url else []
 
 logger.info("Environment variables (no AUTHORIZATION):")
 logger.info("FREE35_BASE_URL:       " + str(free35_base_url_list))
