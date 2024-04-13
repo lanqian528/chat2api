@@ -25,11 +25,11 @@ async def stream_response(response, model, max_tokens):
     end = False
     async for chunk in response.aiter_lines():
         if end:
-            yield f"data: [DONE]\n\n"
+            yield "data: [DONE]\n\n"
             break
         try:
             if chunk == "data: [DONE]":
-                yield f"data: [DONE]\n\n"
+                yield "data: [DONE]\n\n"
             elif not chunk.startswith("data: "):
                 continue
             else:
@@ -46,7 +46,7 @@ async def stream_response(response, model, max_tokens):
                     else:
                         delta = {"content": content[len_last_content:]}
                     len_last_content = len(content)
-                    if completion_tokens == max_tokens:
+                    if completion_tokens >= max_tokens:
                         delta = {}
                         finish_reason = "length"
                         end = True
@@ -129,7 +129,7 @@ async def init_param(last_resp, max_tokens, model, prompt_tokens):
     if last_resp.get("type") == "moderation":
         message_content = moderation_message
         completion_tokens = 53
-        finish_reason = "moderation"
+        finish_reason = "stop"
     else:
         message_content = last_resp["message"]["content"]["parts"][0]
         message_content, completion_tokens, finish_reason = split_tokens_from_content(message_content, max_tokens,
