@@ -4,13 +4,13 @@ import string
 import time
 import uuid
 
-import httpx
 from fastapi import HTTPException
 
 from api.chat_completions import num_tokens_from_messages, model_system_fingerprint, model_proxy, \
     split_tokens_from_content
 from utils.Logger import Logger
 from utils.config import history_disabled, free35_base_url_list, proxy_url_list
+from utils.Client import Client
 
 moderation_message = "I'm sorry, I cannot provide or engage in any content related to pornography, violence, or any unethical material. If you have any other questions or need assistance, please feel free to let me know. I'll do my best to provide support and assistance."
 
@@ -24,6 +24,7 @@ async def stream_response(response, model, max_tokens):
     len_last_content = 0
     end = False
     async for chunk in response.aiter_lines():
+        chunk = chunk.decode("utf-8")
         if end:
             yield "data: [DONE]\n\n"
             break
@@ -165,10 +166,12 @@ def api_messages_to_chat(api_messages):
 
 class ChatService:
     def __init__(self, data, access_token=None):
-        if proxy_url_list:
-            self.s = httpx.AsyncClient(timeout=30, verify=False, proxies=random.choice(proxy_url_list))
-        else:
-            self.s = httpx.AsyncClient(timeout=30, verify=False)
+        self.proxy_url = random.choice(proxy_url_list) if proxy_url_list else None
+        self.proxies = {
+            "http": self.proxy_url,
+            "https": self.proxy_url
+        } if self.proxy_url else None
+        self.s = Client(proxy=self.proxies)
         self.free35_base_url = random.choice(free35_base_url_list)
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0"
         self.access_token = access_token
@@ -236,7 +239,7 @@ class ChatService:
         except HTTPException as e:
             raise HTTPException(status_code=e.status_code, detail=e.detail)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to request.")
+            raise HTTPException(status_code=500, detail=str(e))
 
     def prepare_send_conversation(self):
         self.headers = {
@@ -286,16 +289,15 @@ class ChatService:
     async def send_conversation_for_stream(self):
         url = f'{self.free35_base_url}/conversation'
         model = model_proxy.get(self.model, self.model)
-        r = await self.s.send(
-            self.s.build_request("POST", url, headers=self.headers, json=self.chat_request, timeout=600), stream=True)
+        r = await self.s.post(url, headers=self.headers, json=self.chat_request, timeout=600, stream=True)
         if r.status_code == 200:
             return stream_response(r, model, self.max_tokens)
         else:
-            await r.aread()
+            rtext = await r.atext()
             if "application/json" == r.headers.get("Content-Type", ""):
-                detail = r.json().get("detail", r.json())
+                detail = json.loads(rtext).get("detail", json.loads(rtext))
             else:
-                detail = r.content
+                detail = rtext
             if r.status_code != 200:
                 if r.status_code == 403:
                     raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
@@ -304,15 +306,17 @@ class ChatService:
     async def send_conversation(self):
         url = f'{self.free35_base_url}/conversation'
         model = model_proxy.get(self.model, self.model)
-        r = await self.s.send(
-            self.s.build_request("POST", url, headers=self.headers, json=self.chat_request, timeout=600), stream=False)
-        if "application/json" == r.headers.get("Content-Type", ""):
-            detail = r.json().get("detail", r.json())
+        r = await self.s.post(url, headers=self.headers, json=self.chat_request, timeout=600)
+        if r.status_code == 200:
+            rtext = r.text.split("\n")
+            return await chat_response(rtext, model, self.prompt_tokens, self.max_tokens)
         else:
-            detail = r.content
-        if r.status_code != 200:
+            if "application/json" == r.headers.get("Content-Type", ""):
+                detail = r.json().get("detail", r.json())
+            else:
+                detail = r.content
             if r.status_code == 403:
                 raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
             raise HTTPException(status_code=r.status_code, detail=detail)
-        resp = r.text.split("\n")
-        return await chat_response(resp, model, self.prompt_tokens, self.max_tokens)
+
+
