@@ -9,8 +9,9 @@ from fastapi import HTTPException
 from api.chat_completions import num_tokens_from_messages, model_system_fingerprint, model_proxy, \
     split_tokens_from_content
 from utils.Logger import Logger
-from utils.config import history_disabled, free35_base_url_list, proxy_url_list
+from utils.config import history_disabled, proxy_url_list, free35_base_url_list, chatgpt_base_url_list, arkose_token_url_list
 from utils.Client import Client
+from chatgpt.proofofwork import calc_proof_token
 
 moderation_message = "I'm sorry, I cannot provide or engage in any content related to pornography, violence, or any unethical material. If you have any other questions or need assistance, please feel free to let me know. I'll do my best to provide support and assistance."
 
@@ -172,11 +173,18 @@ class ChatService:
             "https": self.proxy_url
         } if self.proxy_url else None
         self.s = Client(proxy=self.proxies)
-        self.free35_base_url = random.choice(free35_base_url_list)
+        if access_token:
+            self.base_url = random.choice(chatgpt_base_url_list)
+        else:
+            self.base_url = random.choice(free35_base_url_list)
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0"
+
         self.access_token = access_token
         self.oai_device_id = str(uuid.uuid4())
         self.chat_token = None
+        self.arkose_token = None
+        self.arkose_token_url = random.choice(arkose_token_url_list) if arkose_token_url_list else None
+        self.proof_token = None
 
         self.data = data
         self.model = self.data.get("model", "gpt-3.5-turbo-0125")
@@ -188,7 +196,7 @@ class ChatService:
         self.chat_request = None
 
     async def get_chat_requirements(self):
-        url = f'{self.free35_base_url}/sentinel/chat-requirements'
+        url = f'{self.base_url}/sentinel/chat-requirements'
         headers = {
             'Accept': '*/*',
             'Accept-Language': 'en-US,en;q=0.9',
@@ -208,14 +216,25 @@ class ChatService:
             r = await self.s.post(url, headers=headers, json={})
             if r.status_code == 200:
                 resp = r.json()
-
                 arkose = resp.get('arkose', {})
+                proofofwork = resp.get('proofofwork', {})
+                turnstile = resp.get('turnstile', {})
                 arkose_required = arkose.get('required')
                 if arkose_required:
                     arkose_dx = arkose.get("dx")
-                    raise HTTPException(status_code=403, detail="Arkose required")
+                    arkose_client = Client()
+                    try:
+                        r2 = await arkose_client.post(self.arkose_token_url, json={"blob": arkose_dx}, timeout=15)
+                        self.arkose_token = r2.json()['token']
+                    except Exception as e:
+                        raise HTTPException(status_code=403, detail="Arkose required")
 
-                turnstile = resp.get('turnstile', {})
+                proofofwork_required = proofofwork.get('required')
+                if proofofwork_required:
+                    proofofwork_seed = proofofwork.get("seed")
+                    proofofwork_diff = proofofwork.get("difficulty")
+                    self.proof_token = calc_proof_token(proofofwork_seed, proofofwork_diff)
+
                 turnstile_required = turnstile.get('required')
                 if turnstile_required:
                     raise HTTPException(status_code=403, detail="Turnstile required")
@@ -250,6 +269,8 @@ class ChatService:
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
             'Openai-Sentinel-Chat-Requirements-Token': self.chat_token,
+            'Openai-Sentinel-Proof-Token': self.proof_token,
+            'Openai-Sentinel-Arkose-Token': self.arkose_token,
             'Origin': 'https://chat.openai.com',
             'Referer': 'https://chat.openai.com/',
             'Sec-Ch-Ua': '"Microsoft Edge";v="123", "Not:A-Brand";v="8", "Chromium";v="123"',
@@ -287,7 +308,7 @@ class ChatService:
         return self.chat_request
 
     async def send_conversation_for_stream(self):
-        url = f'{self.free35_base_url}/conversation'
+        url = f'{self.base_url}/conversation'
         model = model_proxy.get(self.model, self.model)
         r = await self.s.post(url, headers=self.headers, json=self.chat_request, timeout=600, stream=True)
         if r.status_code == 200:
@@ -304,7 +325,7 @@ class ChatService:
                 raise HTTPException(status_code=r.status_code, detail=detail)
 
     async def send_conversation(self):
-        url = f'{self.free35_base_url}/conversation'
+        url = f'{self.base_url}/conversation'
         model = model_proxy.get(self.model, self.model)
         r = await self.s.post(url, headers=self.headers, json=self.chat_request, timeout=600)
         if r.status_code == 200:
