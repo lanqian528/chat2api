@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from api.chat_completions import num_tokens_from_messages, model_system_fingerprint, model_proxy, \
     split_tokens_from_content
 from utils.Logger import Logger
-from utils.config import history_disabled, proxy_url_list, free35_base_url_list, chatgpt_base_url_list, arkose_token_url_list
+from utils.config import history_disabled, proxy_url_list, chatgpt_base_url_list, arkose_token_url_list
 from utils.Client import Client
 from chatgpt.proofofwork import calc_proof_token
 
@@ -81,14 +81,6 @@ async def stream_response(response, model, max_tokens):
 
 
 async def chat_response(resp, model, prompt_tokens, max_tokens):
-    """
-    组装对话响应
-    :param resp: 响应数据
-    :param model: 模型
-    :param prompt_tokens: prompt token数
-    :param max_tokens: 最大token数量
-    :return:
-    """
     last_resp = None
     for i in reversed(resp):
         if i != "data: [DONE]" and i.startswith("data: "):
@@ -120,14 +112,6 @@ async def chat_response(resp, model, prompt_tokens, max_tokens):
 
 
 async def init_param(last_resp, max_tokens, model, prompt_tokens):
-    """
-    组装参数
-    :param last_resp: 最终响应
-    :param max_tokens: 最大token数量
-    :param model: 模型
-    :param prompt_tokens: prompt token数
-    :return: 对应参数
-    """
     if last_resp.get("type") == "moderation":
         message_content = moderation_message
         completion_tokens = 53
@@ -168,15 +152,11 @@ def api_messages_to_chat(api_messages):
 class ChatService:
     def __init__(self, data, access_token=None):
         self.proxy_url = random.choice(proxy_url_list) if proxy_url_list else None
-        self.proxies = {
-            "http": self.proxy_url,
-            "https": self.proxy_url
-        } if self.proxy_url else None
-        self.s = Client(proxy=self.proxies)
+        self.s = Client(proxy=self.proxy_url)
         if access_token:
-            self.base_url = random.choice(chatgpt_base_url_list)
+            self.base_url = random.choice(chatgpt_base_url_list) + "/backend-api"
         else:
-            self.base_url = random.choice(free35_base_url_list)
+            self.base_url = random.choice(chatgpt_base_url_list) + "/backend-anon"
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0"
 
         self.access_token = access_token
