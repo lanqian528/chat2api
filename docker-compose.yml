@@ -13,7 +13,7 @@ services:
 #      - CHATGPT_BASE_URL=https://chat.openai.com/backend-api
 #      - HISTORY_DISABLED=true
       - PROXY_URL=your_first_proxy, your_second_proxy
-      - ARKOSE_TOKEN_URL=http://127.0.0.1:5006/token
+      - ARKOSE_TOKEN_URL=http://arkose:5006/token
 #      - RETRY_TIMES=3
 
   arkose:
