@@ -31,6 +31,10 @@
 
 ## Deploy
 
+### (推荐) zeabur部署
+
+[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/6HEGIZ?referralCode=LanQian528)
+
 ### 直接部署
 
 ```bash
@@ -51,7 +55,7 @@ docker run -d \
   lanqian528/chat2api:latest
 ```
 
-### (推荐) Docker Compose部署
+### (推荐，可用4.0) Docker Compose部署
 
 创建一个新的目录，例如chat2api，并进入该目录：
 
