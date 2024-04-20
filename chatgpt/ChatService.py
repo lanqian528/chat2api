@@ -224,7 +224,11 @@ class ChatService:
                     arkose_dx = arkose.get("dx")
                     arkose_client = Client()
                     try:
-                        r2 = await arkose_client.post(self.arkose_token_url, json={"blob": arkose_dx}, timeout=15)
+                        r2 = await arkose_client.post(
+                            url=self.arkose_token_url,
+                            json={"blob": arkose_dx},
+                            timeout=15
+                        )
                         self.arkose_token = r2.json()['token']
                     except Exception as e:
                         raise HTTPException(status_code=403, detail="Arkose required")
@@ -327,17 +331,18 @@ class ChatService:
     async def send_conversation(self):
         url = f'{self.base_url}/conversation'
         model = model_proxy.get(self.model, self.model)
-        r = await self.s.post(url, headers=self.headers, json=self.chat_request, timeout=600)
-        if r.status_code == 200:
-            rtext = r.text.split("\n")
-            return await chat_response(rtext, model, self.prompt_tokens, self.max_tokens)
-        else:
-            if "application/json" == r.headers.get("Content-Type", ""):
-                detail = r.json().get("detail", r.json())
+        try:
+            r = await self.s.post(url, headers=self.headers, json=self.chat_request, timeout=600)
+            if r.status_code == 200:
+                rtext = r.text.split("\n")
+                return await chat_response(rtext, model, self.prompt_tokens, self.max_tokens)
             else:
-                detail = r.content
-            if r.status_code == 403:
-                raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
-            raise HTTPException(status_code=r.status_code, detail=detail)
-
-
+                if "application/json" == r.headers.get("Content-Type", ""):
+                    detail = r.json().get("detail", r.json())
+                else:
+                    detail = r.content
+                if r.status_code == 403:
+                    raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
+                raise HTTPException(status_code=r.status_code, detail=detail)
+        except HTTPException as e:
+            raise HTTPException(status_code=e.status_code, detail=str(e))

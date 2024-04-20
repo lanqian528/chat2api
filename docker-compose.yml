@@ -1,14 +1,28 @@
 version: '3'
 
 services:
-  app:
+  chat2api:
     image: lanqian528/chat2api:latest
     container_name: chat2api
     restart: unless-stopped
     ports:
       - '5005:5005'
-#    environment:
+    environment:
 #      - AUTHORIZATION=your_first_token, your_second_token
-#      - FREE35_BASE_URL=https://chat.openai.com/backend-anon, https://auroraxf.glitch.me/api, https://api.angelxf.cf/api
-#      - HISTORY_DISABLED=false
-#      - PROXY_URL=your_first_proxy, your_second_proxy
+#      - FREE35_BASE_URL=https://chat.openai.com/backend-anon
+#      - CHATGPT_BASE_URL=https://chat.openai.com/backend-api
+#      - HISTORY_DISABLED=true
+      - PROXY_URL=your_first_proxy, your_second_proxy
+      - ARKOSE_TOKEN_URL=http://127.0.0.1:5006/token
+#      - RETRY_TIMES=3
+
+  arkose:
+    image: lanqian528/funcaptcha_solver:latest
+    container_name: funcaptcha_solver
+    restart: unless-stopped
+    ports:
+      - '5006:5006'
+    environment:
+      - VERSION=2.4.5
+      - HASH=6c9d6e9be9aa044cc5ce9548b4abe1b0
+      - PROXY_URL=your_first_proxy
