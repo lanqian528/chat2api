@@ -75,8 +75,6 @@ async def stream_response(service, response, model, max_tokens):
                         new_text = "\n```\n" + new_text
                     if recipient == "dalle.text2im" and last_recipient != "dalle.text2im":
                         new_text = "\n```" + "json" + "\n" + new_text
-                    elif last_recipient == "dalle.text2im" and recipient != "dalle.text2im":
-                        new_text = "\n```\n" + new_text
                     delta = {"content": new_text}
                     last_content_type = outer_content_type
                     last_recipient = recipient
@@ -96,7 +94,7 @@ async def stream_response(service, response, model, max_tokens):
                                 Logger.debug(f"asset_pointer: {asset_pointer}")
                                 image_download_url = await service.get_image_download_url(asset_pointer)
                                 Logger.debug(f"image_download_url: {image_download_url}")
-                                delta = {"content": f"\n![image]({image_download_url})\n"}
+                                delta = {"content": f"\n```\n![image]({image_download_url})\n"}
                     elif not message.get("end_turn") or not message.get("metadata").get("finish_details"):
                         message_id = None
                         len_last_content = 0
@@ -399,7 +397,6 @@ class ChatService:
                 download_url = r.json().get('download_url')
                 return download_url
             else:
-                detail = r.json().get("detail", r.json())
-                raise HTTPException(status_code=r.status_code, detail=detail)
+                return ""
         except HTTPException as e:
-            raise HTTPException(status_code=e.status_code, detail=str(e))
+            return ""
