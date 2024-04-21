@@ -41,7 +41,10 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])
 async def reverse_proxy(request: Request, path: str):
     base_url = random.choice(chatgpt_base_url_list)
-    origin_url = request.url.scheme + "://" + request.url.netloc
+    if "http://" in str(request.url):
+        origin_url = "http://" + request.url.netloc
+    else:
+        origin_url = "https://" + request.url.netloc
     if "v1" in path:
         base_url = "https://ab.chatgpt.com"
     params = dict(request.query_params)
