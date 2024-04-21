@@ -39,15 +39,18 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
 
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])
-async def proxy(request: Request, path: str):
+async def reverse_proxy(request: Request, path: str):
     base_url = random.choice(chatgpt_base_url_list)
+    origin_url = request.url.scheme + "://" + request.url.netloc
+    if "v1" in path:
+        base_url = "https://ab.chatgpt.com"
     params = dict(request.query_params)
     headers = {key: value for key, value in request.headers.items() if key.lower() not in ["host", "origin", "referer", "user-agent", "authorization"]}
     cookies = dict(request.cookies)
 
     headers.update({
         "Accept-Language": "en-US,en;q=0.9",
-        "Host": f"{base_url.replace('https://', '').replace('http://', '')}",
+        "Host": f"{base_url.split('//')[1]}",
         "Origin": f"{base_url}",
         "Referer": f"{base_url}/{path}",
         "Sec-Ch-Ua": '"Chromium";v="123", "Not(A:Brand";v="24", "Microsoft Edge";v="123"',
@@ -68,20 +71,15 @@ async def proxy(request: Request, path: str):
 
     client = Client(proxy=random.choice(proxy_url_list) if proxy_url_list else None)
 
-    r = await client.request(
-        request.method,
-        f"{base_url}/{path}",
-        params=params,
-        headers=headers,
-        cookies=cookies,
-        data=data,
-        stream=True,
-    )
-    if 'stream' in r.headers.get("Content-Type"):
-        return StreamingResponse(r.aiter_content(), media_type=r.headers.get("Content-Type"))
-    else:
-        content = await r.atext()
-        return Response(content=content, media_type=r.headers.get("content-type"), status_code=r.status_code)
+    try:
+        r = await client.request(request.method, f"{base_url}/{path}", params=params, headers=headers, cookies=cookies, data=data, stream=True)
+        if 'stream' in r.headers.get("content-type", ""):
+            return StreamingResponse(r.aiter_content(), media_type=r.headers.get("content-type", ""))
+        else:
+            content = (await r.atext()).replace("https://chat.openai.com", origin_url).replace("https://ab.chatgpt.com", origin_url).replace("https://cdn.oaistatic.com", origin_url)
+            return Response(content=content, media_type=r.headers.get("content-type"), status_code=r.status_code)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
