@@ -16,14 +16,16 @@ from chatgpt.proofofwork import calc_proof_token
 moderation_message = "I'm sorry, I cannot provide or engage in any content related to pornography, violence, or any unethical material. If you have any other questions or need assistance, please feel free to let me know. I'll do my best to provide support and assistance."
 
 
-async def stream_response(response, model, max_tokens):
+async def stream_response(service, response, model, max_tokens):
     chat_id = f"chatcmpl-{''.join(random.choice(string.ascii_letters + string.digits) for _ in range(29))}"
     system_fingerprint_list = model_system_fingerprint.get(model, None)
     system_fingerprint = random.choice(system_fingerprint_list) if system_fingerprint_list else None
     created_time = int(time.time())
     completion_tokens = -1
     len_last_content = 0
+    last_content_type = None
     end = False
+    message_id = None
     async for chunk in response.aiter_lines():
         chunk = chunk.decode("utf-8")
         if end:
@@ -37,25 +39,65 @@ async def stream_response(response, model, max_tokens):
             else:
                 chunk_old_data = json.loads(chunk[6:])
                 finish_reason = None
-                if chunk_old_data.get("type") == "moderation":
+                message = chunk_old_data.get("message", {})
+                status = message.get("status")
+                content = message.get("content", {})
+
+                if not message and chunk_old_data.get("type") == "moderation":
                     delta = {"role": "assistant", "content": moderation_message}
-                    finish_reason = "moderation"
+                    finish_reason = "stop"
                     end = True
-                elif chunk_old_data.get("message").get("status") == "in_progress":
-                    content = chunk_old_data["message"]["content"]["parts"][0]
-                    if not content:
-                        delta = {"role": "assistant", "content": ""}
+                elif status == "in_progress":
+                    outer_content_type = content.get("content_type")
+                    if outer_content_type == "text":
+                        part = content.get("parts", [])[0]
+                        if not part:
+                            message_id = message.get("id")
+                            new_text = ""
+                        else:
+                            if message_id != message.get("id"):
+                                continue
+                            new_text = part[len_last_content:]
+                            len_last_content = len(part)
                     else:
-                        delta = {"content": content[len_last_content:]}
-                    len_last_content = len(content)
+                        text = content.get("text", "")
+                        if outer_content_type == "code" and last_content_type != "code":
+                            recipient = message.get("recipient")
+                            new_text = "\n```" + recipient + "\n" + text[len_last_content:]
+                        elif outer_content_type == "execution_output" and last_content_type != "execution_output":
+                            new_text = "\n```" + "Output" + "\n" + text[len_last_content:]
+                        else:
+                            new_text = text[len_last_content:]
+                        len_last_content = len(text)
+                    if last_content_type == "code" and outer_content_type != "code":
+                        new_text = "\n```\n" + new_text
+                    elif last_content_type == "execution_output" and outer_content_type != "execution_output":
+                        new_text = "\n```\n" + new_text
+                    delta = {"content": new_text}
+                    last_content_type = outer_content_type
                     if completion_tokens >= max_tokens:
                         delta = {}
                         finish_reason = "length"
                         end = True
-                elif chunk_old_data.get("message").get("metadata").get("finish_details"):
-                    delta = {}
-                    finish_reason = "stop"
-                    end = True
+                elif status == "finished_successfully":
+                    if content.get("content_type") == "multimodal_text":
+                        parts = content.get("parts", [])
+                        for part in parts:
+                            inner_content_type = part.get('content_type')
+                            if inner_content_type == "image_asset_pointer":
+                                last_content_type = "image_asset_pointer"
+                                asset_pointer = part.get('asset_pointer').replace('file-service://', '')
+                                Logger.info(f"asset_pointer: {asset_pointer}")
+                                image_download_url = await service.get_image_download_url(asset_pointer)
+                                delta = {"content": f"\n![image]({image_download_url})\n"}
+                    elif not message.get("end_turn") or not message.get("metadata").get("finish_details"):
+                        message_id = None
+                        len_last_content = 0
+                        continue
+                    else:
+                        delta = {}
+                        finish_reason = "stop"
+                        end = True
                 else:
                     continue
                 chunk_new_data = {
@@ -75,7 +117,7 @@ async def stream_response(response, model, max_tokens):
                 }
                 completion_tokens += 1
                 yield f"data: {json.dumps(chunk_new_data)}\n\n"
-        except Exception:
+        except Exception as e:
             Logger.error(f"Error: {chunk}")
             continue
 
@@ -296,7 +338,7 @@ class ChatService:
         model = model_proxy.get(self.model, self.model)
         r = await self.s.post(url, headers=self.headers, json=self.chat_request, timeout=600, stream=True)
         if r.status_code == 200:
-            return stream_response(r, model, self.max_tokens)
+            return stream_response(self, r, model, self.max_tokens)
         else:
             rtext = await r.atext()
             if "application/json" == r.headers.get("Content-Type", ""):
@@ -323,6 +365,34 @@ class ChatService:
                     detail = r.content
                 if r.status_code == 403:
                     raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
+                raise HTTPException(status_code=r.status_code, detail=detail)
+        except HTTPException as e:
+            raise HTTPException(status_code=e.status_code, detail=str(e))
+
+    async def get_image_download_url(self, asset_pointer):
+        image_url = f"{self.base_url}/backend-api/files/{asset_pointer}/download"
+        headers = {
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Content-Type': 'application/json',
+            'Oai-Device-Id': self.oai_device_id,
+            'Oai-Language': 'en-US',
+            'Origin': 'https://chat.openai.com',
+            'Referer': 'https://chat.openai.com/',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
+            'User-Agent': self.user_agent
+        }
+        if self.access_token:
+            headers['Authorization'] = f'Bearer {self.access_token}'
+        try:
+            r = await self.s.get(image_url, headers=headers)
+            if r.status_code == 200:
+                download_url = r.json().get('download_url')
+                return download_url
+            else:
+                detail = r.json().get("detail", r.json())
                 raise HTTPException(status_code=r.status_code, detail=detail)
         except HTTPException as e:
             raise HTTPException(status_code=e.status_code, detail=str(e))

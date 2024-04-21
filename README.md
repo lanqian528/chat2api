@@ -22,11 +22,11 @@
 > - [x] 配置 BASE_URL
 > - [x] 重试次数设置
 > - [x] ArkoseToken
+> - [x] GPT4.0 画图、工具(仅流式，测试阶段)
 > 
 > 
 > TODO
-> 
-> - [ ] GPT4.0 画图、工具
+>
 > - [ ] GPTs
 
 ## Deploy
