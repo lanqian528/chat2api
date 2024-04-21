@@ -24,6 +24,7 @@ async def stream_response(service, response, model, max_tokens):
     completion_tokens = -1
     len_last_content = 0
     last_content_type = None
+    last_recipient = None
     end = False
     message_id = None
     async for chunk in response.aiter_lines():
@@ -42,7 +43,7 @@ async def stream_response(service, response, model, max_tokens):
                 message = chunk_old_data.get("message", {})
                 status = message.get("status")
                 content = message.get("content", {})
-
+                recipient = message.get("recipient", "")
                 if not message and chunk_old_data.get("type") == "moderation":
                     delta = {"role": "assistant", "content": moderation_message}
                     finish_reason = "stop"
@@ -62,7 +63,6 @@ async def stream_response(service, response, model, max_tokens):
                     else:
                         text = content.get("text", "")
                         if outer_content_type == "code" and last_content_type != "code":
-                            recipient = message.get("recipient")
                             new_text = "\n```" + recipient + "\n" + text[len_last_content:]
                         elif outer_content_type == "execution_output" and last_content_type != "execution_output":
                             new_text = "\n```" + "Output" + "\n" + text[len_last_content:]
@@ -73,8 +73,13 @@ async def stream_response(service, response, model, max_tokens):
                         new_text = "\n```\n" + new_text
                     elif last_content_type == "execution_output" and outer_content_type != "execution_output":
                         new_text = "\n```\n" + new_text
+                    if recipient == "dalle.text2im" and last_recipient != "dalle.text2im":
+                        new_text = "\n```" + "json" + "\n" + new_text
+                    elif last_recipient == "dalle.text2im" and recipient != "dalle.text2im":
+                        new_text = "\n```\n" + new_text
                     delta = {"content": new_text}
                     last_content_type = outer_content_type
+                    last_recipient = recipient
                     if completion_tokens >= max_tokens:
                         delta = {}
                         finish_reason = "length"
@@ -82,13 +87,15 @@ async def stream_response(service, response, model, max_tokens):
                 elif status == "finished_successfully":
                     if content.get("content_type") == "multimodal_text":
                         parts = content.get("parts", [])
+                        delta = {}
                         for part in parts:
                             inner_content_type = part.get('content_type')
                             if inner_content_type == "image_asset_pointer":
                                 last_content_type = "image_asset_pointer"
                                 asset_pointer = part.get('asset_pointer').replace('file-service://', '')
-                                Logger.info(f"asset_pointer: {asset_pointer}")
+                                Logger.debug(f"asset_pointer: {asset_pointer}")
                                 image_download_url = await service.get_image_download_url(asset_pointer)
+                                Logger.debug(f"image_download_url: {image_download_url}")
                                 delta = {"content": f"\n![image]({image_download_url})\n"}
                     elif not message.get("end_turn") or not message.get("metadata").get("finish_details"):
                         message_id = None
@@ -117,7 +124,7 @@ async def stream_response(service, response, model, max_tokens):
                 }
                 completion_tokens += 1
                 yield f"data: {json.dumps(chunk_new_data)}\n\n"
-        except Exception as e:
+        except Exception:
             Logger.error(f"Error: {chunk}")
             continue
 
@@ -370,7 +377,7 @@ class ChatService:
             raise HTTPException(status_code=e.status_code, detail=str(e))
 
     async def get_image_download_url(self, asset_pointer):
-        image_url = f"{self.base_url}/backend-api/files/{asset_pointer}/download"
+        image_url = f"{self.base_url}/files/{asset_pointer}/download"
         headers = {
             'Accept': '*/*',
             'Accept-Language': 'en-US,en;q=0.9',
