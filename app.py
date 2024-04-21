@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from chatgpt.ChatService import ChatService
 from chatgpt.reverseProxy import chatgpt_reverse_proxy
@@ -7,6 +8,14 @@ from utils.authorization import verify_token
 from utils.retry import async_retry
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 async def to_send_conversation(request_data, access_token):
