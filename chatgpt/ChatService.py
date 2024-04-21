@@ -8,10 +8,10 @@ from fastapi import HTTPException
 
 from api.chat_completions import num_tokens_from_messages, model_system_fingerprint, model_proxy, \
     split_tokens_from_content
+from chatgpt.proofofwork import calc_proof_token
+from utils.Client import Client
 from utils.Logger import Logger
 from utils.config import history_disabled, proxy_url_list, chatgpt_base_url_list, arkose_token_url_list
-from utils.Client import Client
-from chatgpt.proofofwork import calc_proof_token
 
 moderation_message = "I'm sorry, I cannot provide or engage in any content related to pornography, violence, or any unethical material. If you have any other questions or need assistance, please feel free to let me know. I'll do my best to provide support and assistance."
 

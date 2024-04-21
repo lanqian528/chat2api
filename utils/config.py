@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 from utils.Logger import logger
 
-load_dotenv()
+load_dotenv(encoding="ascii")
 
 
 def is_true(stream):

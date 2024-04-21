@@ -22,11 +22,13 @@
 > - [x] 配置 BASE_URL
 > - [x] 重试次数设置
 > - [x] ArkoseToken
-> - [x] GPT4.0 画图、工具(仅流式，测试阶段)
-> 
+> - [x] GPT4.0 画图、工具 (仅流式，测试阶段)
+> - [x] 使用 RefreshToken 代替 AccessToken
+> - [x] 反向代理 UI (http://127.0.0.1:5005)
 > 
 > TODO
 >
+> - [ ] GPT4.0 画图、工具(非流式)
 > - [ ] GPTs
 
 ## Deploy
@@ -77,6 +79,14 @@ docker-compose up -d
 ```
 
 ## Usage
+
+- 在网页使用, 直接访问以下地址, 仅支持使用免登 GPT3.5:
+
+```
+http://127.0.0.1:5005
+```
+
+- 使用 API , 支持传入 AccessToken 或 RefreshToken, 可用 GPT4.0:
 
 ```bash
 curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
