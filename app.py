@@ -46,7 +46,7 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])
 async def reverse_proxy(request: Request, path: str):
-    return chatgpt_reverse_proxy(request, path)
+    return await chatgpt_reverse_proxy(request, path)
 
 
 if __name__ == "__main__":
