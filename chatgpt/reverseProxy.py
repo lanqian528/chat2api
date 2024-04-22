@@ -1,5 +1,4 @@
 import random
-
 from fastapi import Request, HTTPException
 from fastapi.responses import StreamingResponse, Response
 
@@ -10,15 +9,23 @@ from utils.config import chatgpt_base_url_list, proxy_url_list
 async def chatgpt_reverse_proxy(request: Request, path: str):
     try:
         base_url = random.choice(chatgpt_base_url_list)
-        if ":" in request.url.netloc:
-            origin_url = "http://" + request.url.netloc
+        origin_host = request.url.netloc
+        if ":" in origin_host:
+            petrol = "http"
         else:
-            origin_url = "https://" + request.url.netloc
-        if "v1" in path:
+            petrol = "https"
+        origin_url = petrol + "//" + origin_host
+        if path.startswith("v1/"):
             base_url = "https://ab.chatgpt.com"
+        if path.startswith("authorize") or path.startswith("u") or path.startswith("oauth")  or path.startswith("assets"):
+            base_url = "https://auth.openai.com"
         params = dict(request.query_params)
-        headers = {key: value for key, value in request.headers.items() if
-                   key.lower() not in ["host", "origin", "referer", "user-agent", "authorization"]}
+        headers = {
+            key: value for key, value in request.headers.items()
+            if (key.lower() not in ["host", "origin", "referer", "user-agent", "authorization"]
+                and not
+                (key.lower().startswith("cf") or key.lower().startswith("cdn") or key.lower().startswith("x")))
+        }
         cookies = dict(request.cookies)
 
         headers.update({
@@ -49,9 +56,20 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
         if 'stream' in r.headers.get("content-type", ""):
             return StreamingResponse(r.aiter_content(), media_type=r.headers.get("content-type", ""))
         else:
-            content = (await r.atext()).replace("https://chat.openai.com", origin_url).replace("https://ab.chatgpt.com",
-                                                                                               origin_url).replace(
-                "https://cdn.oaistatic.com", origin_url)
-            return Response(content=content, media_type=r.headers.get("content-type"), status_code=r.status_code)
+            content = ((await r.atext()).replace("chat.openai.com", origin_host)
+                       .replace("ab.chatgpt.com", origin_host)
+                       .replace("cdn.oaistatic.com", origin_host)
+                       .replace("auth.openai.com", origin_host)
+                       .replace("https", petrol))
+            response = Response(content=content, media_type=r.headers.get("content-type"), status_code=r.status_code)
+            for key, value in r.cookies.items():
+                if key in cookies.keys():
+                    continue
+                if key.startswith("__"):
+                    response.set_cookie(key=key, value=value, secure=True, httponly=True, path='/')
+                else:
+                    response.set_cookie(key=key, value=value, secure=True, httponly=True)
+            return response
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
