@@ -6,6 +6,57 @@ from utils.Client import Client
 from utils.config import chatgpt_base_url_list, proxy_url_list
 
 
+headers_reject_list = [
+    "x-real-ip",
+    "x-forwarded-for",
+    "x-forwarded-proto",
+    "x-forwarded-port",
+    "x-forwarded-host",
+    "x-forwarded-server",
+    "cf-warp-tag-id",
+    "cf-visitor",
+    "cf-ray",
+    "cf-connecting-ip",
+    "cf-ipcountry",
+    "cdn-loop",
+    "remote-host",
+    "x-frame-options",
+    "x-xss-protection",
+    "x-content-type-options",
+    "content-security-policy",
+    "host",
+    "cookie",
+    "connection",
+    "content-length",
+    "content-encoding",
+    "x-middleware-prefetch",
+    "x-nextjs-data",
+    "purpose",
+    "x-forwarded-uri",
+    "x-forwarded-path",
+    "x-forwarded-method",
+    "x-forwarded-protocol",
+    "x-forwarded-scheme",
+    "cf-request-id",
+    "cf-worker",
+    "cf-access-client-id",
+    "cf-access-client-device-type",
+    "cf-access-client-device-model",
+    "cf-access-client-device-name",
+    "cf-access-client-device-brand",
+    "x-middleware-prefetch",
+    "x-forwarded-for",
+    "x-forwarded-host",
+    "x-forwarded-proto",
+    "x-forwarded-server",
+    "x-real-ip",
+    "x-forwarded-port",
+    "cf-connecting-ip",
+    "cf-ipcountry",
+    "cf-ray",
+    "cf-visitor",
+]
+
 async def chatgpt_reverse_proxy(request: Request, path: str):
     try:
         base_url = random.choice(chatgpt_base_url_list)
@@ -23,9 +74,7 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
         params = dict(request.query_params)
         headers = {
             key: value for key, value in request.headers.items()
-            if (key.lower() not in ["host", "origin", "referer", "user-agent", "authorization"]
-                and not
-                (key.lower().startswith("cf") or key.lower().startswith("cdn") or key.lower().startswith("x")))
+            if (key.lower() not in ["host", "origin", "referer", "user-agent", "authorization"] and key.lower() not in headers_reject_list)
         }
         cookies = dict(request.cookies)
 

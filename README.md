@@ -22,13 +22,12 @@
 > - [x] 配置 BASE_URL
 > - [x] 重试次数设置
 > - [x] ArkoseToken
-> - [x] GPT4.0 画图、工具 (仅流式，测试阶段)
+> - [x] GPT4.0 画图、工具 (测试中，可能有bug)
 > - [x] 使用 RefreshToken 代替 AccessToken
-> - [x] 反向代理 UI (http://127.0.0.1:5005)
+> - [x] 反向代理 UI (http://127.0.0.1:5005, 不支持登录)
 > 
 > TODO
 >
-> - [ ] GPT4.0 画图、工具(非流式)
 > - [ ] GPTs
 
 ## Deploy

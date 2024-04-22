@@ -8,13 +8,13 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 
 async def verify_token(token: str = Depends(oauth2_scheme)):
-    if not authorization_list:
+    if token and token.startswith("eyJhbGciOi"):
         return token
-    elif token in authorization_list:
-        return token
-    elif token and token.startswith("eyJhbGciOi"):
-        return token
-    elif len(token) == 45:
+    elif token and len(token) == 45:
         return await rt2ac(token)
+    elif not authorization_list:
+        return token
+    elif token and token in authorization_list:
+        return token
     else:
         raise HTTPException(status_code=401, detail="Not authenticated")
