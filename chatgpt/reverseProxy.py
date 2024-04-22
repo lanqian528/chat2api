@@ -14,11 +14,10 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
             petrol = "http"
         else:
             petrol = "https"
-        origin_url = petrol + "//" + origin_host
         if path.startswith("v1/"):
             base_url = "https://ab.chatgpt.com"
         if path.startswith("authorize") or path.startswith("u") or path.startswith("oauth")  or path.startswith("assets"):
-            base_url = "https://auth.openai.com"
+            base_url = "https://auth0.openai.com"
         params = dict(request.query_params)
         headers = {
             key: value for key, value in request.headers.items()
@@ -60,6 +59,7 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
                        .replace("ab.chatgpt.com", origin_host)
                        .replace("cdn.oaistatic.com", origin_host)
                        .replace("auth.openai.com", origin_host)
+                       .replace("auth0.openai.com", origin_host)
                        .replace("https", petrol))
             response = Response(content=content, media_type=r.headers.get("content-type"), status_code=r.status_code)
             for key, value in r.cookies.items():
