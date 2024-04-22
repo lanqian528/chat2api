@@ -16,7 +16,7 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
             petrol = "https"
         if path.startswith("v1/"):
             base_url = "https://ab.chatgpt.com"
-        if path.startswith("authorize") and not "max_age" in dict(request.query_params).keys():
+        if path.startswith("authorize") and "max_age" not in dict(request.query_params).keys():
             base_url = "https://auth.openai.com"
         if path.startswith("authorize") or path.startswith("u/") or path.startswith("oauth/") or path.startswith("assets/"):
             base_url = "https://auth0.openai.com"
