@@ -26,7 +26,6 @@ async def stream_response(service, response, model, max_tokens):
     last_recipient = None
     end = False
     message_id = None
-    all_text = ""
     async for chunk in response.aiter_lines():
         chunk = chunk.decode("utf-8")
         if end:
@@ -108,7 +107,8 @@ async def stream_response(service, response, model, max_tokens):
                         end = True
                 else:
                     continue
-                all_text += delta.get("content", "")
+                if not delta.get("content"):
+                    delta = {"role": "assistant", "content": ""}
                 chunk_new_data = {
                     "id": chat_id,
                     "object": "chat.completion.chunk",
@@ -285,6 +285,7 @@ class ChatService:
 
         self.access_token = access_token
         self.oai_device_id = str(uuid.uuid4())
+        self.persona = None
         self.chat_token = None
         self.arkose_token = None
         self.arkose_token_url = random.choice(arkose_token_url_list) if arkose_token_url_list else None
@@ -320,6 +321,7 @@ class ChatService:
             r = await self.s.post(url, headers=headers, json={})
             if r.status_code == 200:
                 resp = r.json()
+                self.persona = resp.get("persona")
                 arkose = resp.get('arkose', {})
                 proofofwork = resp.get('proofofwork', {})
                 turnstile = resp.get('turnstile', {})
@@ -335,8 +337,10 @@ class ChatService:
                             json={"blob": arkose_dx},
                             timeout=15
                         )
-                        self.arkose_token = r2.json()['token']
-                    except Exception as e:
+                        r2esp = r2.json()
+                        Logger.info(f"arkose_token: {r2esp}")
+                        self.arkose_token = r2esp.get('token')
+                    except Exception:
                         raise HTTPException(status_code=403, detail="Failed to get Arkose token")
 
                 proofofwork_required = proofofwork.get('required')
@@ -417,33 +421,23 @@ class ChatService:
         }
         return self.chat_request
 
-    async def send_conversation_for_stream(self):
-        url = f'{self.base_url}/conversation'
-        model = model_proxy.get(self.model, self.model)
-        try:
-            r = await self.s.post(url, headers=self.headers, json=self.chat_request, timeout=600, stream=True)
-            if r.status_code == 200:
-                return stream_response(self, r, model, self.max_tokens)
-            else:
-                rtext = await r.atext()
-                if "application/json" == r.headers.get("Content-Type", ""):
-                    detail = json.loads(rtext).get("detail", json.loads(rtext))
-                else:
-                    detail = rtext
-                if r.status_code != 200:
-                    if r.status_code == 403:
-                        raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
-                    raise HTTPException(status_code=r.status_code, detail=detail)
-        except HTTPException as e:
-            raise HTTPException(status_code=e.status_code, detail=str(e))
-
     async def send_conversation(self):
         url = f'{self.base_url}/conversation'
+        if "gpt-4" in self.model and self.persona != "chatgpt-paid":
+            raise HTTPException(status_code=404, detail={
+                "message": f"The model `{self.model}` does not exist or you do not have access to it.",
+                "type": "invalid_request_error",
+                "param": None,
+                "code": "model_not_found"
+            })
         model = model_proxy.get(self.model, self.model)
         try:
+            stream = self.data.get("stream", False)
             r = await self.s.post(url, headers=self.headers, json=self.chat_request, timeout=600, stream=True)
-            if r.status_code == 200:
+            if r.status_code == 200 and stream is False:
                 return await chat_response(self, r, self.prompt_tokens, model, self.max_tokens)
+            elif r.status_code == 200 and stream is True:
+                return stream_response(self, r, model, self.max_tokens)
             else:
                 rtext = await r.atext()
                 if "application/json" == r.headers.get("Content-Type", ""):

@@ -1,6 +1,8 @@
+import types
+
 from fastapi import FastAPI, Request, Depends, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, JSONResponse
 
 from chatgpt.ChatService import ChatService
 from chatgpt.reverseProxy import chatgpt_reverse_proxy
@@ -37,11 +39,11 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
     chat_service = await async_retry(to_send_conversation, request_data, access_token)
     chat_service.prepare_send_conversation()
 
-    stream = request_data.get("stream", False)
-    if stream is True:
-        return StreamingResponse(await chat_service.send_conversation_for_stream(), media_type="text/event-stream")
+    res = await chat_service.send_conversation()
+    if isinstance(res, types.AsyncGeneratorType):
+        return StreamingResponse(res, media_type="text/event-stream")
     else:
-        return JSONResponse(await chat_service.send_conversation(), media_type="application/json")
+        return JSONResponse(res, media_type="application/json")
 
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])

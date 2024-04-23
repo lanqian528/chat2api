@@ -11,10 +11,14 @@ async def verify_token(token: str = Depends(oauth2_scheme)):
     if token and token.startswith("eyJhbGciOi"):
         return token
     elif token and len(token) == 45:
-        return await rt2ac(token)
+        try:
+            access_token = await rt2ac(token)
+            return access_token
+        except HTTPException as e:
+            raise HTTPException(status_code=e.status_code, detail=e.detail)
     elif not authorization_list:
         return token
     elif token and token in authorization_list:
         return token
     else:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise HTTPException(status_code=401)

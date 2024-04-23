@@ -41,6 +41,6 @@ async def chat_refresh(refresh_token):
             refresh_map[refresh_token] = {"token": access_token, "timestamp": int(time.time())}
             return access_token
         else:
-            raise r.text
+            raise Exception("Unknown or invalid refresh token.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=401, detail=str(e))
