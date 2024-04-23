@@ -28,6 +28,7 @@
 > 
 > TODO
 >
+> - [ ] 支持 WSS
 > - [ ] GPTs
 
 ## Deploy

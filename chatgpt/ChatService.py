@@ -434,21 +434,25 @@ class ChatService:
         try:
             stream = self.data.get("stream", False)
             r = await self.s.post(url, headers=self.headers, json=self.chat_request, timeout=600, stream=True)
-            if r.status_code == 200 and stream is False:
+            content_type = r.headers.get("Content-Type", "")
+            if r.status_code == 200 and stream is False and "stream" in content_type:
                 return await chat_response(self, r, self.prompt_tokens, model, self.max_tokens)
-            elif r.status_code == 200 and stream is True:
+            elif r.status_code == 200 and stream is True and "stream" in content_type:
                 return stream_response(self, r, model, self.max_tokens)
             else:
                 rtext = await r.atext()
-                if "application/json" == r.headers.get("Content-Type", ""):
+                if "application/json" in content_type:
                     detail = json.loads(rtext).get("detail", json.loads(rtext))
                 else:
                     detail = rtext
                 if r.status_code == 403:
                     raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
+                if "wss_url" in detail:
+                    Logger.error(f"Websockets: {detail}")
+                    raise HTTPException(status_code=403, detail="Wss not supported")
                 raise HTTPException(status_code=r.status_code, detail=detail)
         except HTTPException as e:
-            raise HTTPException(status_code=e.status_code, detail=str(e))
+            raise HTTPException(status_code=e.status_code, detail=e.detail)
 
     async def get_image_download_url(self, asset_pointer):
         image_url = f"{self.base_url}/files/{asset_pointer}/download"
