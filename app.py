@@ -37,7 +37,11 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
         raise HTTPException(status_code=400, detail={"error": "Invalid JSON body"})
 
     chat_service = await async_retry(to_send_conversation, request_data, access_token)
-    chat_service.prepare_send_conversation()
+    chat_service.prepare_send_conversation(
+        parent_message_id=request_data.get('parent_message_id'),
+        conversation_id=request_data.get('conversation_id'),
+        history_disabled= request_data.get('history_disabled', True) # default is True
+    )
 
     res = await chat_service.send_conversation()
     if isinstance(res, types.AsyncGeneratorType):
@@ -60,4 +64,4 @@ if __name__ == "__main__":
     log_config["formatters"]["default"]["fmt"] = default_format
     log_config["formatters"]["access"]["fmt"] = access_format
 
-    uvicorn.run("app:app", host="0.0.0.0", port=5005)
+    uvicorn.run("app:app", host="0.0.0.0", port=5205)

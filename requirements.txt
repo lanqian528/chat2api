@@ -3,3 +3,4 @@ curl_cffi
 uvicorn
 tiktoken
 python-dotenv
+websockets

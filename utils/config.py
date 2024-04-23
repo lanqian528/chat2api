@@ -29,7 +29,7 @@ chatgpt_base_url_list = chatgpt_base_url.split(',') if chatgpt_base_url else []
 arkose_token_url_list = arkose_token_url.split(',') if arkose_token_url else []
 proxy_url_list = proxy_url.split(',') if proxy_url else []
 
-logger.info("Environment variables (no AUTHORIZATION):")
+logger.info("Environment variables (AUTHORIZATION not displayed):")
 logger.info("CHATGPT_BASE_URL:      " + str(chatgpt_base_url_list))
 logger.info("ARKOSE_TOKEN_URL:      " + str(arkose_token_url_list))
 logger.info("PROXY_URL:             " + str(proxy_url_list))
