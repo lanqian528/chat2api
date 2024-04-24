@@ -34,7 +34,7 @@ async def stream_response(service, response, model, max_tokens):
     all_text = ""
     async for chunk in response:
         chunk = chunk.decode("utf-8")
-        # print(f"chunk:{chunk}")
+        print(f"chunk:{chunk}")
         if end:
             yield "data: [DONE]\n\n"
             break
@@ -141,7 +141,7 @@ async def stream_response(service, response, model, max_tokens):
                     "system_fingerprint": system_fingerprint
                 }
                 completion_tokens += 1
-                # print(f'chunk_new_data:{chunk_new_data}')
+                print(f'chunk_new_data:{chunk_new_data}')
                 yield f"data: {json.dumps(chunk_new_data)}\n\n"
         except Exception as e:
             Logger.error(f"Error: {chunk}, error: {str(e)}")
@@ -440,7 +440,7 @@ class ChatService:
         }
         if conversation_id:
             self.chat_request['conversation_id'] = conversation_id
-        # print(f"chat_request:{self.chat_request}")
+        print(f"chat_request:{self.chat_request}", flush=True)
         return self.chat_request
 
     async def wss_response_stream(self, detail):
@@ -498,10 +498,8 @@ class ChatService:
             elif "application/json" in content_type:
                 rtext = await r.atext()
                 detail = json.loads(rtext).get("detail", json.loads(rtext))
-                if "wss_url" in detail:
-                    Logger.error(f"Websockets: {detail}")
-                    raise HTTPException(status_code=403, detail="Wss not supported")
                 if stream:
+                    print(f"detail: {detail}", flush=True)
                     wss_r = self.wss_response_stream(detail)
                     return stream_response(self, wss_r, model, self.max_tokens)
                 else:
