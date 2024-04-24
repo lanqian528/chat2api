@@ -22,13 +22,14 @@
 > - [x] 配置 BASE_URL
 > - [x] 重试次数设置
 > - [x] ArkoseToken
-> - [x] GPT4.0 画图、工具 (测试中，可能有bug)
 > - [x] 使用 RefreshToken 代替 AccessToken
 > - [x] 反向代理 UI (http://127.0.0.1:5005, 不支持登录使用)
+> - [x] GPT4.0 画图、工具 (beta)
+> - [x] 支持 WSS (beta)
+> - [x] 返回 conversation_id (beta)
 > 
 > TODO
 >
-> - [ ] 支持 WSS
 > - [ ] GPTs
 
 ## Deploy
