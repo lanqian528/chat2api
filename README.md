@@ -22,13 +22,14 @@
 > - [x] 配置 BASE_URL
 > - [x] 重试次数设置
 > - [x] ArkoseToken
-> - [x] GPT4.0 画图、工具 (测试中，可能有bug)
 > - [x] 使用 RefreshToken 代替 AccessToken
 > - [x] 反向代理 UI (http://127.0.0.1:5005, 不支持登录使用)
+> - [x] GPT4.0 画图、工具 (beta)
+> - [x] 支持 WSS (beta)
+> - [x] 返回 conversation_id (beta)
 > 
 > TODO
 >
-> - [ ] 支持 WSS
 > - [ ] GPTs
 
 ## Deploy
@@ -142,7 +143,7 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 ```
 AUTHORIZATION=your_first_token, your_second_token    // 使用免登3.5的Bearer token，不设置则无需Bearer token
 CHATGPT_BASE_URL=https://chat.openai.com             // ChatGPT网关地址
-HISTORY_DISABLED=true                                // 是否保存聊天记录
+HISTORY_DISABLED=true                                // 是否保存聊天记录并返回 conversation_id (beta)，true为不保存
 PROXY_URL=your_first_proxy, your_second_proxy        // 代理url，多个代理用逗号分隔
 ARKOSE_TOKEN_URL=https://arkose.example.com/token    // 获取Arkose token的地址，上文有提供说明
 RETRY_TIMES=3                                        // 重试次数

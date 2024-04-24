@@ -70,7 +70,7 @@ def split_tokens_from_content(content, max_tokens, model=None):
         encoding = tiktoken.get_encoding("cl100k_base")
     encoded_content = encoding.encode(content)
     len_encoded_content = len(encoded_content)
-    if len_encoded_content > max_tokens:
+    if len_encoded_content >= max_tokens:
         content = encoding.decode(encoded_content[:max_tokens])
         return content, max_tokens, "length"
     else:
