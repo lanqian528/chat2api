@@ -1,11 +1,13 @@
 import json
 import random
+import types
 import uuid
 
+import websockets
 from fastapi import HTTPException
 
 from api.chat_completions import num_tokens_from_messages, model_proxy
-from chatgpt.chatResponse import api_messages_to_chat, stream_response, wss_response_stream, format_not_stream_response
+from chatgpt.chatResponse import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
 from chatgpt.proofofwork import calc_proof_token
 from utils.Client import Client
 from utils.Logger import Logger
@@ -193,8 +195,16 @@ class ChatService:
             elif "application/json" in content_type:
                 rtext = await r.atext()
                 detail = json.loads(rtext).get("detail", json.loads(rtext))
-                wss_r = wss_response_stream(detail)
-                if stream:
+                wss_url = detail.get('wss_url')
+                Logger.info(f"wss_url: {wss_url}")
+                subprotocols = ["json.reliable.webpubsub.azure.v1"]
+                try:
+                    async with websockets.connect(wss_url, ping_interval=None, subprotocols=subprotocols) as websocket:
+                        wss_r = wss_stream_response(websocket)
+                except websockets.exceptions.InvalidStatusCode as e:
+                    Logger.error(f"Invalid status code: {str(e)}")
+                    raise HTTPException(status_code=e.status_code, detail=str(e))
+                if stream and isinstance(wss_r, types.AsyncGeneratorType):
                     return stream_response(self, wss_r, model, self.max_tokens)
                 else:
                     return await format_not_stream_response(stream_response(self, wss_r, model, self.max_tokens), self.prompt_tokens, self.max_tokens, model)

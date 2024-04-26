@@ -6,8 +6,6 @@ import string
 import time
 import uuid
 
-import websockets
-
 from api.chat_completions import model_system_fingerprint, split_tokens_from_content
 from utils.Logger import Logger
 
@@ -62,27 +60,28 @@ async def format_not_stream_response(response, prompt_tokens, max_tokens, model)
     }
 
 
-async def wss_response_stream(detail):
-    wss_url = detail.get('wss_url')
-    subprotocols = ["json.reliable.webpubsub.azure.v1"]
-    async with websockets.connect(wss_url, ping_interval=None, subprotocols=subprotocols) as websocket:
-        while True:
-            try:
-                message = await asyncio.wait_for(websocket.recv(), timeout=15)
-                if message:
-                    resultObj = json.loads(message)
-                    sequenceId = resultObj.get("sequenceId", None)
-                    if not sequenceId:
-                        continue
-                    result = resultObj.get("data", {}).get("body", None)
-                    decoded_bytes = base64.b64decode(result)
-                    # print(f"decoded_bytes:{decoded_bytes}")
-                    yield decoded_bytes
-                else:
+async def wss_stream_response(websocket):
+    while True:
+        try:
+            message = await asyncio.wait_for(websocket.recv(), timeout=15)
+            print(f"message:{message}")
+            if message:
+                resultObj = json.loads(message)
+                sequenceId = resultObj.get("sequenceId", None)
+                if not sequenceId:
                     continue
-            except asyncio.TimeoutError:
-                Logger.error("Timeout! No message received within the specified time.")
-                return
+                result = resultObj.get("data", {}).get("body", None)
+                decoded_bytes = base64.b64decode(result)
+                print(f"decoded_bytes:{decoded_bytes}")
+                yield decoded_bytes
+            else:
+                continue
+        except asyncio.TimeoutError:
+            Logger.error("Timeout! No message received within the specified time.")
+            break
+        except Exception as e:
+            Logger.error(f"Error: {str(e)}")
+            continue
 
 
 async def stream_response(service, response, model, max_tokens):
@@ -130,7 +129,6 @@ async def stream_response(service, response, model, max_tokens):
                             message_id = message.get("id")
                             new_text = ""
                         else:
-                            # for wss message, first valid text, message_id is None
                             if message_id and message_id != message.get("id"):
                                 continue
                             new_text = part[len_last_content:]
@@ -211,7 +209,6 @@ async def stream_response(service, response, model, max_tokens):
                         "conversation_id": conversation_id,
                     })
                 completion_tokens += 1
-                # print(f'chunk_new_data:{json.dumps(chunk_new_data)}\n\n')
                 yield f"data: {json.dumps(chunk_new_data)}\n\n"
         except Exception as e:
             Logger.error(f"Error: {chunk}, details: {str(e)}")
