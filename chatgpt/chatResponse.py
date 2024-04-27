@@ -5,7 +5,6 @@ import random
 import string
 import time
 import uuid
-import traceback
 
 from api.chat_completions import model_system_fingerprint, split_tokens_from_content
 from utils.Logger import Logger
