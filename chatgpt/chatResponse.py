@@ -5,6 +5,7 @@ import random
 import string
 import time
 import uuid
+import traceback
 
 from api.chat_completions import model_system_fingerprint, split_tokens_from_content
 from utils.Logger import Logger
@@ -103,7 +104,7 @@ async def stream_response(service, response, model, max_tokens):
         try:
             if chunk.startswith("data: [DONE]"):
                 yield "data: [DONE]\n\n"
-            elif not chunk.startswith("data: "):
+            elif not chunk.startswith("data: {"):
                 continue
             else:
                 chunk_old_data = json.loads(chunk[6:])
