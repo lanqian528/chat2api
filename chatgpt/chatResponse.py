@@ -103,7 +103,7 @@ async def stream_response(service, response, model, max_tokens):
         try:
             if chunk.startswith("data: [DONE]"):
                 yield "data: [DONE]\n\n"
-            elif not chunk.startswith("data: "):
+            elif not chunk.startswith("data: {"):
                 continue
             else:
                 chunk_old_data = json.loads(chunk[6:])
