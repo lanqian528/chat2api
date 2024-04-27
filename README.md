@@ -8,10 +8,13 @@
 
 🔍 以假乱真，回复格式与真实api完全一致，支持max_tokens，stream等参数，并且支持token数计算
 
-## Features
+## 交流群
 
-> 特点
-> 
+https://t.me/chat2api
+
+## 功能
+
+> 已完成
 > - [x] 免登录 GPT3.5
 > - [x] 使用 AccessToken
 > - [x] GPT3.5 对话
@@ -29,10 +32,9 @@
 > - [x] 返回 conversation_id (beta)
 > 
 > TODO
->
 > - [ ] GPTs
 
-## Deploy
+## 部署
 
 ### (推荐) zeabur部署
 
@@ -79,7 +81,7 @@ wget https://raw.githubusercontent.com/LanQian528/chat2api/main/docker-compose.y
 docker-compose up -d
 ```
 
-## Usage
+## 使用
 
 - 在网页使用, 直接访问以下地址, 仅支持使用免登 GPT3.5:
 
