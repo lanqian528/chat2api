@@ -4,3 +4,4 @@ uvicorn
 tiktoken
 python-dotenv
 websockets
+pillow
