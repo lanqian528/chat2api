@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 answers = {}
 cores = [8, 12, 16, 24]
 screens = [3000, 4000, 6000]
-userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0"
+userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"
 timeLayout = "%a %b %d %Y %H:%M:%S"
 
 

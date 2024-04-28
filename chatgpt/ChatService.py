@@ -22,7 +22,7 @@ class ChatService:
             self.base_url = random.choice(chatgpt_base_url_list) + "/backend-api"
         else:
             self.base_url = random.choice(chatgpt_base_url_list) + "/backend-anon"
-        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0"
+        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"
 
         self.access_token = access_token
         self.oai_device_id = str(uuid.uuid4())
@@ -39,7 +39,7 @@ class ChatService:
         self.data = data
         self.model = self.data.get("model", "gpt-3.5-turbo-0125")
         self.api_messages = self.data.get("messages", [])
-        self.prompt_tokens = num_tokens_from_messages(self.api_messages, self.model)
+        self.prompt_tokens = 0
         self.max_tokens = self.data.get("max_tokens", 2147483647)
 
         self.headers = None
@@ -54,6 +54,7 @@ class ChatService:
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
             'Origin': 'https://chat.openai.com',
+            'Priority': 'u=1, i',
             'Referer': 'https://chat.openai.com/',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
@@ -119,7 +120,8 @@ class ChatService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-    def prepare_send_conversation(self):
+    async def prepare_send_conversation(self):
+        chat_messages = await api_messages_to_chat(self, self.api_messages)
         self.headers = {
             'Accept': 'text/event-stream',
             'Accept-Encoding': 'gzip, deflate, br',
@@ -131,10 +133,8 @@ class ChatService:
             'Openai-Sentinel-Proof-Token': self.proof_token,
             'Openai-Sentinel-Arkose-Token': self.arkose_token,
             'Origin': 'https://chat.openai.com',
+            'Priority': 'u=1, i',
             'Referer': 'https://chat.openai.com/',
-            'Sec-Ch-Ua': '"Microsoft Edge";v="123", "Not:A-Brand";v="8", "Chromium";v="123"',
-            'Sec-Ch-Ua-Mobile': '?0',
-            'Sec-Ch-Ua-Platform': '"Windows"',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-origin',
@@ -142,11 +142,16 @@ class ChatService:
         }
         if self.access_token:
             self.headers['Authorization'] = f'Bearer {self.access_token}'
-        chat_messages = api_messages_to_chat(self.api_messages)
-        if "gpt-4" in self.data.get("model"):
+        if "gizmo" in self.model:
             model = "gpt-4"
+            gizmo_id = self.data.get("model").split("gpt-4-gizmo-")[-1]
+            conversation_mode = {"kind": "gizmo_interaction", "gizmo_id": gizmo_id}
+        elif "gpt-4" in self.model:
+            model = "gpt-4"
+            conversation_mode = {"kind": "primary_assistant"}
         else:
             model = "text-davinci-002-render-sha"
+            conversation_mode = {"kind": "primary_assistant"}
         self.chat_request = {
             "action": "next",
             "messages": chat_messages,
@@ -155,12 +160,12 @@ class ChatService:
             "timezone_offset_min": -480,
             "suggestions": [],
             "history_and_training_disabled": self.history_disabled,
-            "conversation_mode": {"kind": "primary_assistant"},
+            "conversation_mode": conversation_mode,
             "force_paragen": False,
             "force_paragen_model_slug": "",
             "force_nulligen": False,
             "force_rate_limit": False,
-            "websocket_request_id": f"{uuid.uuid4()}",
+            "websocket_request_id": f"{uuid.uuid4()}"
         }
         if self.conversation_id:
             self.chat_request['conversation_id'] = self.conversation_id
@@ -177,6 +182,7 @@ class ChatService:
             })
         model = model_proxy.get(self.model, self.model)
         try:
+            self.prompt_tokens = await num_tokens_from_messages(self.api_messages, self.model)
             stream = self.data.get("stream", False)
             r = await self.s.post(url, headers=self.headers, json=self.chat_request, timeout=600, stream=True)
             if r.status_code != 200:
@@ -222,6 +228,7 @@ class ChatService:
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
             'Origin': 'https://chat.openai.com',
+            'Priority': 'u=1, i',
             'Referer': 'https://chat.openai.com/',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
@@ -239,3 +246,64 @@ class ChatService:
                 return ""
         except HTTPException as e:
             return ""
+
+    async def get_image_upload_url(self, image_size):
+        url = f'{self.base_url}/files'
+        headers = {
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Content-Type': 'application/json',
+            'Oai-Device-Id': self.oai_device_id,
+            'Oai-Language': 'en-US',
+            'Origin': 'https://chat.openai.com',
+            'Priority': 'u=1, i',
+            'Referer': 'https://chat.openai.com/',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
+            'User-Agent': self.user_agent
+        }
+        if self.access_token:
+            headers['Authorization'] = f'Bearer {self.access_token}'
+        try:
+            r = await self.s.post(url, headers=headers, json={
+                "file_name": "image.png",
+                "file_size": image_size,
+                "use_case": "multimodal"
+            })
+            if r.status_code == 200:
+                res = r.json()
+                print(res)
+                file_id = res.get('file_id')
+                upload_url = res.get('upload_url')
+                return file_id, upload_url
+            else:
+                return "", ""
+        except HTTPException as e:
+            return "", ""
+
+    async def upload(self, upload_url, path, mime_type):
+        headers = {
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Content-Type': mime_type,
+            'Origin': 'https://chat.openai.com',
+            'Priority': 'u=1, i',
+            'Referer': 'https://chat.openai.com/',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'cross-site',
+            'User-Agent': self.user_agent,
+            'X-Ms-Blob-Type': 'BlockBlob',
+            'X-Ms-Version': '2020-04-08'
+        }
+        try:
+            with open(path, 'rb') as file:
+                data = file.read()
+            print(data)
+            r = await self.s.put(upload_url, headers=headers, data=data)
+            if r.status_code == 201:
+                return True
+            return False
+        except Exception:
+            return False

@@ -1,12 +1,13 @@
 import asyncio
 import base64
 import json
+import os
 import random
 import string
 import time
 import uuid
 
-from api.chat_completions import model_system_fingerprint, split_tokens_from_content
+from api.chat_completions import model_system_fingerprint, split_tokens_from_content, get_img
 from utils.Logger import Logger
 
 moderation_message = "I'm sorry, I cannot provide or engage in any content related to pornography, violence, or any unethical material. If you have any other questions or need assistance, please feel free to let me know. I'll do my best to provide support and assistance."
@@ -32,7 +33,7 @@ async def format_not_stream_response(response, prompt_tokens, max_tokens, model)
         except Exception as e:
             Logger.error(f"Error: {chunk}, error: {str(e)}")
             continue
-    content, completion_tokens, finish_reason = split_tokens_from_content(all_text, max_tokens, model)
+    content, completion_tokens, finish_reason = await split_tokens_from_content(all_text, max_tokens, model)
     message = {
         "role": "assistant",
         "content": content,
@@ -215,16 +216,58 @@ async def stream_response(service, response, model, max_tokens):
             continue
 
 
-def api_messages_to_chat(api_messages):
+async def api_messages_to_chat(service, api_messages):
     chat_messages = []
     for api_message in api_messages:
         role = api_message.get('role')
         content = api_message.get('content')
+        if isinstance(content, list):
+            parts = []
+            attachments = []
+            content_type = "multimodal_text"
+            for i in content:
+                if i.get("type") == "text":
+                    parts.append(i.get("text"))
+                if i.get("type") == "image_url":
+                    url = i.get("image_url").get("url")
+                    img = await get_img(url)
+                    width, height = img.size
+                    image_name = f"image.png"
+                    image_path = f"./images/{image_name}"
+                    if not os.path.exists("./images"):
+                        os.makedirs("./images")
+                    img.save(image_path)
+                    image_size = os.path.getsize(image_path)
+                    file_id, upload_url = await service.get_image_upload_url(image_size)
+                    if await service.upload(upload_url, image_path, "image/png"):
+                        parts.append({
+                            "content_type": "image_asset_pointer",
+                            "asset_pointer": f"file-service://{file_id}",
+                            "size_bytes": image_size,
+                            "width": width,
+                            "height": height
+                        })
+                        attachments.append({
+                            "id": file_id,
+                            "size": image_size,
+                            "name": "image.png",
+                            "mime_type": "image/png",
+                            "width": width,
+                            "height": height
+                        })
+            metadata = {
+                "attachments": attachments
+            }
+        else:
+            content_type = "text"
+            parts = [content]
+            metadata = {}
         chat_message = {
             "id": f"{uuid.uuid4()}",
             "author": {"role": role},
-            "content": {"content_type": "text", "parts": [content]},
-            "metadata": {}
+            "content": {"content_type": content_type, "parts": parts},
+            "metadata": metadata
         }
         chat_messages.append(chat_message)
+    print(chat_messages)
     return chat_messages
