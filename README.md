@@ -30,10 +30,9 @@ https://t.me/chat2api
 > - [x] GPT4.0 画图、工具 (beta)
 > - [x] 支持 WSS (暂不支持代理，容易403)
 > - [x] 返回 conversation_id (beta)
-> - [x] GPTs
-> 
-> TODO
+> - [x] 支持GPTs(使用模型名称：gpt-4-gizmo-g-*)
 
+> TODO
 > - [ ] 上传图片(已完成一半)
 > - [ ] 上传文件
 

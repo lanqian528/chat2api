@@ -65,7 +65,6 @@ async def wss_stream_response(websocket):
     while True:
         try:
             message = await asyncio.wait_for(websocket.recv(), timeout=15)
-            print(f"message:{message}")
             if message:
                 resultObj = json.loads(message)
                 sequenceId = resultObj.get("sequenceId", None)
@@ -73,7 +72,6 @@ async def wss_stream_response(websocket):
                     continue
                 result = resultObj.get("data", {}).get("body", None)
                 decoded_bytes = base64.b64decode(result)
-                print(f"decoded_bytes:{decoded_bytes}")
                 yield decoded_bytes
             else:
                 continue
@@ -269,5 +267,4 @@ async def api_messages_to_chat(service, api_messages):
             "metadata": metadata
         }
         chat_messages.append(chat_message)
-    print(chat_messages)
     return chat_messages

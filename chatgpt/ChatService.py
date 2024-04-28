@@ -273,7 +273,6 @@ class ChatService:
             })
             if r.status_code == 200:
                 res = r.json()
-                print(res)
                 file_id = res.get('file_id')
                 upload_url = res.get('upload_url')
                 return file_id, upload_url
@@ -300,7 +299,6 @@ class ChatService:
         try:
             with open(path, 'rb') as file:
                 data = file.read()
-            print(data)
             r = await self.s.put(upload_url, headers=headers, data=data)
             if r.status_code == 201:
                 return True
