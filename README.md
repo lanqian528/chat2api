@@ -28,11 +28,14 @@ https://t.me/chat2api
 > - [x] 使用 RefreshToken 代替 AccessToken
 > - [x] 反向代理 UI (http://127.0.0.1:5005, 不支持登录使用)
 > - [x] GPT4.0 画图、工具 (beta)
-> - [x] 支持 WSS (beta)
+> - [x] 支持 WSS (暂不支持代理，容易403)
 > - [x] 返回 conversation_id (beta)
 > 
 > TODO
 > - [ ] GPTs
+> - [ ] 上传图片
+> - [ ] 上传文件
+
 
 ## 部署
 
