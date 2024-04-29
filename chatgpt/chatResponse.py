@@ -7,6 +7,8 @@ import string
 import time
 import uuid
 
+import websockets
+
 from api.chat_completions import model_system_fingerprint, split_tokens_from_content, get_img
 from utils.Logger import Logger
 
@@ -62,7 +64,7 @@ async def format_not_stream_response(response, prompt_tokens, max_tokens, model)
 
 
 async def wss_stream_response(websocket):
-    while True:
+    while not websocket.closed:
         try:
             message = await asyncio.wait_for(websocket.recv(), timeout=15)
             if message:
@@ -74,10 +76,15 @@ async def wss_stream_response(websocket):
                 decoded_bytes = base64.b64decode(result)
                 yield decoded_bytes
             else:
-                continue
+                print("No message received within the specified time.")
         except asyncio.TimeoutError:
             Logger.error("Timeout! No message received within the specified time.")
             break
+        except websockets.ConnectionClosed as e:
+            if e.code == 1000:
+                Logger.error("WebSocket closed normally with code 1000 (OK)")
+            else:
+                Logger.error(f"WebSocket closed with error code {e.code}")
         except Exception as e:
             Logger.error(f"Error: {str(e)}")
             continue
