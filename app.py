@@ -52,6 +52,8 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
             return StreamingResponse(res, media_type="text/event-stream", background=background)
         else:
             return JSONResponse(res, media_type="application/json")
+    except HTTPException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception:
         raise HTTPException(status_code=500, detail="Server error")
     finally:

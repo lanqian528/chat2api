@@ -1,6 +1,7 @@
 import random
 from fastapi import Request, HTTPException
 from fastapi.responses import StreamingResponse, Response
+from starlette.background import BackgroundTask
 
 from utils.Client import Client
 from utils.config import chatgpt_base_url_list, proxy_url_list
@@ -99,24 +100,29 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
             data = await request.body()
 
         client = Client(proxy=random.choice(proxy_url_list) if proxy_url_list else None)
-
-        r = await client.request(request.method, f"{base_url}/{path}", params=params, headers=headers, cookies=cookies,
-                                 data=data, stream=True)
-        if r.status_code == 302:
-            return Response(status_code=302, headers={"Location": r.headers.get("Location")})
-        elif 'stream' in r.headers.get("content-type", ""):
-            return StreamingResponse(r.aiter_content(), media_type=r.headers.get("content-type", ""))
-        else:
-            content = ((await r.atext()).replace("chat.openai.com", origin_host)
-                       .replace("ab.chatgpt.com", origin_host)
-                       .replace("cdn.oaistatic.com", origin_host)
-                       .replace("https", petrol))
-            response = Response(content=content, media_type=r.headers.get("content-type"), status_code=r.status_code)
-            for key, value in r.cookies.items():
-                if key in cookies.keys():
-                    continue
-                response.set_cookie(key=key, value=value)
-            return response
+        r = None
+        try:
+            r = await client.request(request.method, f"{base_url}/{path}", params=params, headers=headers, cookies=cookies,
+                                     data=data, stream=True)
+            if r.status_code == 302:
+                return Response(status_code=302, headers={"Location": r.headers.get("Location")})
+            elif 'stream' in r.headers.get("content-type", ""):
+                background = BackgroundTask(client.close)
+                return StreamingResponse(r.aiter_content(), media_type=r.headers.get("content-type", ""), background=background)
+            else:
+                content = ((await r.atext()).replace("chat.openai.com", origin_host)
+                           .replace("ab.chatgpt.com", origin_host)
+                           .replace("cdn.oaistatic.com", origin_host)
+                           .replace("https", petrol))
+                response = Response(content=content, media_type=r.headers.get("content-type"), status_code=r.status_code)
+                for key, value in r.cookies.items():
+                    if key in cookies.keys():
+                        continue
+                    response.set_cookie(key=key, value=value)
+                return response
+        finally:
+            if r and 'stream' not in r.headers.get("content-type", ""):
+                await client.close()
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

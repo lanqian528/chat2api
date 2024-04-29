@@ -244,6 +244,8 @@ async def api_messages_to_chat(service, api_messages):
                     img.save(image_path)
                     image_size = os.path.getsize(image_path)
                     file_id, upload_url = await service.get_image_upload_url(image_size)
+                    # not working
+                    '''
                     if await service.upload(upload_url, image_path, "image/png"):
                         parts.append({
                             "content_type": "image_asset_pointer",
@@ -260,6 +262,7 @@ async def api_messages_to_chat(service, api_messages):
                             "width": width,
                             "height": height
                         })
+                    '''
             metadata = {
                 "attachments": attachments
             }

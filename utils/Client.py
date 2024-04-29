@@ -36,10 +36,13 @@ class Client:
         r = await self.session.request(*args, impersonate=self.impersonate, **kwargs)
         return r
 
-    async def put(self, *args, headers=None, cookies=None, **kwargs):
+    async def put(self, *args, **kwargs):
         r = await self.session.put(*args, impersonate=self.impersonate, **kwargs)
         return r
 
     async def close(self):
-        await self.session.close()
-        self.session = None
+        try:
+            await self.session.close()
+            self.session = None
+        except Exception:
+            pass

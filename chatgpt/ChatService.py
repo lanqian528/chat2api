@@ -280,6 +280,7 @@ class ChatService:
                 res = r.json()
                 file_id = res.get('file_id')
                 upload_url = res.get('upload_url')
+                Logger.info(f"file_id: {file_id}, upload_url: {upload_url}")
                 return file_id, upload_url
             else:
                 return "", ""
@@ -306,6 +307,7 @@ class ChatService:
                 data = file.read()
             r = await self.s.put(upload_url, headers=headers, data=data)
             if r.status_code == 201:
+                Logger.info(f"Upload successful")
                 return True
             return False
         except Exception:
