@@ -89,6 +89,8 @@ class ChatService:
                         self.arkose_token = r2esp.get('token')
                     except Exception:
                         raise HTTPException(status_code=403, detail="Failed to get Arkose token")
+                    finally:
+                        await arkose_client.close()
 
                 proofofwork_required = proofofwork.get('required')
                 if proofofwork_required:
@@ -310,5 +312,4 @@ class ChatService:
             return False
 
     async def close_client(self):
-        await self.s.session.close()
-        self.s.session = None
+        await self.s.close()

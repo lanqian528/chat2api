@@ -44,3 +44,5 @@ async def chat_refresh(refresh_token):
             raise Exception("Unknown or invalid refresh token.")
     except Exception as e:
         raise HTTPException(status_code=401, detail=str(e))
+    finally:
+        await client.close()

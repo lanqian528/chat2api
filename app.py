@@ -3,6 +3,7 @@ import types
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
+from starlette.background import BackgroundTask
 
 from chatgpt.ChatService import ChatService
 from chatgpt.reverseProxy import chatgpt_reverse_proxy
@@ -41,16 +42,20 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
         raise HTTPException(status_code=400, detail={"error": "Invalid JSON body"})
 
     chat_service = await async_retry(to_send_conversation, request_data, access_token)
-    try:
-        await chat_service.prepare_send_conversation()
 
+    await chat_service.prepare_send_conversation()
+    try:
         res = await chat_service.send_conversation()
         if isinstance(res, types.AsyncGeneratorType):
-            return StreamingResponse(res, media_type="text/event-stream")
+            background = BackgroundTask(await chat_service.close_client)
+            return StreamingResponse(res, media_type="text/event-stream", background=background)
         else:
             return JSONResponse(res, media_type="application/json")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Server error")
     finally:
-        await chat_service.close_client()
+        if res and not isinstance(res, types.AsyncGeneratorType):
+            await chat_service.close_client()
 
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])
