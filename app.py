@@ -26,9 +26,10 @@ async def to_send_conversation(request_data, access_token):
     try:
         await chat_service.get_chat_requirements()
         return chat_service
-    except Exception:
+    except HTTPException as e:
         if chat_service.s.session:
             await chat_service.close_client()
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
 @app.post("/v1/chat/completions")
