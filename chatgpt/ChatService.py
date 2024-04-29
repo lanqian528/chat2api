@@ -12,6 +12,7 @@ from chatgpt.proofofwork import calc_proof_token
 from utils.Client import Client
 from utils.Logger import Logger
 from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled
+from starlette.concurrency import run_in_threadpool
 
 
 class ChatService:
@@ -93,7 +94,7 @@ class ChatService:
                 if proofofwork_required:
                     proofofwork_seed = proofofwork.get("seed")
                     proofofwork_diff = proofofwork.get("difficulty")
-                    self.proof_token = calc_proof_token(proofofwork_seed, proofofwork_diff)
+                    self.proof_token = await run_in_threadpool(calc_proof_token, proofofwork_seed, proofofwork_diff)
 
                 turnstile_required = turnstile.get('required')
                 if turnstile_required:
@@ -184,7 +185,7 @@ class ChatService:
         try:
             self.prompt_tokens = await num_tokens_from_messages(self.api_messages, self.model)
             stream = self.data.get("stream", False)
-            r = await self.s.post(url, headers=self.headers, json=self.chat_request, timeout=600, stream=True)
+            r = await self.s.post_stream(url, headers=self.headers, json=self.chat_request, timeout=600, stream=True)
             if r.status_code != 200:
                 if r.status_code == 403:
                     detail = "cf-please-wait"
@@ -207,13 +208,15 @@ class ChatService:
                 try:
                     async with websockets.connect(wss_url, ping_interval=None, subprotocols=subprotocols) as websocket:
                         wss_r = wss_stream_response(websocket)
+                        if stream and isinstance(wss_r, types.AsyncGeneratorType):
+                            return stream_response(self, wss_r, model, self.max_tokens)
+                        else:
+                            return await format_not_stream_response(
+                                stream_response(self, wss_r, model, self.max_tokens), self.prompt_tokens,
+                                self.max_tokens, model)
                 except websockets.exceptions.InvalidStatusCode as e:
                     Logger.error(f"Invalid status code: {str(e)}")
                     raise HTTPException(status_code=e.status_code, detail=str(e))
-                if stream and isinstance(wss_r, types.AsyncGeneratorType):
-                    return stream_response(self, wss_r, model, self.max_tokens)
-                else:
-                    return await format_not_stream_response(stream_response(self, wss_r, model, self.max_tokens), self.prompt_tokens, self.max_tokens, model)
             else:
                 raise HTTPException(status_code=r.status_code, detail="Unsupported Content-Type")
         except HTTPException as e:
@@ -305,3 +308,7 @@ class ChatService:
             return False
         except Exception:
             return False
+
+    async def close_client(self):
+        await self.s.session.close()
+        self.s.session = None

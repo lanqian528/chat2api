@@ -22,8 +22,12 @@ app.add_middleware(
 
 async def to_send_conversation(request_data, access_token):
     chat_service = ChatService(request_data, access_token)
-    await chat_service.get_chat_requirements()
-    return chat_service
+    try:
+        await chat_service.get_chat_requirements()
+        return chat_service
+    except Exception:
+        if chat_service.s.session:
+            await chat_service.close_client()
 
 
 @app.post("/v1/chat/completions")
@@ -37,13 +41,16 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
         raise HTTPException(status_code=400, detail={"error": "Invalid JSON body"})
 
     chat_service = await async_retry(to_send_conversation, request_data, access_token)
-    await chat_service.prepare_send_conversation()
+    try:
+        await chat_service.prepare_send_conversation()
 
-    res = await chat_service.send_conversation()
-    if isinstance(res, types.AsyncGeneratorType):
-        return StreamingResponse(res, media_type="text/event-stream")
-    else:
-        return JSONResponse(res, media_type="application/json")
+        res = await chat_service.send_conversation()
+        if isinstance(res, types.AsyncGeneratorType):
+            return StreamingResponse(res, media_type="text/event-stream")
+        else:
+            return JSONResponse(res, media_type="application/json")
+    finally:
+        await chat_service.close_client()
 
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])

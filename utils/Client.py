@@ -11,47 +11,31 @@ class Client:
         }
         self.timeout = timeout
         self.verify = verify
-        self.headers = None
-        self.cookies = None
         self.impersonate = random.choice(["chrome", "safari", "safari_ios"])
+        self.session = AsyncSession(proxies=self.proxies, timeout=self.timeout, verify=self.verify)
 
-    async def post(self, *args, headers=None, cookies=None, **kwargs):
-        if not headers:
-            headers = self.headers
-        if not cookies:
-            cookies = self.cookies
-        s = AsyncSession(proxies=self.proxies, timeout=self.timeout, verify=self.verify)
-        r = await s.post(*args, headers=headers, cookies=cookies, impersonate=self.impersonate, **kwargs)
-        self.cookies = r.cookies
+    async def post(self, *args, **kwargs):
+        r = await self.session.post(*args, impersonate=self.impersonate, **kwargs)
         return r
 
-    async def get(self, *args, headers=None, cookies=None, **kwargs):
-        if not headers:
-            headers = self.headers
-        if not cookies:
-            cookies = self.cookies
-        async with AsyncSession(proxies=self.proxies, timeout=self.timeout, verify=self.verify) as s:
-            r = await s.get(*args, headers=headers, cookies=cookies, impersonate=self.impersonate, **kwargs)
-            self.cookies = r.cookies
-            return r
+    async def post_stream(self, *args, headers=None, cookies=None, **kwargs):
+        if self.session:
+            headers = headers or self.session.headers
+            cookies = cookies or self.session.cookies
+            await self.session.close()
+            self.session = None
+        self.session = AsyncSession(proxies=self.proxies, timeout=self.timeout, verify=self.verify)
+        r = await self.session.post(*args, headers=headers, cookies=cookies, impersonate=self.impersonate, **kwargs)
+        return r
 
-    async def request(self, *args, headers=None, cookies=None, **kwargs):
-        if not headers:
-            headers = self.headers
-        if not cookies:
-            cookies = self.cookies
-        async with AsyncSession(proxies=self.proxies, timeout=self.timeout, verify=self.verify) as s:
-            r = await s.request(*args, headers=headers, cookies=cookies, impersonate=self.impersonate, **kwargs)
-            self.cookies = r.cookies
-            return r
+    async def get(self, *args, **kwargs):
+        r = await self.session.get(*args, impersonate=self.impersonate, **kwargs)
+        return r
+
+    async def request(self, *args, **kwargs):
+        r = await self.session.request(*args, impersonate=self.impersonate, **kwargs)
+        return r
 
     async def put(self, *args, headers=None, cookies=None, **kwargs):
-        if not headers:
-            headers = self.headers
-        if not cookies:
-            cookies = self.cookies
-        async with AsyncSession(proxies=self.proxies, timeout=self.timeout, verify=self.verify) as s:
-            r = await s.put(*args, headers=headers, cookies=cookies, impersonate=self.impersonate, **kwargs)
-            self.cookies = r.cookies
-            return r
-
+        r = await self.session.put(*args, impersonate=self.impersonate, **kwargs)
+        return r
