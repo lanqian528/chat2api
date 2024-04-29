@@ -42,12 +42,12 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
         raise HTTPException(status_code=400, detail={"error": "Invalid JSON body"})
 
     chat_service = await async_retry(to_send_conversation, request_data, access_token)
-
-    await chat_service.prepare_send_conversation()
+    res = None
     try:
+        await chat_service.prepare_send_conversation()
         res = await chat_service.send_conversation()
         if isinstance(res, types.AsyncGeneratorType):
-            background = BackgroundTask(await chat_service.close_client)
+            background = BackgroundTask(chat_service.close_client)
             return StreamingResponse(res, media_type="text/event-stream", background=background)
         else:
             return JSONResponse(res, media_type="application/json")
