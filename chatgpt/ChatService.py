@@ -6,8 +6,8 @@ import uuid
 import websockets
 from fastapi import HTTPException
 
-from api.chat_completions import model_proxy
-from chatgpt.chatResponse import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
+from api.apiTools import model_proxy, get_image_size, get_file_extension, determine_file_use_case
+from chatgpt.chatFormat import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
 from chatgpt.proofofwork import calc_proof_token, chat_requirements_body
 from utils.Client import Client
 from utils.Logger import Logger
@@ -57,11 +57,7 @@ class ChatService:
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
             'Origin': 'https://chat.openai.com',
-            'Priority': 'u=1, i',
             'Referer': 'https://chat.openai.com/',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-origin',
             'User-Agent': self.user_agent
         }
         if self.access_token:
@@ -146,11 +142,7 @@ class ChatService:
             'Openai-Sentinel-Proof-Token': self.proof_token,
             'Openai-Sentinel-Arkose-Token': self.arkose_token,
             'Origin': 'https://chat.openai.com',
-            'Priority': 'u=1, i',
             'Referer': 'https://chat.openai.com/',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-origin',
             'User-Agent': self.user_agent
         }
         if self.access_token:
@@ -232,8 +224,8 @@ class ChatService:
             Logger.error(f"status_code: 500, {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def get_image_download_url(self, asset_pointer):
-        image_url = f"{self.base_url}/files/{asset_pointer}/download"
+    async def get_download_url(self, file_id):
+        url = f"{self.base_url}/files/{file_id}/download"
         headers = {
             'Accept': '*/*',
             'Accept-Language': 'en-US,en;q=0.9',
@@ -241,26 +233,46 @@ class ChatService:
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
             'Origin': 'https://chat.openai.com',
-            'Priority': 'u=1, i',
             'Referer': 'https://chat.openai.com/',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-origin',
             'User-Agent': self.user_agent
         }
         if self.access_token:
             headers['Authorization'] = f'Bearer {self.access_token}'
         try:
-            r = await self.s.get(image_url, headers=headers)
+            r = await self.s.get(url, headers=headers)
             if r.status_code == 200:
                 download_url = r.json().get('download_url')
                 return download_url
             else:
                 return ""
-        except HTTPException as e:
+        except HTTPException:
             return ""
 
-    async def get_image_upload_url(self, image_size):
+    async def get_download_url_from_upload(self, file_id):
+        url = f"{self.base_url}/files/{file_id}/uploaded"
+        headers = {
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Content-Type': 'application/json',
+            'Oai-Device-Id': self.oai_device_id,
+            'Oai-Language': 'en-US',
+            'Origin': 'https://chat.openai.com',
+            'Referer': 'https://chat.openai.com/',
+            'User-Agent': self.user_agent
+        }
+        if self.access_token:
+            headers['Authorization'] = f'Bearer {self.access_token}'
+        try:
+            r = await self.s.post(url, headers=headers, json={})
+            if r.status_code == 200:
+                download_url = r.json().get('download_url')
+                return download_url
+            else:
+                return ""
+        except HTTPException:
+            return ""
+
+    async def get_upload_url(self, file_name, file_size, use_case="multimodal"):
         url = f'{self.base_url}/files'
         headers = {
             'Accept': '*/*',
@@ -269,21 +281,17 @@ class ChatService:
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
             'Origin': 'https://chat.openai.com',
-            'Priority': 'u=1, i',
             'Referer': 'https://chat.openai.com/',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-origin',
             'User-Agent': self.user_agent
         }
         if self.access_token:
             headers['Authorization'] = f'Bearer {self.access_token}'
         try:
             r = await self.s.post(url, headers=headers, json={
-                "file_name": "image.png",
-                "file_size": image_size,
+                "file_name": file_name,
+                "file_size": file_size,
                 "timezone_offset_min": -480,
-                "use_case": "multimodal"
+                "use_case": use_case
             })
             if r.status_code == 200:
                 res = r.json()
@@ -293,30 +301,24 @@ class ChatService:
                 return file_id, upload_url
             else:
                 return "", ""
-        except HTTPException as e:
+        except HTTPException:
             return "", ""
 
-    async def upload(self, upload_url, path, mime_type):
+    async def upload(self, upload_url, file_content, mime_type):
         headers = {
             'Accept': 'application/json, text/plain, */*',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
             'Accept-Language': 'en-US,en;q=0.9',
             'Content-Type': mime_type,
             'Origin': 'https://chat.openai.com',
-            'Priority': 'u=1, i',
             'Referer': 'https://chat.openai.com/',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'cross-site',
             'User-Agent': self.user_agent,
             'X-Ms-Blob-Type': 'BlockBlob',
             'X-Ms-Version': '2020-04-08'
         }
         try:
-            with open(path, 'rb') as file:
-                data = file.read()
-            r = await self.s.put(upload_url, headers=headers, data=data)
+            r = await self.s.put(upload_url, headers=headers, data=file_content)
             if r.status_code == 201:
-                Logger.info(f"Upload successful")
                 return True
             return False
         except Exception:
@@ -326,3 +328,41 @@ class ChatService:
         await self.s.close()
         if self.ws:
             await self.ws.close()
+
+    async def upload_file(self, file_content, mime_type):
+        width, height = None, None
+        if mime_type.startswith("image/"):
+            try:
+                width, height = await get_image_size(file_content)
+            except Exception as e:
+                Logger.error(f"Error image mime_type, change to text/plain: {e}")
+                mime_type = 'text/plain'
+        file_size = len(file_content)
+        file_extension = await get_file_extension(mime_type)
+        file_name = f"{uuid.uuid4()}{file_extension}"
+        use_case = await determine_file_use_case(mime_type)
+        if use_case == "ace_upload":
+            mime_type = ''
+            Logger.error(f"Error file mime_type, change to None")
+
+        file_id, upload_url = await self.get_upload_url(file_name, file_size, use_case)
+        if file_id and upload_url:
+            if await self.upload(upload_url, file_content, mime_type):
+                download_url = await self.get_download_url_from_upload(file_id)
+                if download_url:
+                    file_meta = {
+                        "file_id": file_id,
+                        "file_name": file_name,
+                        "size_bytes": file_size,
+                        "mime_type": mime_type,
+                        "width": width,
+                        "height": height
+                    }
+                    Logger.info(f"File_meta: {file_meta}")
+                    return file_meta
+                else:
+                    Logger.error("Failed to get download url")
+            else:
+                Logger.error("Failed to upload file")
+        else:
+            Logger.error("Failed to get upload url")

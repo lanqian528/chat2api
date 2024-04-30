@@ -9,8 +9,7 @@ import uuid
 
 import websockets
 
-from api.chat_completions import model_system_fingerprint, split_tokens_from_content, get_img, calculate_image_tokens, \
-    num_tokens_from_messages
+from api.apiTools import model_system_fingerprint, split_tokens_from_content, calculate_image_tokens, num_tokens_from_messages, get_file_content
 from utils.Logger import Logger
 
 moderation_message = "I'm sorry, I cannot provide or engage in any content related to pornography, violence, or any unethical material. If you have any other questions or need assistance, please feel free to let me know. I'll do my best to provide support and assistance."
@@ -170,9 +169,9 @@ async def stream_response(service, response, model, max_tokens):
                             inner_content_type = part.get('content_type')
                             if inner_content_type == "image_asset_pointer":
                                 last_content_type = "image_asset_pointer"
-                                asset_pointer = part.get('asset_pointer').replace('file-service://', '')
-                                Logger.debug(f"asset_pointer: {asset_pointer}")
-                                image_download_url = await service.get_image_download_url(asset_pointer)
+                                file_id = part.get('asset_pointer').replace('file-service://', '')
+                                Logger.debug(f"file_id: {file_id}")
+                                image_download_url = await service.get_download_url(file_id)
                                 Logger.debug(f"image_download_url: {image_download_url}")
                                 if image_download_url:
                                     delta = {"content": f"\n```\n![image]({image_download_url})\n"}
@@ -223,7 +222,7 @@ async def stream_response(service, response, model, max_tokens):
 
 
 async def api_messages_to_chat(service, api_messages):
-    images_tokens = 0
+    file_tokens = 0
     chat_messages = []
     for api_message in api_messages:
         role = api_message.get('role')
@@ -239,34 +238,39 @@ async def api_messages_to_chat(service, api_messages):
                     image_url = i.get("image_url")
                     url = image_url.get("url")
                     detail = image_url.get("detail", "auto")
-                    img = await get_img(url)
-                    width, height = img.size
-                    images_tokens += await calculate_image_tokens(width, height, detail)
-                    '''upload not working
-                    image_name = f"image.png"
-                    image_path = f"./images/{image_name}"
-                    if not os.path.exists("./images"):
-                        os.makedirs("./images")
-                    img.save(image_path)
-                    image_size = os.path.getsize(image_path)
-                    file_id, upload_url = await service.get_image_upload_url(image_size)
-                    if await service.upload(upload_url, image_path, "image/png"):
-                        parts.append({
-                            "content_type": "image_asset_pointer",
-                            "asset_pointer": f"file-service://{file_id}",
-                            "size_bytes": image_size,
-                            "width": width,
-                            "height": height
-                        })
-                        attachments.append({
-                            "id": file_id,
-                            "size": image_size,
-                            "name": "image.png",
-                            "mime_type": "image/png",
-                            "width": width,
-                            "height": height
-                        })
-                        '''
+                    file_content, mime_type = await get_file_content(url)
+                    file_meta = await service.upload_file(file_content, mime_type)
+                    if file_meta:
+                        file_id = file_meta["file_id"]
+                        file_size = file_meta["size_bytes"]
+                        file_name = file_meta["file_name"]
+                        mime_type = file_meta["mime_type"]
+                        if mime_type.startswith("image/"):
+                            width, height = file_meta["width"], file_meta["height"]
+                            file_tokens += await calculate_image_tokens(width, height, detail)
+                            parts.append({
+                                "content_type": "image_asset_pointer",
+                                "asset_pointer": f"file-service://{file_id}",
+                                "size_bytes": file_size,
+                                "width": width,
+                                "height": height
+                            })
+                            attachments.append({
+                                "id": file_id,
+                                "size": file_size,
+                                "name": file_name,
+                                "mime_type": mime_type,
+                                "width": width,
+                                "height": height
+                            })
+                        else:
+                            file_tokens += file_size
+                            attachments.append({
+                                "id": file_id,
+                                "size": file_size,
+                                "name": file_name,
+                                "mime_type": mime_type,
+                            })
             metadata = {
                 "attachments": attachments
             }
@@ -282,5 +286,5 @@ async def api_messages_to_chat(service, api_messages):
         }
         chat_messages.append(chat_message)
     text_tokens = await num_tokens_from_messages(api_messages, service.target_model)
-    prompt_tokens = text_tokens + images_tokens
+    prompt_tokens = text_tokens + file_tokens
     return chat_messages, prompt_tokens
