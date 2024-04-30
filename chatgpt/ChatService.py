@@ -6,9 +6,9 @@ import uuid
 import websockets
 from fastapi import HTTPException
 
-from api.chat_completions import num_tokens_from_messages, model_proxy
+from api.chat_completions import model_proxy
 from chatgpt.chatResponse import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
-from chatgpt.proofofwork import calc_proof_token
+from chatgpt.proofofwork import calc_proof_token, chat_requirements_body
 from utils.Client import Client
 from utils.Logger import Logger
 from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled
@@ -19,6 +19,7 @@ class ChatService:
     def __init__(self, data, access_token=None):
         self.proxy_url = random.choice(proxy_url_list) if proxy_url_list else None
         self.s = Client(proxy=self.proxy_url)
+        self.ws = None
         if access_token:
             self.base_url = random.choice(chatgpt_base_url_list) + "/backend-api"
         else:
@@ -38,7 +39,8 @@ class ChatService:
         self.history_disabled = data.get('history_disabled', history_disabled)
 
         self.data = data
-        self.model = self.data.get("model", "gpt-3.5-turbo-0125")
+        self.origin_model = self.data.get("model", "gpt-3.5-turbo-0125")
+        self.target_model = model_proxy.get(self.origin_model, self.origin_model)
         self.api_messages = self.data.get("messages", [])
         self.prompt_tokens = 0
         self.max_tokens = self.data.get("max_tokens", 2147483647)
@@ -65,10 +67,18 @@ class ChatService:
         if self.access_token:
             headers['Authorization'] = f'Bearer {self.access_token}'
         try:
-            r = await self.s.post(url, headers=headers, json={})
+            data = chat_requirements_body(self.user_agent)
+            r = await self.s.post(url, headers=headers, json=data)
             if r.status_code == 200:
                 resp = r.json()
                 self.persona = resp.get("persona")
+                if "gpt-4" in self.origin_model and self.persona != "chatgpt-paid":
+                    raise HTTPException(status_code=404, detail={
+                        "message": f"The model `{self.origin_model}` does not exist or you do not have access to it.",
+                        "type": "invalid_request_error",
+                        "param": None,
+                        "code": "model_not_found"
+                    })
                 arkose = resp.get('arkose', {})
                 proofofwork = resp.get('proofofwork', {})
                 turnstile = resp.get('turnstile', {})
@@ -96,7 +106,7 @@ class ChatService:
                 if proofofwork_required:
                     proofofwork_seed = proofofwork.get("seed")
                     proofofwork_diff = proofofwork.get("difficulty")
-                    self.proof_token = await run_in_threadpool(calc_proof_token, proofofwork_seed, proofofwork_diff)
+                    self.proof_token = await run_in_threadpool(calc_proof_token, proofofwork_seed, proofofwork_diff, self.user_agent)
 
                 turnstile_required = turnstile.get('required')
                 if turnstile_required:
@@ -111,20 +121,20 @@ class ChatService:
                     detail = r.json().get("detail", r.json())
                 else:
                     detail = r.content
-
                 if r.status_code == 403:
                     raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
                 elif r.status_code == 429:
                     raise HTTPException(status_code=r.status_code, detail="rate-limit")
                 raise HTTPException(status_code=r.status_code, detail=detail)
-
         except HTTPException as e:
+            Logger.error(f"status_code: {e.status_code}, {e.detail}")
             raise HTTPException(status_code=e.status_code, detail=e.detail)
         except Exception as e:
+            Logger.error(f"status_code: 500, {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
     async def prepare_send_conversation(self):
-        chat_messages = await api_messages_to_chat(self, self.api_messages)
+        chat_messages, self.prompt_tokens = await api_messages_to_chat(self, self.api_messages)
         self.headers = {
             'Accept': 'text/event-stream',
             'Accept-Encoding': 'gzip, deflate, br',
@@ -145,11 +155,11 @@ class ChatService:
         }
         if self.access_token:
             self.headers['Authorization'] = f'Bearer {self.access_token}'
-        if "gizmo" in self.model:
+        if "gizmo" in self.origin_model:
             model = "gpt-4"
             gizmo_id = self.data.get("model").split("gpt-4-gizmo-")[-1]
             conversation_mode = {"kind": "gizmo_interaction", "gizmo_id": gizmo_id}
-        elif "gpt-4" in self.model:
+        elif "gpt-4" in self.origin_model:
             model = "gpt-4"
             conversation_mode = {"kind": "primary_assistant"}
         else:
@@ -175,17 +185,8 @@ class ChatService:
         return self.chat_request
 
     async def send_conversation(self):
-        url = f'{self.base_url}/conversation'
-        if "gpt-4" in self.model and self.persona != "chatgpt-paid":
-            raise HTTPException(status_code=404, detail={
-                "message": f"The model `{self.model}` does not exist or you do not have access to it.",
-                "type": "invalid_request_error",
-                "param": None,
-                "code": "model_not_found"
-            })
-        model = model_proxy.get(self.model, self.model)
         try:
-            self.prompt_tokens = await num_tokens_from_messages(self.api_messages, self.model)
+            url = f'{self.base_url}/conversation'
             stream = self.data.get("stream", False)
             r = await self.s.post_stream(url, headers=self.headers, json=self.chat_request, timeout=600, stream=True)
             if r.status_code != 200:
@@ -198,9 +199,9 @@ class ChatService:
 
             content_type = r.headers.get("Content-Type", "")
             if "text/event-stream" in content_type and stream:
-                return stream_response(self, r.aiter_lines(), model, self.max_tokens)
+                return stream_response(self, r.aiter_lines(), self.target_model, self.max_tokens)
             elif "text/event-stream" in content_type and not stream:
-                return await format_not_stream_response(stream_response(self, r.aiter_lines(), model, self.max_tokens), self.prompt_tokens, self.max_tokens, model)
+                return await format_not_stream_response(stream_response(self, r.aiter_lines(), self.target_model, self.max_tokens), self.prompt_tokens, self.max_tokens, self.target_model)
             elif "application/json" in content_type:
                 rtext = await r.atext()
                 detail = json.loads(rtext).get("detail", json.loads(rtext))
@@ -208,21 +209,28 @@ class ChatService:
                 Logger.info(f"wss_url: {wss_url}")
                 subprotocols = ["json.reliable.webpubsub.azure.v1"]
                 try:
-                    async with websockets.connect(wss_url, ping_interval=None, subprotocols=subprotocols) as websocket:
-                        wss_r = wss_stream_response(websocket)
+                    self.ws = await websockets.connect(wss_url, ping_interval=None, subprotocols=subprotocols)
+                    wss_r = wss_stream_response(self.ws)
+                    try:
                         if stream and isinstance(wss_r, types.AsyncGeneratorType):
-                            return stream_response(self, wss_r, model, self.max_tokens)
+                            return stream_response(self, wss_r, self.target_model, self.max_tokens)
                         else:
                             return await format_not_stream_response(
-                                stream_response(self, wss_r, model, self.max_tokens), self.prompt_tokens,
-                                self.max_tokens, model)
+                                stream_response(self, wss_r, self.target_model, self.max_tokens), self.prompt_tokens,
+                                self.max_tokens, self.target_model)
+                    finally:
+                        if not isinstance(wss_r, types.AsyncGeneratorType):
+                            await self.ws.close()
                 except websockets.exceptions.InvalidStatusCode as e:
-                    Logger.error(f"Invalid status code: {str(e)}")
                     raise HTTPException(status_code=e.status_code, detail=str(e))
             else:
                 raise HTTPException(status_code=r.status_code, detail="Unsupported Content-Type")
         except HTTPException as e:
+            Logger.error(f"status_code: {e.status_code}, {e.detail}")
             raise HTTPException(status_code=e.status_code, detail=e.detail)
+        except Exception as e:
+            Logger.error(f"status_code: 500, {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def get_image_download_url(self, asset_pointer):
         image_url = f"{self.base_url}/files/{asset_pointer}/download"
@@ -274,6 +282,7 @@ class ChatService:
             r = await self.s.post(url, headers=headers, json={
                 "file_name": "image.png",
                 "file_size": image_size,
+                "timezone_offset_min": -480,
                 "use_case": "multimodal"
             })
             if r.status_code == 200:
@@ -315,3 +324,5 @@ class ChatService:
 
     async def close_client(self):
         await self.s.close()
+        if self.ws:
+            await self.ws.close()

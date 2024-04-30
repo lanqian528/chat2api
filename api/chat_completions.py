@@ -59,15 +59,10 @@ async def get_img(url):
     return img
 
 
-async def calculate_image_tokens(image_url):
-    detail = image_url.get("detail", "auto")
+async def calculate_image_tokens(width, height, detail):
     if detail == "low":
         return 85
     else:
-        url = image_url.get("url")
-        img = await get_img(url)
-        width, height = img.size
-
         max_dimension = max(width, height)
         if max_dimension > 2048:
             scale_factor = 2048 / max_dimension
@@ -98,7 +93,7 @@ async def calculate_image_tokens(image_url):
         return total_tokens
 
 
-async def num_tokens_from_messages(messages, model=None):
+async def num_tokens_from_messages(messages, model=''):
     try:
         encoding = tiktoken.encoding_for_model(model)
     except KeyError:
@@ -125,7 +120,7 @@ async def num_tokens_from_messages(messages, model=None):
                     if item.get("type") == "text":
                         num_tokens += len(encoding.encode(item.get("text")))
                     if item.get("type") == "image_url":
-                        num_tokens += await calculate_image_tokens(item.get("image_url"))
+                        pass
             else:
                 num_tokens += len(encoding.encode(value))
     num_tokens += 3

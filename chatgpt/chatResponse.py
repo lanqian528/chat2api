@@ -9,7 +9,8 @@ import uuid
 
 import websockets
 
-from api.chat_completions import model_system_fingerprint, split_tokens_from_content, get_img
+from api.chat_completions import model_system_fingerprint, split_tokens_from_content, get_img, calculate_image_tokens, \
+    num_tokens_from_messages
 from utils.Logger import Logger
 
 moderation_message = "I'm sorry, I cannot provide or engage in any content related to pornography, violence, or any unethical material. If you have any other questions or need assistance, please feel free to let me know. I'll do my best to provide support and assistance."
@@ -222,6 +223,7 @@ async def stream_response(service, response, model, max_tokens):
 
 
 async def api_messages_to_chat(service, api_messages):
+    images_tokens = 0
     chat_messages = []
     for api_message in api_messages:
         role = api_message.get('role')
@@ -234,9 +236,13 @@ async def api_messages_to_chat(service, api_messages):
                 if i.get("type") == "text":
                     parts.append(i.get("text"))
                 if i.get("type") == "image_url":
-                    url = i.get("image_url").get("url")
+                    image_url = i.get("image_url")
+                    url = image_url.get("url")
+                    detail = image_url.get("detail", "auto")
                     img = await get_img(url)
                     width, height = img.size
+                    images_tokens += await calculate_image_tokens(width, height, detail)
+                    '''upload not working
                     image_name = f"image.png"
                     image_path = f"./images/{image_name}"
                     if not os.path.exists("./images"):
@@ -244,8 +250,6 @@ async def api_messages_to_chat(service, api_messages):
                     img.save(image_path)
                     image_size = os.path.getsize(image_path)
                     file_id, upload_url = await service.get_image_upload_url(image_size)
-                    # not working
-                    '''
                     if await service.upload(upload_url, image_path, "image/png"):
                         parts.append({
                             "content_type": "image_asset_pointer",
@@ -262,7 +266,7 @@ async def api_messages_to_chat(service, api_messages):
                             "width": width,
                             "height": height
                         })
-                    '''
+                        '''
             metadata = {
                 "attachments": attachments
             }
@@ -277,4 +281,6 @@ async def api_messages_to_chat(service, api_messages):
             "metadata": metadata
         }
         chat_messages.append(chat_message)
-    return chat_messages
+    text_tokens = await num_tokens_from_messages(api_messages, service.target_model)
+    prompt_tokens = text_tokens + images_tokens
+    return chat_messages, prompt_tokens

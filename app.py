@@ -7,6 +7,7 @@ from starlette.background import BackgroundTask
 
 from chatgpt.ChatService import ChatService
 from chatgpt.reverseProxy import chatgpt_reverse_proxy
+from utils.Logger import Logger
 from utils.authorization import verify_token
 from utils.retry import async_retry
 
@@ -54,7 +55,8 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
             return JSONResponse(res, media_type="application/json")
     except HTTPException as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
-    except Exception:
+    except Exception as e:
+        Logger.error(f"Server error, {str(e)}")
         raise HTTPException(status_code=500, detail="Server error")
     finally:
         if res and not isinstance(res, types.AsyncGeneratorType):
