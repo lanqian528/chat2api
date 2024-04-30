@@ -6,7 +6,8 @@ import uuid
 import websockets
 from fastapi import HTTPException
 
-from api.apiTools import model_proxy, get_image_size, get_file_extension, determine_file_use_case
+from api.files import get_image_size, get_file_extension, determine_file_use_case
+from api.models import model_proxy
 from chatgpt.chatFormat import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
 from chatgpt.proofofwork import calc_proof_token, chat_requirements_body
 from utils.Client import Client

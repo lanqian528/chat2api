@@ -31,10 +31,10 @@ https://t.me/chat2api
 > - [x] 支持 WSS (暂不支持代理，容易403)
 > - [x] 返回 conversation_id (beta)
 > - [x] 支持GPTs(使用模型名称：gpt-4-gizmo-g-*)
+> - [x] 上传图片、文件 (格式为API对应格式，支持url和base64)
 
 > TODO
-> - [ ] 上传图片(已完成一半)
-> - [ ] 上传文件
+> - [ ] 暂无，欢迎提 issue
 
 
 ## 部署
