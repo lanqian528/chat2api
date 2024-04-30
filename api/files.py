@@ -6,7 +6,6 @@ from PIL import Image
 from utils.Client import Client
 
 
-
 async def get_file_content(url):
     if url.startswith("data:"):
         mime_type, base64_data = url.split(';')[0].split(':')[1], url.split(',')[1]

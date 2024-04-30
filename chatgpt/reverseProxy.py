@@ -1,4 +1,5 @@
 import random
+
 from fastapi import Request, HTTPException
 from fastapi.responses import StreamingResponse, Response
 from starlette.background import BackgroundTask
@@ -102,8 +103,7 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
         client = Client(proxy=random.choice(proxy_url_list) if proxy_url_list else None)
         r = None
         try:
-            r = await client.request(request.method, f"{base_url}/{path}", params=params, headers=headers, cookies=cookies,
-                                     data=data, stream=True)
+            r = await client.request(request.method, f"{base_url}/{path}", params=params, headers=headers, cookies=cookies, data=data, stream=True)
             if r.status_code == 302:
                 return Response(status_code=302, headers={"Location": r.headers.get("Location")})
             elif 'stream' in r.headers.get("content-type", ""):

@@ -5,15 +5,15 @@ import uuid
 
 import websockets
 from fastapi import HTTPException
+from starlette.concurrency import run_in_threadpool
 
 from api.files import get_image_size, get_file_extension, determine_file_use_case
 from api.models import model_proxy
 from chatgpt.chatFormat import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
-from chatgpt.proofofwork import calc_proof_token, chat_requirements_body
+from chatgpt.proofofWork import calc_proof_token, chat_requirements_body
 from utils.Client import Client
 from utils.Logger import Logger
 from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled
-from starlette.concurrency import run_in_threadpool
 
 
 class ChatService:
@@ -208,9 +208,7 @@ class ChatService:
                         if stream and isinstance(wss_r, types.AsyncGeneratorType):
                             return stream_response(self, wss_r, self.target_model, self.max_tokens)
                         else:
-                            return await format_not_stream_response(
-                                stream_response(self, wss_r, self.target_model, self.max_tokens), self.prompt_tokens,
-                                self.max_tokens, self.target_model)
+                            return await format_not_stream_response(stream_response(self, wss_r, self.target_model, self.max_tokens), self.prompt_tokens, self.max_tokens, self.target_model)
                     finally:
                         if not isinstance(wss_r, types.AsyncGeneratorType):
                             await self.ws.close()

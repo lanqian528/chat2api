@@ -1,6 +1,6 @@
-from utils.Logger import logger
 from fastapi import HTTPException
 
+from utils.Logger import logger
 from utils.config import retry_times
 
 
