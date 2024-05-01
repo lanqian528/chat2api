@@ -17,8 +17,8 @@ https://t.me/chat2api
 > 已完成
 > - [x] 免登录 GPT3.5
 > - [x] 使用 AccessToken
-> - [x] GPT3.5 对话
-> - [x] GPT4.0 对话
+> - [x] GPT3.5 对话 (模型名不包含gpt-4，则默认使用text-davinci-002-render-sha模型，也就是gpt-3.5)
+> - [x] GPT4.0 对话 (模型名包含gpt-4，则使用gpt-4， 若包含moblie则使用gpt-4-moblie)
 > - [x] Tokens 计算
 > - [x] Stream 流式传输
 > - [x] 配置 PROXY 代理
@@ -30,7 +30,7 @@ https://t.me/chat2api
 > - [x] GPT4.0 画图、工具 (beta)
 > - [x] 支持 WSS (暂不支持代理，容易403)
 > - [x] 返回 conversation_id (beta)
-> - [x] 支持GPTs(使用模型名称：gpt-4-gizmo-g-*)
+> - [x] 支持GPTs(模型名：gpt-4-gizmo-g-*)
 > - [x] 上传图片、文件 (格式为API对应格式，支持url和base64)
 
 > TODO

@@ -152,12 +152,16 @@ class ChatService:
             model = "gpt-4"
             gizmo_id = self.data.get("model").split("gpt-4-gizmo-")[-1]
             conversation_mode = {"kind": "gizmo_interaction", "gizmo_id": gizmo_id}
+        elif "gpt-4-mobile" in self.origin_model:
+            model = "gpt-4-mobile"
+            conversation_mode = {"kind": "primary_assistant"}
         elif "gpt-4" in self.origin_model:
             model = "gpt-4"
             conversation_mode = {"kind": "primary_assistant"}
         else:
             model = "text-davinci-002-render-sha"
             conversation_mode = {"kind": "primary_assistant"}
+        Logger.info(f"Model mapping: {self.origin_model} -> {model}")
         self.chat_request = {
             "action": "next",
             "messages": chat_messages,
