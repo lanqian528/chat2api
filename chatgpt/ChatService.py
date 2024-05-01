@@ -10,7 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from api.files import get_image_size, get_file_extension, determine_file_use_case
 from api.models import model_proxy
 from chatgpt.chatFormat import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
-from chatgpt.proofofWork import calc_proof_token, chat_requirements_body
+from chatgpt.proofofWork import calc_proof_token, chat_requirements_body, get_config
 from utils.Client import Client
 from utils.Logger import Logger
 from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled
@@ -64,7 +64,8 @@ class ChatService:
         if self.access_token:
             headers['Authorization'] = f'Bearer {self.access_token}'
         try:
-            data = chat_requirements_body(self.user_agent)
+            config = get_config(self.user_agent)
+            data = chat_requirements_body(config)
             r = await self.s.post(url, headers=headers, json=data)
             if r.status_code == 200:
                 resp = r.json()
@@ -103,7 +104,7 @@ class ChatService:
                 if proofofwork_required:
                     proofofwork_seed = proofofwork.get("seed")
                     proofofwork_diff = proofofwork.get("difficulty")
-                    self.proof_token = await run_in_threadpool(calc_proof_token, proofofwork_seed, proofofwork_diff, self.user_agent)
+                    self.proof_token = await run_in_threadpool(calc_proof_token, proofofwork_seed, proofofwork_diff, config)
 
                 turnstile_required = turnstile.get('required')
                 if turnstile_required:
