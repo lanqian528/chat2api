@@ -48,7 +48,6 @@ def calc_proof_token(seed, diff, user_agent):
 
 def chat_requirements_body(user_agent):
     item_list = get_config(user_agent)
-    print(item_list)
     item_list += [
         "https://cdn.oaistatic.com/_next/static/MukSHk9CtBFQqnH15__S9/_ssgManifest.js?dpl=6e44e4574f20cd7debafd92d9cf530cfaeb484b0",
         "dpl=6e44e4574f20cd7debafd92d9cf530cfaeb484b0",
