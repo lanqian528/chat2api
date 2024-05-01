@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 answers = {}
-cores = [8, 12, 16, 24]
+cores = [8, 12, 16, 24, 32]
 screens = [3000, 4000, 6000]
 timeLayout = "%a %b %d %Y %H:%M:%S"
 
@@ -20,7 +20,7 @@ def get_config(user_agent):
     random.seed(int(time.time() * 1e9))
     core = random.choice(cores)
     screen = random.choice(screens)
-    return [core + screen, get_parse_time(), 4294705152, 0, user_agent]
+    return [core + screen, get_parse_time(), 4294705152, 2, user_agent]
 
 
 def calc_proof_token(seed, diff, user_agent):
@@ -30,7 +30,7 @@ def calc_proof_token(seed, diff, user_agent):
     config = get_config(user_agent)
     diffLen = len(diff) // 2
 
-    for i in range(100000):
+    for i in range(1000000):
         config[3] = i
         json_data = json.dumps(config).encode()
         base = base64.b64encode(json_data).decode()
@@ -47,14 +47,15 @@ def calc_proof_token(seed, diff, user_agent):
 
 
 def chat_requirements_body(user_agent):
-    itemlist = get_config(user_agent)
-    itemlist += [
-        'https://cdn.oaistatic.com/_next/static/2E3kyHMTDQPAokpbyfwns/_ssgManifest.js?dpl=ebab7301ae39fe916a5e1ce6d894b31921d5d573',
-        "dpl=ebab7301ae39fe916a5e1ce6d894b31921d5d573",
-        "zh-CN",
-        "zh-CN, zh"
+    item_list = get_config(user_agent)
+    print(item_list)
+    item_list += [
+        "https://cdn.oaistatic.com/_next/static/MukSHk9CtBFQqnH15__S9/_ssgManifest.js?dpl=6e44e4574f20cd7debafd92d9cf530cfaeb484b0",
+        "dpl=6e44e4574f20cd7debafd92d9cf530cfaeb484b0",
+        "en-US",
+        "en-US,en"
     ]
-    json_data = json.dumps(itemlist).encode()
+    json_data = json.dumps(item_list).encode()
     base = base64.b64encode(json_data).decode()
     retObj = {'p': 'gAAAAAC' + base}
-    return json.dumps(retObj)
+    return retObj
