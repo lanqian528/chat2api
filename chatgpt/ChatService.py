@@ -10,7 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from api.files import get_image_size, get_file_extension, determine_file_use_case
 from api.models import model_proxy
 from chatgpt.chatFormat import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
-from chatgpt.proofofWork import calc_proof_token, chat_requirements_body, get_config
+from chatgpt.proofofWork import calc_proof_token, calc_config_token, get_config, get_dpl
 from utils.Client import Client
 from utils.Logger import Logger
 from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled
@@ -19,12 +19,15 @@ from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url
 class ChatService:
     def __init__(self, data, access_token=None):
         self.proxy_url = random.choice(proxy_url_list) if proxy_url_list else None
+        self.host_url = random.choice(chatgpt_base_url_list)
+        self.arkose_token_url = random.choice(arkose_token_url_list) if arkose_token_url_list else None
+
         self.s = Client(proxy=self.proxy_url)
         self.ws = None
         if access_token:
-            self.base_url = random.choice(chatgpt_base_url_list) + "/backend-api"
+            self.base_url = self.host_url + "/backend-api"
         else:
-            self.base_url = random.choice(chatgpt_base_url_list) + "/backend-anon"
+            self.base_url = self.host_url + "/backend-anon"
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"
 
         self.access_token = access_token
@@ -32,7 +35,6 @@ class ChatService:
         self.persona = None
         self.chat_token = None
         self.arkose_token = None
-        self.arkose_token_url = random.choice(arkose_token_url_list) if arkose_token_url_list else None
         self.proof_token = None
 
         self.parent_message_id = data.get('parent_message_id')
@@ -64,8 +66,9 @@ class ChatService:
         if self.access_token:
             headers['Authorization'] = f'Bearer {self.access_token}'
         try:
+            await get_dpl(self)
             config = get_config(self.user_agent)
-            data = chat_requirements_body(config)
+            data = {'p': calc_config_token(config)}
             r = await self.s.post(url, headers=headers, json=data)
             if r.status_code == 200:
                 resp = r.json()
@@ -122,13 +125,14 @@ class ChatService:
                 if r.status_code == 403:
                     raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
                 elif r.status_code == 429:
-                    raise HTTPException(status_code=r.status_code, detail="rate-limit")
+                    if "cf-please-wait" in detail:
+                        raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
+                    else:
+                        raise HTTPException(status_code=r.status_code, detail="rate-limit")
                 raise HTTPException(status_code=r.status_code, detail=detail)
         except HTTPException as e:
-            Logger.error(f"status_code: {e.status_code}, {e.detail}")
             raise HTTPException(status_code=e.status_code, detail=e.detail)
         except Exception as e:
-            Logger.error(f"status_code: 500, {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
     async def prepare_send_conversation(self):
@@ -222,10 +226,8 @@ class ChatService:
             else:
                 raise HTTPException(status_code=r.status_code, detail="Unsupported Content-Type")
         except HTTPException as e:
-            Logger.error(f"status_code: {e.status_code}, {e.detail}")
             raise HTTPException(status_code=e.status_code, detail=e.detail)
         except Exception as e:
-            Logger.error(f"status_code: 500, {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
     async def get_download_url(self, file_id):

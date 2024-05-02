@@ -8,7 +8,8 @@ services:
     ports:
       - '5005:5005'
     environment:
-#      - AUTHORIZATION=your_first_token, your_second_token
+#      - API_PREFIX=your_prefix
+#      - AUTHORIZATION=your_first_key, your_second_key
 #      - CHATGPT_BASE_URL=https://chat.openai.com
 #      - HISTORY_DISABLED=true
 #      - PROXY_URL=your_first_proxy, your_second_proxy

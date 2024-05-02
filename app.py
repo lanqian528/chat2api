@@ -9,6 +9,7 @@ from chatgpt.ChatService import ChatService
 from chatgpt.reverseProxy import chatgpt_reverse_proxy
 from utils.Logger import Logger
 from utils.authorization import verify_token
+from utils.config import api_prefix
 from utils.retry import async_retry
 
 app = FastAPI()
@@ -33,7 +34,7 @@ async def to_send_conversation(request_data, access_token):
         raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
-@app.post("/v1/chat/completions")
+@app.post(f"/{api_prefix}/v1/chat/completions" if api_prefix else "/v1/chat/completions")
 async def send_conversation(request: Request, token=Depends(verify_token)):
     access_token = None
     if token and token.startswith("eyJhbGciOi"):

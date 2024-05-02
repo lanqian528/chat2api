@@ -6,7 +6,7 @@
 
 💥 支持AccessToken使用账号，支持GPT4.0
 
-🔍 以假乱真，回复格式与真实api完全一致，支持max_tokens，stream等参数，并且支持token数计算
+🔍 回复格式与真实api完全一致，适配几乎所有客户端
 
 ## 交流群
 
@@ -28,9 +28,9 @@ https://t.me/chat2api
 > - [x] 使用 RefreshToken 代替 AccessToken
 > - [x] 反向代理 UI (http://127.0.0.1:5005, 不支持登录使用)
 > - [x] GPT4.0 画图、工具 (beta)
-> - [x] 支持 WSS (暂不支持代理，容易403)
+> - [x] 支持 WSS (beta)
 > - [x] 返回 conversation_id (beta)
-> - [x] 支持GPTs(模型名：gpt-4-gizmo-g-*)
+> - [x] 支持GPTs (模型名：gpt-4-gizmo-g-*)
 > - [x] 上传图片、文件 (格式为API对应格式，支持url和base64)
 
 > TODO
@@ -107,8 +107,7 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 ## 常见问题
 
 > - 错误代码：
-    >
-- `401`：当前IP不支持免登录，请尝试更换IP地址，或者在环境变量 `PROXY_URL` 中设置代理。
+>   - `401`：当前IP不支持免登录，请尝试更换IP地址，或者在环境变量 `PROXY_URL` 中设置代理。
 >   - `403`：当前IP地址被 CF 盾拦截，请尝试更换IP地址，或者在环境变量 `PROXY_URL` 中设置代理。
 >   - `429`：当前IP请求1小时内请求超过限制，请稍后再试，或更换ip。
 >   - `500`：服务器内部错误，请求失败。
@@ -148,13 +147,16 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 
 ### 环境变量
 
+每个环境变量都有默认值，如果不懂环境变量的含义，请不要设置
+
 ```
-AUTHORIZATION=your_first_token, your_second_token    // 使用免登3.5的Bearer token，不设置则无需Bearer token
-CHATGPT_BASE_URL=https://chat.openai.com             // ChatGPT网关地址
-HISTORY_DISABLED=true                                // 是否不保存聊天记录并返回 conversation_id (beta)，true为不保存
+API_PREFIX=your_prefix                               // API前缀，设置后需请求 http://127.0.0.1:5005/your_prefix/v1/chat/completions
+AUTHORIZATION=your_first_key, your_second_key        // 使用免登3.5的Bearer token，不设置则无需Bearer token (不是 AccessToken)
+CHATGPT_BASE_URL=https://chat.openai.com             // ChatGPT网关地址，设置后会改变请求的网站，多个网关用逗号分隔
+HISTORY_DISABLED=true                                // 是否不保存聊天记录并返回 conversation_id，true为不保存且不返回
 PROXY_URL=your_first_proxy, your_second_proxy        // 代理url，多个代理用逗号分隔
 ARKOSE_TOKEN_URL=https://arkose.example.com/token    // 获取Arkose token的地址，上文有提供说明
-RETRY_TIMES=3                                        // 重试次数
+RETRY_TIMES=3                                        // 出错重试次数
 ```
 
 ## License
