@@ -12,7 +12,7 @@ from api.models import model_proxy
 from chatgpt.chatFormat import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
 from chatgpt.proofofWork import calc_proof_token, calc_config_token, get_config, get_dpl
 from utils.Client import Client
-from utils.Logger import Logger
+from utils.Logger import logger
 from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled
 
 
@@ -96,7 +96,7 @@ class ChatService:
                             timeout=15
                         )
                         r2esp = r2.json()
-                        Logger.info(f"arkose_token: {r2esp}")
+                        logger.info(f"arkose_token: {r2esp}")
                         self.arkose_token = r2esp.get('token')
                     except Exception:
                         raise HTTPException(status_code=403, detail="Failed to get Arkose token")
@@ -121,7 +121,7 @@ class ChatService:
                 if "application/json" == r.headers.get("Content-Type", ""):
                     detail = r.json().get("detail", r.json())
                 else:
-                    detail = r.content
+                    detail = r.text
                 if r.status_code == 403:
                     raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
                 elif r.status_code == 429:
@@ -166,7 +166,7 @@ class ChatService:
         else:
             model = "text-davinci-002-render-sha"
             conversation_mode = {"kind": "primary_assistant"}
-        Logger.info(f"Model mapping: {self.origin_model} -> {model}")
+        logger.info(f"Model mapping: {self.origin_model} -> {model}")
         self.chat_request = {
             "action": "next",
             "messages": chat_messages,
@@ -206,9 +206,9 @@ class ChatService:
                 return await format_not_stream_response(stream_response(self, r.aiter_lines(), self.target_model, self.max_tokens), self.prompt_tokens, self.max_tokens, self.target_model)
             elif "application/json" in content_type:
                 rtext = await r.atext()
-                detail = json.loads(rtext).get("detail", json.loads(rtext))
-                wss_url = detail.get('wss_url')
-                Logger.info(f"wss_url: {wss_url}")
+                resp = json.loads(rtext)
+                wss_url = resp.get('wss_url')
+                logger.info(f"wss_url: {wss_url}")
                 subprotocols = ["json.reliable.webpubsub.azure.v1"]
                 try:
                     self.ws = await websockets.connect(wss_url, ping_interval=None, subprotocols=subprotocols)
@@ -303,7 +303,7 @@ class ChatService:
                 res = r.json()
                 file_id = res.get('file_id')
                 upload_url = res.get('upload_url')
-                Logger.info(f"file_id: {file_id}, upload_url: {upload_url}")
+                logger.info(f"file_id: {file_id}, upload_url: {upload_url}")
                 return file_id, upload_url
             else:
                 return "", ""
@@ -341,7 +341,7 @@ class ChatService:
             try:
                 width, height = await get_image_size(file_content)
             except Exception as e:
-                Logger.error(f"Error image mime_type, change to text/plain: {e}")
+                logger.error(f"Error image mime_type, change to text/plain: {e}")
                 mime_type = 'text/plain'
         file_size = len(file_content)
         file_extension = await get_file_extension(mime_type)
@@ -349,7 +349,7 @@ class ChatService:
         use_case = await determine_file_use_case(mime_type)
         if use_case == "ace_upload":
             mime_type = ''
-            Logger.error(f"Error file mime_type, change to None")
+            logger.error(f"Error file mime_type, change to None")
 
         file_id, upload_url = await self.get_upload_url(file_name, file_size, use_case)
         if file_id and upload_url:
@@ -364,11 +364,11 @@ class ChatService:
                         "width": width,
                         "height": height
                     }
-                    Logger.info(f"File_meta: {file_meta}")
+                    logger.info(f"File_meta: {file_meta}")
                     return file_meta
                 else:
-                    Logger.error("Failed to get download url")
+                    logger.error("Failed to get download url")
             else:
-                Logger.error("Failed to upload file")
+                logger.error("Failed to upload file")
         else:
-            Logger.error("Failed to get upload url")
+            logger.error("Failed to get upload url")

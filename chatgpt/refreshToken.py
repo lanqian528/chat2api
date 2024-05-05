@@ -4,7 +4,7 @@ import time
 from fastapi import HTTPException
 
 from utils.Client import Client
-from utils.Logger import Logger
+from utils.Logger import logger
 from utils.config import proxy_url_list
 
 refresh_map = {}
@@ -14,15 +14,15 @@ async def rt2ac(refresh_token):
     if refresh_token in refresh_map:
         if int(time.time()) - refresh_map.get(refresh_token, {}).get("timestamp") > 24 * 60 * 60:
             access_token = await chat_refresh(refresh_token)
-            Logger.info(f"refresh_token -> access_token with openai: {access_token}")
+            logger.info(f"refresh_token -> access_token with openai: {access_token}")
             return access_token
         else:
             access_token = refresh_map[refresh_token]["token"]
-            Logger.info(f"refresh_token -> access_token with cache: {access_token}")
+            logger.info(f"refresh_token -> access_token with cache: {access_token}")
             return access_token
     else:
         access_token = await chat_refresh(refresh_token)
-        Logger.info(f"refresh_token -> access_token with openai: {access_token}")
+        logger.info(f"refresh_token -> access_token with openai: {access_token}")
         return access_token
 
 

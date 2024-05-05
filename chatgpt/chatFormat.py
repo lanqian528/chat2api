@@ -11,7 +11,7 @@ import websockets
 from api.files import get_file_content
 from api.models import model_system_fingerprint
 from api.tokens import split_tokens_from_content, calculate_image_tokens, num_tokens_from_messages
-from utils.Logger import Logger
+from utils.Logger import logger
 
 moderation_message = "I'm sorry, I cannot provide or engage in any content related to pornography, violence, or any unethical material. If you have any other questions or need assistance, please feel free to let me know. I'll do my best to provide support and assistance."
 
@@ -34,7 +34,7 @@ async def format_not_stream_response(response, prompt_tokens, max_tokens, model)
                     continue
                 all_text += chunk["choices"][0]["delta"]["content"]
         except Exception as e:
-            Logger.error(f"Error: {chunk}, error: {str(e)}")
+            logger.error(f"Error: {chunk}, error: {str(e)}")
             continue
     content, completion_tokens, finish_reason = await split_tokens_from_content(all_text, max_tokens, model)
     message = {
@@ -79,15 +79,15 @@ async def wss_stream_response(websocket):
             else:
                 print("No message received within the specified time.")
         except asyncio.TimeoutError:
-            Logger.error("Timeout! No message received within the specified time.")
+            logger.error("Timeout! No message received within the specified time.")
             break
         except websockets.ConnectionClosed as e:
             if e.code == 1000:
-                Logger.error("WebSocket closed normally with code 1000 (OK)")
+                logger.error("WebSocket closed normally with code 1000 (OK)")
             else:
-                Logger.error(f"WebSocket closed with error code {e.code}")
+                logger.error(f"WebSocket closed with error code {e.code}")
         except Exception as e:
-            Logger.error(f"Error: {str(e)}")
+            logger.error(f"Error: {str(e)}")
             continue
 
 
@@ -171,9 +171,9 @@ async def stream_response(service, response, model, max_tokens):
                             if inner_content_type == "image_asset_pointer":
                                 last_content_type = "image_asset_pointer"
                                 file_id = part.get('asset_pointer').replace('file-service://', '')
-                                Logger.debug(f"file_id: {file_id}")
+                                logger.debug(f"file_id: {file_id}")
                                 image_download_url = await service.get_download_url(file_id)
-                                Logger.debug(f"image_download_url: {image_download_url}")
+                                logger.debug(f"image_download_url: {image_download_url}")
                                 if image_download_url:
                                     delta = {"content": f"\n```\n![image]({image_download_url})\n"}
                                 else:
@@ -218,7 +218,7 @@ async def stream_response(service, response, model, max_tokens):
                 completion_tokens += 1
                 yield f"data: {json.dumps(chunk_new_data)}\n\n"
         except Exception as e:
-            Logger.error(f"Error: {chunk}, details: {str(e)}")
+            logger.error(f"Error: {chunk}, details: {str(e)}")
             continue
 
 
