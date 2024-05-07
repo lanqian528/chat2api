@@ -23,6 +23,7 @@ class ChatService:
         self.arkose_token_url = random.choice(arkose_token_url_list) if arkose_token_url_list else None
 
         self.s = Client(proxy=self.proxy_url)
+        self.s.session.cookies.set("__Secure-next-auth.callback-url", "https%3A%2F%2Fchatgpt.com;", secure=True)
         self.ws = None
         if access_token:
             self.base_url = self.host_url + "/backend-api"
@@ -59,8 +60,8 @@ class ChatService:
             'Content-Type': 'application/json',
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
-            'Origin': 'https://chat.openai.com',
-            'Referer': 'https://chat.openai.com/',
+            'Origin': 'https://chatgpt.com',
+            'Referer': 'https://chatgpt.com/',
             'User-Agent': self.user_agent
         }
         if self.access_token:
@@ -147,8 +148,8 @@ class ChatService:
             'Openai-Sentinel-Chat-Requirements-Token': self.chat_token,
             'Openai-Sentinel-Proof-Token': self.proof_token,
             'Openai-Sentinel-Arkose-Token': self.arkose_token,
-            'Origin': 'https://chat.openai.com',
-            'Referer': 'https://chat.openai.com/',
+            'Origin': 'https://chatgpt.com',
+            'Referer': 'https://chatgpt.com/',
             'User-Agent': self.user_agent
         }
         if self.access_token:
@@ -238,8 +239,8 @@ class ChatService:
             'Content-Type': 'application/json',
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
-            'Origin': 'https://chat.openai.com',
-            'Referer': 'https://chat.openai.com/',
+            'Origin': 'https://chatgpt.com',
+            'Referer': 'https://chatgpt.com/',
             'User-Agent': self.user_agent
         }
         if self.access_token:
@@ -262,8 +263,8 @@ class ChatService:
             'Content-Type': 'application/json',
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
-            'Origin': 'https://chat.openai.com',
-            'Referer': 'https://chat.openai.com/',
+            'Origin': 'https://chatgpt.com',
+            'Referer': 'https://chatgpt.com/',
             'User-Agent': self.user_agent
         }
         if self.access_token:
@@ -286,8 +287,8 @@ class ChatService:
             'Content-Type': 'application/json',
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
-            'Origin': 'https://chat.openai.com',
-            'Referer': 'https://chat.openai.com/',
+            'Origin': 'https://chatgpt.com',
+            'Referer': 'https://chatgpt.com/',
             'User-Agent': self.user_agent
         }
         if self.access_token:
@@ -316,8 +317,8 @@ class ChatService:
             'Accept-Encoding': 'gzip, deflate, br, zstd',
             'Accept-Language': 'en-US,en;q=0.9',
             'Content-Type': mime_type,
-            'Origin': 'https://chat.openai.com',
-            'Referer': 'https://chat.openai.com/',
+            'Origin': 'https://chatgpt.com',
+            'Referer': 'https://chatgpt.com/',
             'User-Agent': self.user_agent,
             'X-Ms-Blob-Type': 'BlockBlob',
             'X-Ms-Version': '2020-04-08'

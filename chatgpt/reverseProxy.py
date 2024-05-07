@@ -76,7 +76,7 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
             if (key.lower() not in ["host", "origin", "referer", "user-agent",
                                     "authorization"] and key.lower() not in headers_reject_list)
         }
-        cookies = dict(request.cookies)
+        request_cookies = dict(request.cookies)
 
         headers.update({
             "accept-Language": "en-US,en;q=0.9",
@@ -103,22 +103,28 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
         client = Client(proxy=random.choice(proxy_url_list) if proxy_url_list else None)
         r = None
         try:
-            r = await client.request(request.method, f"{base_url}/{path}", params=params, headers=headers, cookies=cookies, data=data, stream=True)
+            r = await client.request(request.method, f"{base_url}/{path}", params=params, headers=headers, cookies=request_cookies, data=data, stream=True)
             if r.status_code == 302:
                 return Response(status_code=302, headers={"Location": r.headers.get("Location")})
             elif 'stream' in r.headers.get("content-type", ""):
                 background = BackgroundTask(client.close)
                 return StreamingResponse(r.aiter_content(), media_type=r.headers.get("content-type", ""), background=background)
             else:
-                content = ((await r.atext()).replace("chat.openai.com", origin_host)
+                content = ((await r.atext()).replace("chatgpt.com", origin_host)
+                           .replace("chat.openai.com", origin_host)
                            .replace("ab.chatgpt.com", origin_host)
                            .replace("cdn.oaistatic.com", origin_host)
                            .replace("https", petrol))
                 response = Response(content=content, media_type=r.headers.get("content-type"), status_code=r.status_code)
-                for key, value in r.cookies.items():
-                    if key in cookies.keys():
+                for cookie_name in r.cookies:
+                    if cookie_name in request_cookies:
                         continue
-                    response.set_cookie(key=key, value=value)
+                    for cookie_domain in [".chatgpt.com", ".chat.openai.com"]:
+                        cookie_value = r.cookies.get(name=cookie_name, domain=cookie_domain)
+                        if cookie_name.startswith("__"):
+                            response.set_cookie(key=cookie_name, value=cookie_value, secure=True, httponly=True)
+                        else:
+                            response.set_cookie(key=cookie_name, value=cookie_value)
                 return response
         finally:
             if r and 'stream' not in r.headers.get("content-type", ""):

@@ -11,17 +11,13 @@ refresh_map = {}
 
 
 async def rt2ac(refresh_token):
-    if refresh_token in refresh_map:
-        if int(time.time()) - refresh_map.get(refresh_token, {}).get("timestamp") > 24 * 60 * 60:
-            access_token = await chat_refresh(refresh_token)
-            logger.info(f"refresh_token -> access_token with openai: {access_token}")
-            return access_token
-        else:
-            access_token = refresh_map[refresh_token]["token"]
-            logger.info(f"refresh_token -> access_token with cache: {access_token}")
-            return access_token
+    if refresh_token in refresh_map and int(time.time()) - refresh_map.get(refresh_token, {}).get("timestamp", 0) < 24 * 60 * 60:
+        access_token = refresh_map[refresh_token]["token"]
+        logger.info(f"refresh_token -> access_token from cache")
+        return access_token
     else:
         access_token = await chat_refresh(refresh_token)
+        refresh_map[refresh_token] = {"token": access_token, "timestamp": int(time.time())}
         logger.info(f"refresh_token -> access_token with openai: {access_token}")
         return access_token
 
@@ -38,7 +34,6 @@ async def chat_refresh(refresh_token):
         r = await client.post("https://auth0.openai.com/oauth/token", json=data)
         if r.status_code == 200:
             access_token = r.json()['access_token']
-            refresh_map[refresh_token] = {"token": access_token, "timestamp": int(time.time())}
             return access_token
         else:
             raise Exception("Unknown or invalid refresh token.")

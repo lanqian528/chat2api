@@ -18,7 +18,7 @@ def is_true(stream):
 
 api_prefix = os.getenv('API_PREFIX', None)
 authorization = os.getenv('AUTHORIZATION', '').replace(' ', '')
-chatgpt_base_url = os.getenv('CHATGPT_BASE_URL', 'https://chat.openai.com').replace(' ', '')
+chatgpt_base_url = os.getenv('CHATGPT_BASE_URL', 'https://chatgpt.com').replace(' ', '')
 arkose_token_url = os.getenv('ARKOSE_TOKEN_URL', '').replace(' ', '')
 proxy_url = os.getenv('PROXY_URL', '').replace(' ', '')
 history_disabled_str = os.getenv('HISTORY_DISABLED', 'true').replace(' ', '')

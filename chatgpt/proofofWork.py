@@ -39,8 +39,8 @@ async def get_dpl(service):
         'Content-Type': 'application/json',
         'Oai-Device-Id': service.oai_device_id,
         'Oai-Language': 'en-US',
-        'Origin': 'https://chat.openai.com',
-        'Referer': 'https://chat.openai.com/',
+        'Origin': 'https://chatgpt.com',
+        'Referer': 'https://chatgpt.com/',
         'User-Agent': service.user_agent
     }
     try:
@@ -78,7 +78,7 @@ def get_config(user_agent):
 
 def calc_proof_token(seed, diff, config):
     diff_len = len(diff) // 2
-    for i in range(100000):
+    for i in range(50000):
         config[3] = i
         json_data = json.dumps(config, separators=(',', ':'), ensure_ascii=False)
         base = base64.b64encode(json_data.encode()).decode()
