@@ -37,7 +37,7 @@ async def to_send_conversation(request_data, access_token):
 @app.post(f"/{api_prefix}/v1/chat/completions" if api_prefix else "/v1/chat/completions")
 async def send_conversation(request: Request, token=Depends(verify_token)):
     access_token = None
-    if token and token.startswith("eyJhbGciOi"):
+    if token and (token.startswith("eyJhbGciOi") or token.startswith("fk-")):
         access_token = token
     try:
         request_data = await request.json()

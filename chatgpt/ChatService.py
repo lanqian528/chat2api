@@ -11,6 +11,7 @@ from api.files import get_image_size, get_file_extension, determine_file_use_cas
 from api.models import model_proxy
 from chatgpt.chatFormat import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
 from chatgpt.proofofWork import calc_proof_token, calc_config_token, get_config, get_dpl
+from chatgpt.refreshToken import fake_map
 from utils.Client import Client
 from utils.Logger import logger
 from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled
@@ -23,7 +24,6 @@ class ChatService:
         self.arkose_token_url = random.choice(arkose_token_url_list) if arkose_token_url_list else None
 
         self.s = Client(proxy=self.proxy_url)
-        self.s.session.cookies.set("__Secure-next-auth.callback-url", "https%3A%2F%2Fchatgpt.com;", secure=True)
         self.ws = None
         if access_token:
             self.base_url = self.host_url + "/backend-api"
@@ -34,7 +34,7 @@ class ChatService:
         self.access_token = access_token
         self.oai_device_id = str(uuid.uuid4())
         self.persona = None
-        self.chat_token = None
+        self.chat_token = "gAAAAAB"
         self.arkose_token = None
         self.proof_token = None
 
@@ -52,6 +52,10 @@ class ChatService:
         self.headers = None
         self.chat_request = None
 
+        self.s.session.cookies.set("__Secure-next-auth.callback-url", "https%3A%2F%2Fchatgpt.com;", secure=True)
+        if access_token.startswith("fk-"):
+            self.s.session.cookies.set("_Secure-next-auth.session-data", fake_map[access_token]["token"])
+
     async def get_chat_requirements(self):
         url = f'{self.base_url}/sentinel/chat-requirements'
         headers = {
@@ -60,8 +64,8 @@ class ChatService:
             'Content-Type': 'application/json',
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
-            'Origin': 'https://chatgpt.com',
-            'Referer': 'https://chatgpt.com/',
+            'Origin': self.host_url,
+            'Referer': f'{self.host_url}/',
             'User-Agent': self.user_agent
         }
         if self.access_token:
@@ -148,8 +152,8 @@ class ChatService:
             'Openai-Sentinel-Chat-Requirements-Token': self.chat_token,
             'Openai-Sentinel-Proof-Token': self.proof_token,
             'Openai-Sentinel-Arkose-Token': self.arkose_token,
-            'Origin': 'https://chatgpt.com',
-            'Referer': 'https://chatgpt.com/',
+            # 'Origin': self.host_url,
+            # 'Referer': f'{self.host_url}/',
             'User-Agent': self.user_agent
         }
         if self.access_token:
@@ -239,8 +243,8 @@ class ChatService:
             'Content-Type': 'application/json',
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
-            'Origin': 'https://chatgpt.com',
-            'Referer': 'https://chatgpt.com/',
+            'Origin': self.host_url,
+            'Referer': f'{self.host_url}/',
             'User-Agent': self.user_agent
         }
         if self.access_token:
@@ -263,8 +267,8 @@ class ChatService:
             'Content-Type': 'application/json',
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
-            'Origin': 'https://chatgpt.com',
-            'Referer': 'https://chatgpt.com/',
+            'Origin': self.host_url,
+            'Referer': f'{self.host_url}/',
             'User-Agent': self.user_agent
         }
         if self.access_token:
@@ -287,8 +291,8 @@ class ChatService:
             'Content-Type': 'application/json',
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
-            'Origin': 'https://chatgpt.com',
-            'Referer': 'https://chatgpt.com/',
+            'Origin': self.host_url,
+            'Referer': f'{self.host_url}/',
             'User-Agent': self.user_agent
         }
         if self.access_token:
@@ -317,8 +321,8 @@ class ChatService:
             'Accept-Encoding': 'gzip, deflate, br, zstd',
             'Accept-Language': 'en-US,en;q=0.9',
             'Content-Type': mime_type,
-            'Origin': 'https://chatgpt.com',
-            'Referer': 'https://chatgpt.com/',
+            'Origin': self.host_url,
+            'Referer': f'{self.host_url}/',
             'User-Agent': self.user_agent,
             'X-Ms-Blob-Type': 'BlockBlob',
             'X-Ms-Version': '2020-04-08'

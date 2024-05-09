@@ -39,8 +39,8 @@ async def get_dpl(service):
         'Content-Type': 'application/json',
         'Oai-Device-Id': service.oai_device_id,
         'Oai-Language': 'en-US',
-        'Origin': 'https://chatgpt.com',
-        'Referer': 'https://chatgpt.com/',
+        'Origin': service.host_url,
+        'Referer': f'{service.host_url}/',
         'User-Agent': service.user_agent
     }
     try:
