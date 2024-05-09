@@ -11,7 +11,6 @@ from api.files import get_image_size, get_file_extension, determine_file_use_cas
 from api.models import model_proxy
 from chatgpt.chatFormat import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
 from chatgpt.proofofWork import calc_proof_token, calc_config_token, get_config, get_dpl
-from chatgpt.refreshToken import fake_map
 from utils.Client import Client
 from utils.Logger import logger
 from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled
@@ -53,8 +52,6 @@ class ChatService:
         self.chat_request = None
 
         self.s.session.cookies.set("__Secure-next-auth.callback-url", "https%3A%2F%2Fchatgpt.com;", secure=True)
-        if access_token.startswith("fk-"):
-            self.s.session.cookies.set("_Secure-next-auth.session-data", fake_map[access_token]["token"])
 
     async def get_chat_requirements(self):
         url = f'{self.base_url}/sentinel/chat-requirements'
@@ -152,8 +149,8 @@ class ChatService:
             'Openai-Sentinel-Chat-Requirements-Token': self.chat_token,
             'Openai-Sentinel-Proof-Token': self.proof_token,
             'Openai-Sentinel-Arkose-Token': self.arkose_token,
-            # 'Origin': self.host_url,
-            # 'Referer': f'{self.host_url}/',
+            'Origin': self.host_url,
+            'Referer': f'{self.host_url}/',
             'User-Agent': self.user_agent
         }
         if self.access_token:
