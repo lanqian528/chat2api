@@ -17,23 +17,26 @@ from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url
 
 
 class ChatService:
-    def __init__(self, data, access_token=None):
+    def __init__(self, access_token=None):
+        # some configs need to be saved accross conversations
+        self.ws = None
+        self.wss_url = None
+        self.wss_mode = False
+        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"
+        self.access_token = access_token
+        self.chat_token = "gAAAAAB"
+
+    async def set_dynamic_data(self, data):
         self.proxy_url = random.choice(proxy_url_list) if proxy_url_list else None
         self.host_url = random.choice(chatgpt_base_url_list)
         self.arkose_token_url = random.choice(arkose_token_url_list) if arkose_token_url_list else None
-
         self.s = Client(proxy=self.proxy_url)
-        self.ws = None
-        if access_token:
+        if self.access_token:
             self.base_url = self.host_url + "/backend-api"
         else:
             self.base_url = self.host_url + "/backend-anon"
-        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"
-
-        self.access_token = access_token
         self.oai_device_id = str(uuid.uuid4())
         self.persona = None
-        self.chat_token = "gAAAAAB"
         self.arkose_token = None
         self.proof_token = None
 
@@ -52,6 +55,35 @@ class ChatService:
         self.chat_request = None
 
         self.s.session.cookies.set("__Secure-next-auth.callback-url", "https%3A%2F%2Fchatgpt.com;", secure=True)
+
+    async def get_wss_url(self):
+        url = f'{self.base_url}/register-websocket'
+        headers = {
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Content-Type': 'application/json',
+            'Oai-Device-Id': self.oai_device_id,
+            'Oai-Language': 'en-US',
+            'Origin': 'https://chatgpt.com',
+            'Priority': 'u=1, i',
+            'Referer': 'https://chatgpt.com/',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
+            'User-Agent': self.user_agent
+        }
+        if self.access_token:
+            headers['Authorization'] = f'Bearer {self.access_token}'
+            pass
+        body = ''
+        logger.debug(f"url:{url}\nheaders:{headers}\ndata:{body}")
+        r = await self.s.post(url, headers=headers, data=body)
+        if r.status_code == 200:
+            resp = r.json()
+            logger.info(f'register-websocket response:{resp}')
+            wss_url = resp.get('wss_url')
+            return wss_url
+        return None
 
     async def get_chat_requirements(self):
         url = f'{self.base_url}/sentinel/chat-requirements'
@@ -190,6 +222,18 @@ class ChatService:
 
     async def send_conversation(self):
         try:
+            subprotocols = ["json.reliable.webpubsub.azure.v1"]
+            wss_r = None
+            try:
+                if self.wss_mode:
+                    if not self.wss_url:
+                        self.wss_url = await self.get_wss_url() # first wss_url
+                    # websocket connection has to be established before posting conversation to avoid message loss.
+                    if self.wss_url:
+                        self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=subprotocols)
+                        wss_r = wss_stream_response(self.ws)
+            except websockets.exceptions.InvalidStatusCode as e:
+                raise HTTPException(status_code=e.status_code, detail=str(e))
             url = f'{self.base_url}/conversation'
             stream = self.data.get("stream", False)
             r = await self.s.post_stream(url, headers=self.headers, json=self.chat_request, timeout=600, stream=True)
@@ -203,18 +247,18 @@ class ChatService:
 
             content_type = r.headers.get("Content-Type", "")
             if "text/event-stream" in content_type and stream:
+                self.wss_mode = False
                 return stream_response(self, r.aiter_lines(), self.target_model, self.max_tokens)
             elif "text/event-stream" in content_type and not stream:
+                self.wss_mode = False
                 return await format_not_stream_response(stream_response(self, r.aiter_lines(), self.target_model, self.max_tokens), self.prompt_tokens, self.max_tokens, self.target_model)
             elif "application/json" in content_type:
+                self.wss_mode = True
                 rtext = await r.atext()
                 resp = json.loads(rtext)
-                wss_url = resp.get('wss_url')
-                logger.info(f"wss_url: {wss_url}")
-                subprotocols = ["json.reliable.webpubsub.azure.v1"]
-                try:
-                    self.ws = await websockets.connect(wss_url, ping_interval=None, subprotocols=subprotocols)
-                    wss_r = wss_stream_response(self.ws)
+                self.wss_url = resp.get('wss_url') # used for next wss_url
+                logger.info(f"next wss_url: {self.wss_url}")
+                if wss_r:
                     try:
                         if stream and isinstance(wss_r, types.AsyncGeneratorType):
                             return stream_response(self, wss_r, self.target_model, self.max_tokens)
@@ -223,8 +267,8 @@ class ChatService:
                     finally:
                         if not isinstance(wss_r, types.AsyncGeneratorType):
                             await self.ws.close()
-                except websockets.exceptions.InvalidStatusCode as e:
-                    raise HTTPException(status_code=e.status_code, detail=str(e))
+                else: # switching to websocket mode
+                    raise HTTPException(status_code=500, detail="switching to websocket mode...")
             else:
                 raise HTTPException(status_code=r.status_code, detail="Unsupported Content-Type")
         except HTTPException as e:

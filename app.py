@@ -23,8 +23,17 @@ app.add_middleware(
 )
 
 
+chatServiceInstanceDict = {}  # access_token as a key, except 3.5 which is 'default3.5'
+
 async def to_send_conversation(request_data, access_token):
-    chat_service = ChatService(request_data, access_token)
+    global chatServiceInstanceDict
+    if not access_token:
+        instanceKey = 'default3.5'
+    else:
+        instanceKey = access_token
+    chatServiceInstanceDict[instanceKey] = chatServiceInstanceDict.get(instanceKey, ChatService(access_token))
+    chat_service = chatServiceInstanceDict[instanceKey]
+    await chat_service.set_dynamic_data(request_data)
     try:
         await chat_service.get_chat_requirements()
         return chat_service
@@ -78,4 +87,4 @@ if __name__ == "__main__":
     log_config["formatters"]["default"]["fmt"] = default_format
     log_config["formatters"]["access"]["fmt"] = access_format
 
-    uvicorn.run("app:app", host="0.0.0.0", port=5005)
+    uvicorn.run("app:app", host="0.0.0.0", port=5205)
