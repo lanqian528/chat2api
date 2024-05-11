@@ -2,6 +2,7 @@ import json
 import random
 import types
 import uuid
+import time
 
 import websockets
 from fastapi import HTTPException
@@ -22,6 +23,7 @@ class ChatService:
         self.ws = None
         self.wss_url = None
         self.wss_mode = False
+        self.lasttime_get_wss_url = 0
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"
         self.access_token = access_token
         self.chat_token = "gAAAAAB"
@@ -226,8 +228,9 @@ class ChatService:
             wss_r = None
             try:
                 if self.wss_mode:
-                    if not self.wss_url:
+                    if not self.wss_url or time.time() > 3600 + self.lasttime_get_wss_url:
                         self.wss_url = await self.get_wss_url() # first wss_url
+                        self.lasttime_get_wss_url = time.time()
                     # websocket connection has to be established before posting conversation to avoid message loss.
                     if self.wss_url:
                         self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=subprotocols)
@@ -257,6 +260,7 @@ class ChatService:
                 rtext = await r.atext()
                 resp = json.loads(rtext)
                 self.wss_url = resp.get('wss_url') # used for next wss_url
+                self.lasttime_get_wss_url = time.time()
                 logger.info(f"next wss_url: {self.wss_url}")
                 if wss_r:
                     try:
