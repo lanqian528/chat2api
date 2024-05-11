@@ -3,6 +3,7 @@ import random
 import types
 import uuid
 
+import asyncio
 import websockets
 from fastapi import HTTPException
 from starlette.concurrency import run_in_threadpool
@@ -11,29 +12,29 @@ from api.files import get_image_size, get_file_extension, determine_file_use_cas
 from api.models import model_proxy
 from chatgpt.chatFormat import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
 from chatgpt.proofofWork import calc_proof_token, calc_config_token, get_config, get_dpl
+from chatgpt.wssClient import ac2wss, set_wss
 from utils.Client import Client
 from utils.Logger import logger
 from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled
 
 
 class ChatService:
-    def __init__(self, data, access_token=None):
+    def __init__(self, access_token=None):
+        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"
+        self.access_token = access_token
+        self.chat_token = "gAAAAAB"
+
+    async def set_dynamic_data(self, data):
         self.proxy_url = random.choice(proxy_url_list) if proxy_url_list else None
         self.host_url = random.choice(chatgpt_base_url_list)
         self.arkose_token_url = random.choice(arkose_token_url_list) if arkose_token_url_list else None
 
         self.s = Client(proxy=self.proxy_url)
         self.ws = None
-        if access_token:
-            self.base_url = self.host_url + "/backend-api"
-        else:
-            self.base_url = self.host_url + "/backend-anon"
-        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"
+        self.wss_mode, self.wss_url = await ac2wss(self.access_token)
 
-        self.access_token = access_token
         self.oai_device_id = str(uuid.uuid4())
         self.persona = None
-        self.chat_token = "gAAAAAB"
         self.arkose_token = None
         self.proof_token = None
 
@@ -48,25 +49,44 @@ class ChatService:
         self.prompt_tokens = 0
         self.max_tokens = self.data.get("max_tokens", 2147483647)
 
-        self.headers = None
+        self.chat_headers = None
         self.chat_request = None
 
         self.s.session.cookies.set("__Secure-next-auth.callback-url", "https%3A%2F%2Fchatgpt.com;", secure=True)
-
-    async def get_chat_requirements(self):
-        url = f'{self.base_url}/sentinel/chat-requirements'
-        headers = {
+        self.base_headers = {
             'Accept': '*/*',
             'Accept-Language': 'en-US,en;q=0.9',
             'Content-Type': 'application/json',
             'Oai-Device-Id': self.oai_device_id,
             'Oai-Language': 'en-US',
             'Origin': self.host_url,
+            'Priority': 'u=1, i',
             'Referer': f'{self.host_url}/',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
             'User-Agent': self.user_agent
         }
         if self.access_token:
-            headers['Authorization'] = f'Bearer {self.access_token}'
+            self.base_url = self.host_url + "/backend-api"
+            self.base_headers['Authorization'] = f'Bearer {self.access_token}'
+        else:
+            self.base_url = self.host_url + "/backend-anon"
+
+    async def get_wss_url(self):
+        url = f'{self.base_url}/register-websocket'
+        headers = self.base_headers
+        r = await self.s.post(url, headers=headers, data='')
+        if r.status_code == 200:
+            resp = r.json()
+            logger.info(f'register-websocket response:{resp}')
+            wss_url = resp.get('wss_url')
+            return wss_url
+        return None
+
+    async def get_chat_requirements(self):
+        url = f'{self.base_url}/sentinel/chat-requirements'
+        headers = self.base_headers
         try:
             await get_dpl(self)
             config = get_config(self.user_agent)
@@ -139,22 +159,13 @@ class ChatService:
 
     async def prepare_send_conversation(self):
         chat_messages, self.prompt_tokens = await api_messages_to_chat(self, self.api_messages)
-        self.headers = {
+        self.chat_headers = self.base_headers
+        self.chat_headers.update({
             'Accept': 'text/event-stream',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Content-Type': 'application/json',
-            'Oai-Device-Id': self.oai_device_id,
-            'Oai-Language': 'en-US',
             'Openai-Sentinel-Chat-Requirements-Token': self.chat_token,
             'Openai-Sentinel-Proof-Token': self.proof_token,
             'Openai-Sentinel-Arkose-Token': self.arkose_token,
-            'Origin': self.host_url,
-            'Referer': f'{self.host_url}/',
-            'User-Agent': self.user_agent
-        }
-        if self.access_token:
-            self.headers['Authorization'] = f'Bearer {self.access_token}'
+        })
         if "gizmo" in self.origin_model:
             model = "gpt-4"
             gizmo_id = self.data.get("model").split("gpt-4-gizmo-")[-1]
@@ -190,9 +201,21 @@ class ChatService:
 
     async def send_conversation(self):
         try:
+            subprotocols = ["json.reliable.webpubsub.azure.v1"]
+            wss_r = None
+            try:
+                if self.wss_mode:
+                    if not self.wss_url:
+                        self.wss_url = await self.get_wss_url()
+                        await set_wss(self.access_token, self.wss_url)
+                    if self.wss_url:
+                        self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=subprotocols)
+                        wss_r = wss_stream_response(self.ws)
+            except websockets.exceptions.InvalidStatusCode as e:
+                raise HTTPException(status_code=e.status_code, detail=str(e))
             url = f'{self.base_url}/conversation'
             stream = self.data.get("stream", False)
-            r = await self.s.post_stream(url, headers=self.headers, json=self.chat_request, timeout=600, stream=True)
+            r = await self.s.post_stream(url, headers=self.chat_headers, json=self.chat_request, timeout=600, stream=True)
             if r.status_code != 200:
                 if r.status_code == 403:
                     detail = "cf-please-wait"
@@ -209,22 +232,20 @@ class ChatService:
             elif "application/json" in content_type:
                 rtext = await r.atext()
                 resp = json.loads(rtext)
-                wss_url = resp.get('wss_url')
-                logger.info(f"wss_url: {wss_url}")
-                subprotocols = ["json.reliable.webpubsub.azure.v1"]
-                try:
-                    self.ws = await websockets.connect(wss_url, ping_interval=None, subprotocols=subprotocols)
+                self.wss_url = resp.get('wss_url')
+                await set_wss(self.access_token, self.wss_url)
+                logger.info(f"next wss_url: {self.wss_url}")
+                if not wss_r:
+                    self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=subprotocols)
                     wss_r = wss_stream_response(self.ws)
-                    try:
-                        if stream and isinstance(wss_r, types.AsyncGeneratorType):
-                            return stream_response(self, wss_r, self.target_model, self.max_tokens)
-                        else:
-                            return await format_not_stream_response(stream_response(self, wss_r, self.target_model, self.max_tokens), self.prompt_tokens, self.max_tokens, self.target_model)
-                    finally:
-                        if not isinstance(wss_r, types.AsyncGeneratorType):
-                            await self.ws.close()
-                except websockets.exceptions.InvalidStatusCode as e:
-                    raise HTTPException(status_code=e.status_code, detail=str(e))
+                try:
+                    if stream and isinstance(wss_r, types.AsyncGeneratorType):
+                        return stream_response(self, wss_r, self.target_model, self.max_tokens)
+                    else:
+                        return await format_not_stream_response(stream_response(self, wss_r, self.target_model, self.max_tokens), self.prompt_tokens, self.max_tokens, self.target_model)
+                finally:
+                    if not isinstance(wss_r, types.AsyncGeneratorType):
+                        await self.ws.close()
             else:
                 raise HTTPException(status_code=r.status_code, detail="Unsupported Content-Type")
         except HTTPException as e:
@@ -234,18 +255,7 @@ class ChatService:
 
     async def get_download_url(self, file_id):
         url = f"{self.base_url}/files/{file_id}/download"
-        headers = {
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Content-Type': 'application/json',
-            'Oai-Device-Id': self.oai_device_id,
-            'Oai-Language': 'en-US',
-            'Origin': self.host_url,
-            'Referer': f'{self.host_url}/',
-            'User-Agent': self.user_agent
-        }
-        if self.access_token:
-            headers['Authorization'] = f'Bearer {self.access_token}'
+        headers = self.base_headers
         try:
             r = await self.s.get(url, headers=headers)
             if r.status_code == 200:
@@ -258,18 +268,7 @@ class ChatService:
 
     async def get_download_url_from_upload(self, file_id):
         url = f"{self.base_url}/files/{file_id}/uploaded"
-        headers = {
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Content-Type': 'application/json',
-            'Oai-Device-Id': self.oai_device_id,
-            'Oai-Language': 'en-US',
-            'Origin': self.host_url,
-            'Referer': f'{self.host_url}/',
-            'User-Agent': self.user_agent
-        }
-        if self.access_token:
-            headers['Authorization'] = f'Bearer {self.access_token}'
+        headers = self.base_headers
         try:
             r = await self.s.post(url, headers=headers, json={})
             if r.status_code == 200:
@@ -282,18 +281,7 @@ class ChatService:
 
     async def get_upload_url(self, file_name, file_size, use_case="multimodal"):
         url = f'{self.base_url}/files'
-        headers = {
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Content-Type': 'application/json',
-            'Oai-Device-Id': self.oai_device_id,
-            'Oai-Language': 'en-US',
-            'Origin': self.host_url,
-            'Referer': f'{self.host_url}/',
-            'User-Agent': self.user_agent
-        }
-        if self.access_token:
-            headers['Authorization'] = f'Bearer {self.access_token}'
+        headers = self.base_headers
         try:
             r = await self.s.post(url, headers=headers, json={
                 "file_name": file_name,
@@ -313,17 +301,13 @@ class ChatService:
             return "", ""
 
     async def upload(self, upload_url, file_content, mime_type):
-        headers = {
+        headers = self.base_headers
+        headers.update({
             'Accept': 'application/json, text/plain, */*',
-            'Accept-Encoding': 'gzip, deflate, br, zstd',
-            'Accept-Language': 'en-US,en;q=0.9',
             'Content-Type': mime_type,
-            'Origin': self.host_url,
-            'Referer': f'{self.host_url}/',
-            'User-Agent': self.user_agent,
             'X-Ms-Blob-Type': 'BlockBlob',
             'X-Ms-Version': '2020-04-08'
-        }
+        })
         try:
             r = await self.s.put(upload_url, headers=headers, data=file_content)
             if r.status_code == 201:
@@ -331,11 +315,6 @@ class ChatService:
             return False
         except Exception:
             return False
-
-    async def close_client(self):
-        await self.s.close()
-        if self.ws:
-            await self.ws.close()
 
     async def upload_file(self, file_content, mime_type):
         width, height = None, None
@@ -374,3 +353,15 @@ class ChatService:
                 logger.error("Failed to upload file")
         else:
             logger.error("Failed to get upload url")
+
+    async def close_client(self):
+        await self.s.close()
+        if self.ws:
+            while not self.ws.closed:
+                try:
+                    await asyncio.wait_for(self.ws.recv(), timeout=3)
+                except asyncio.TimeoutError:
+                    break
+                except Exception as e:
+                    logger.error(f"Closing websocket error: {str(e)}")
+            await self.ws.close()
