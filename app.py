@@ -23,16 +23,8 @@ app.add_middleware(
 )
 
 
-chatServiceInstanceDict = {}  # access_token as a key, except 3.5 which is 'default3.5'
-
 async def to_send_conversation(request_data, access_token):
-    global chatServiceInstanceDict
-    if not access_token:
-        instanceKey = 'default3.5'
-    else:
-        instanceKey = access_token
-    chatServiceInstanceDict[instanceKey] = chatServiceInstanceDict.get(instanceKey, ChatService(access_token))
-    chat_service = chatServiceInstanceDict[instanceKey]
+    chat_service = ChatService(access_token)
     await chat_service.set_dynamic_data(request_data)
     try:
         await chat_service.get_chat_requirements()
@@ -62,15 +54,17 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
             background = BackgroundTask(chat_service.close_client)
             return StreamingResponse(res, media_type="text/event-stream", background=background)
         else:
-            return JSONResponse(res, media_type="application/json")
+            background = BackgroundTask(chat_service.close_client)
+            return JSONResponse(res, media_type="application/json", background=background)
     except HTTPException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.detail)
-    except Exception as e:
-        Logger.error(f"Server error, {str(e)}")
-        raise HTTPException(status_code=500, detail="Server error")
-    finally:
         if res and not isinstance(res, types.AsyncGeneratorType):
             await chat_service.close_client()
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    except Exception as e:
+        if res and not isinstance(res, types.AsyncGeneratorType):
+            await chat_service.close_client()
+        Logger.error(f"Server error, {str(e)}")
+        raise HTTPException(status_code=500, detail="Server error")
 
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])
