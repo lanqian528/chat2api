@@ -87,4 +87,4 @@ if __name__ == "__main__":
     log_config["formatters"]["default"]["fmt"] = default_format
     log_config["formatters"]["access"]["fmt"] = access_format
 
-    uvicorn.run("app:app", host="0.0.0.0", port=5205)
+    uvicorn.run("app:app", host="0.0.0.0", port=5005)
