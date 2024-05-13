@@ -71,7 +71,8 @@ def get_config(user_agent):
         random.choice(cached_scripts) if cached_scripts else "",
         cached_dpl,
         "en-US",
-        "en-US,en"
+        "en-US,en",
+        0
     ]
     return config
 
@@ -80,6 +81,7 @@ def calc_proof_token(seed, diff, config):
     diff_len = len(diff) // 2
     for i in range(50000):
         config[3] = i
+        config[9] = (i + 2) / 2
         json_data = json.dumps(config, separators=(',', ':'), ensure_ascii=False)
         base = base64.b64encode(json_data.encode()).decode()
         hasher = hashlib.sha3_512()
