@@ -105,7 +105,9 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
         try:
             r = await client.request(request.method, f"{base_url}/{path}", params=params, headers=headers,
                                      cookies=request_cookies, data=data, stream=True, allow_redirects=False)
-            if r.status_code == 307:
+            if r.status_code == 304:
+                return Response(status_code=304)
+            elif r.status_code == 307:
                 if "oai-dm=1" not in r.headers.get("Location"):
                     return Response(status_code=307, headers={
                         "Location": r.headers.get("Location").replace("chat.openai.com", origin_host)
@@ -135,7 +137,7 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
                 for cookie_name in r.cookies:
                     if cookie_name in request_cookies:
                         continue
-                    for cookie_domain in [".chatgpt.com", ".chat.openai.com"]:
+                    for cookie_domain in [".chatgpt.com"]:
                         cookie_value = r.cookies.get(name=cookie_name, domain=cookie_domain)
                         if cookie_name.startswith("__"):
                             response.set_cookie(key=cookie_name, value=cookie_value, secure=True, httponly=True)

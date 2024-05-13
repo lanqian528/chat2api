@@ -96,12 +96,13 @@ class ChatService:
                 resp = r.json()
                 self.persona = resp.get("persona")
                 if "gpt-4" in self.origin_model and self.persona != "chatgpt-paid":
-                    raise HTTPException(status_code=404, detail={
-                        "message": f"The model `{self.origin_model}` does not exist or you do not have access to it.",
-                        "type": "invalid_request_error",
-                        "param": None,
-                        "code": "model_not_found"
-                    })
+                    if "gpt-4o" not in self.origin_model:
+                        raise HTTPException(status_code=404, detail={
+                            "message": f"The model `{self.origin_model}` does not exist or you do not have access to it.",
+                            "type": "invalid_request_error",
+                            "param": None,
+                            "code": "model_not_found"
+                        })
                 arkose = resp.get('arkose', {})
                 proofofwork = resp.get('proofofwork', {})
                 turnstile = resp.get('turnstile', {})
@@ -166,19 +167,19 @@ class ChatService:
             'Openai-Sentinel-Proof-Token': self.proof_token,
             'Openai-Sentinel-Arkose-Token': self.arkose_token,
         })
+        conversation_mode = {"kind": "primary_assistant"}
         if "gizmo" in self.origin_model:
             model = "gpt-4"
             gizmo_id = self.data.get("model").split("gpt-4-gizmo-")[-1]
             conversation_mode = {"kind": "gizmo_interaction", "gizmo_id": gizmo_id}
         elif "gpt-4-mobile" in self.origin_model:
             model = "gpt-4-mobile"
-            conversation_mode = {"kind": "primary_assistant"}
+        elif "gpt-4o" in self.origin_model:
+            model = "gpt-4o"
         elif "gpt-4" in self.origin_model:
             model = "gpt-4"
-            conversation_mode = {"kind": "primary_assistant"}
         else:
             model = "text-davinci-002-render-sha"
-            conversation_mode = {"kind": "primary_assistant"}
         logger.info(f"Model mapping: {self.origin_model} -> {model}")
         self.chat_request = {
             "action": "next",

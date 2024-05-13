@@ -6,6 +6,7 @@ model_proxy = {
     "gpt-4-turbo-preview": "gpt-4-0125-preview",
     "gpt-4-vision-preview": "gpt-4-1106-vision-preview",
     "gpt-4-turbo": "gpt-4-turbo-2024-04-09",
+    "gpt-4o": "gpt-4o-2024-05-13",
     "claude-3-opus": "claude-3-opus-20240229",
     "claude-3-sonnet": "claude-3-sonnet-20240229",
     "claude-3-haiku": "claude-3-haiku-20240307",
@@ -18,5 +19,6 @@ model_system_fingerprint = {
                            "fp_b77cb481ed"],
     "gpt-4-1106-preview": ["fp_e467c31c3d", "fp_d986a8d1ba", "fp_99a5a401bb", "fp_123d5a9f90", "fp_0d1affc7a6",
                            "fp_5c95a4634e"],
-    "gpt-4-turbo-2024-04-09": ["fp_d1bac968b4"]
+    "gpt-4-turbo-2024-04-09": ["fp_d1bac968b4"],
+    "gpt-4o-2024-05-13": ["fp_d1bac968b4"]
 }
