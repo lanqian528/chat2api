@@ -75,7 +75,7 @@ class ChatService:
 
     async def get_wss_url(self):
         url = f'{self.base_url}/register-websocket'
-        headers = self.base_headers
+        headers = self.base_headers.copy()
         r = await self.s.post(url, headers=headers, data='')
         if r.status_code == 200:
             resp = r.json()
@@ -86,7 +86,7 @@ class ChatService:
 
     async def get_chat_requirements(self):
         url = f'{self.base_url}/sentinel/chat-requirements'
-        headers = self.base_headers
+        headers = self.base_headers.copy()
         try:
             await get_dpl(self)
             config = get_config(self.user_agent)
@@ -160,7 +160,7 @@ class ChatService:
 
     async def prepare_send_conversation(self):
         chat_messages, self.prompt_tokens = await api_messages_to_chat(self, self.api_messages)
-        self.chat_headers = self.base_headers
+        self.chat_headers = self.base_headers.copy()
         self.chat_headers.update({
             'Accept': 'text/event-stream',
             'Openai-Sentinel-Chat-Requirements-Token': self.chat_token,
@@ -256,7 +256,7 @@ class ChatService:
 
     async def get_download_url(self, file_id):
         url = f"{self.base_url}/files/{file_id}/download"
-        headers = self.base_headers
+        headers = self.base_headers.copy()
         try:
             r = await self.s.get(url, headers=headers)
             if r.status_code == 200:
@@ -269,7 +269,7 @@ class ChatService:
 
     async def get_download_url_from_upload(self, file_id):
         url = f"{self.base_url}/files/{file_id}/uploaded"
-        headers = self.base_headers
+        headers = self.base_headers.copy()
         try:
             r = await self.s.post(url, headers=headers, json={})
             if r.status_code == 200:
@@ -282,7 +282,7 @@ class ChatService:
 
     async def get_upload_url(self, file_name, file_size, use_case="multimodal"):
         url = f'{self.base_url}/files'
-        headers = self.base_headers
+        headers = self.base_headers.copy()
         try:
             r = await self.s.post(url, headers=headers, json={
                 "file_name": file_name,
@@ -302,13 +302,14 @@ class ChatService:
             return "", ""
 
     async def upload(self, upload_url, file_content, mime_type):
-        headers = self.base_headers
+        headers = self.base_headers.copy()
         headers.update({
             'Accept': 'application/json, text/plain, */*',
             'Content-Type': mime_type,
             'X-Ms-Blob-Type': 'BlockBlob',
             'X-Ms-Version': '2020-04-08'
         })
+        headers.pop('Authorization', None)
         try:
             r = await self.s.put(upload_url, headers=headers, data=file_content)
             if r.status_code == 201:
