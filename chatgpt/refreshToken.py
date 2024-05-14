@@ -32,7 +32,7 @@ async def chat_refresh(refresh_token):
     }
     client = Client(proxy=random.choice(proxy_url_list) if proxy_url_list else None)
     try:
-        r = await client.post("https://auth0.openai.com/oauth/token", json=data)
+        r = await client.post("https://auth0.openai.com/oauth/token", json=data, timeout=5)
         if r.status_code == 200:
             access_token = r.json()['access_token']
             return access_token

@@ -55,6 +55,7 @@ class ChatService:
         self.s.session.cookies.set("__Secure-next-auth.callback-url", "https%3A%2F%2Fchatgpt.com;", secure=True)
         self.base_headers = {
             'Accept': '*/*',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
             'Accept-Language': 'en-US,en;q=0.9',
             'Content-Type': 'application/json',
             'Oai-Device-Id': self.oai_device_id,
@@ -62,6 +63,9 @@ class ChatService:
             'Origin': self.host_url,
             'Priority': 'u=1, i',
             'Referer': f'{self.host_url}/',
+            'Sec-Ch-Ua': '"Chromium";v="124", "Microsoft Edge";v="124", "Not-A.Brand";v="99"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-origin',
@@ -76,7 +80,7 @@ class ChatService:
     async def get_wss_url(self):
         url = f'{self.base_url}/register-websocket'
         headers = self.base_headers.copy()
-        r = await self.s.post(url, headers=headers, data='')
+        r = await self.s.post(url, headers=headers, data='', timeout=3)
         if r.status_code == 200:
             resp = r.json()
             logger.info(f'register-websocket response:{resp}')
@@ -91,7 +95,7 @@ class ChatService:
             await get_dpl(self)
             config = get_config(self.user_agent)
             data = {'p': calc_config_token(config)}
-            r = await self.s.post(url, headers=headers, json=data)
+            r = await self.s.post(url, headers=headers, json=data, timeout=1)
             if r.status_code == 200:
                 resp = r.json()
                 self.persona = resp.get("persona")
@@ -165,8 +169,10 @@ class ChatService:
             'Accept': 'text/event-stream',
             'Openai-Sentinel-Chat-Requirements-Token': self.chat_token,
             'Openai-Sentinel-Proof-Token': self.proof_token,
-            'Openai-Sentinel-Arkose-Token': self.arkose_token,
         })
+        if self.arkose_token:
+            self.chat_headers['Openai-Sentinel-Arkose-Required'] = self.arkose_token
+
         conversation_mode = {"kind": "primary_assistant"}
         if "gpt-4o" in self.origin_model:
             model = "gpt-4o"
@@ -216,7 +222,7 @@ class ChatService:
                 raise HTTPException(status_code=e.status_code, detail=str(e))
             url = f'{self.base_url}/conversation'
             stream = self.data.get("stream", False)
-            r = await self.s.post_stream(url, headers=self.chat_headers, json=self.chat_request, timeout=600, stream=True)
+            r = await self.s.post_stream(url, headers=self.chat_headers, json=self.chat_request, timeout=5, stream=True)
             if r.status_code != 200:
                 if r.status_code == 403:
                     detail = "cf-please-wait"
@@ -258,7 +264,7 @@ class ChatService:
         url = f"{self.base_url}/files/{file_id}/download"
         headers = self.base_headers.copy()
         try:
-            r = await self.s.get(url, headers=headers)
+            r = await self.s.get(url, headers=headers, timeout=2)
             if r.status_code == 200:
                 download_url = r.json().get('download_url')
                 return download_url
@@ -271,7 +277,7 @@ class ChatService:
         url = f"{self.base_url}/files/{file_id}/uploaded"
         headers = self.base_headers.copy()
         try:
-            r = await self.s.post(url, headers=headers, json={})
+            r = await self.s.post(url, headers=headers, json={}, timeout=2)
             if r.status_code == 200:
                 download_url = r.json().get('download_url')
                 return download_url
@@ -289,7 +295,7 @@ class ChatService:
                 "file_size": file_size,
                 "timezone_offset_min": -480,
                 "use_case": use_case
-            })
+            }, timeout=2)
             if r.status_code == 200:
                 res = r.json()
                 file_id = res.get('file_id')
