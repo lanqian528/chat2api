@@ -80,7 +80,7 @@ class ChatService:
     async def get_wss_url(self):
         url = f'{self.base_url}/register-websocket'
         headers = self.base_headers.copy()
-        r = await self.s.post(url, headers=headers, data='', timeout=3)
+        r = await self.s.post(url, headers=headers, data='', timeout=2)
         if r.status_code == 200:
             resp = r.json()
             logger.info(f'register-websocket response:{resp}')

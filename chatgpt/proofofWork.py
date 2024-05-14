@@ -6,7 +6,6 @@ import time
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 
-answers = {}
 cores = [8, 12, 16, 24, 32]
 screens = [3000, 4000, 6000]
 timeLayout = "%a %b %d %Y %H:%M:%S"
@@ -14,6 +13,7 @@ timeLayout = "%a %b %d %Y %H:%M:%S"
 cached_scripts = []
 cached_dpl = ""
 cached_time = 0
+cached_require_proof = ""
 
 
 class ScriptSrcParser(HTMLParser):
@@ -72,14 +72,22 @@ def get_config(user_agent):
         cached_dpl,
         "en-US",
         "en-US,en",
-        0
+        0,
+        "webdriver−false",
+        "location",
+        "_N_E"
     ]
     return config
 
 
 def calc_proof_token(seed, diff, config):
+    proof = generate_answer(seed, diff, config)
+    return "gAAAAAB" + proof
+
+
+def generate_answer(seed, diff, config):
     diff_len = len(diff) // 2
-    for i in range(50000):
+    for i in range(500000):
         config[3] = i
         config[9] = (i + 2) / 2
         json_data = json.dumps(config, separators=(',', ':'), ensure_ascii=False)
@@ -87,15 +95,13 @@ def calc_proof_token(seed, diff, config):
         hasher = hashlib.sha3_512()
         hasher.update((seed + base).encode())
         hash_value = hasher.digest()
-
         if hash_value[:diff_len].hex() <= diff:
-            result = "gAAAAAB" + base
-            return result
-
-    return "gAAAAABwQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + base64.b64encode(f'"{seed}"'.encode()).decode()
+            return base
+    return "wQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + base64.b64encode(f'"{seed}"'.encode()).decode()
 
 
 def calc_config_token(config):
-    json_data = json.dumps(config).encode()
-    base = base64.b64encode(json_data).decode()
-    return 'gAAAAAC' + base
+    global cached_require_proof, cached_time
+    if not cached_require_proof or int(time.time()) - cached_time >= 60 * 60:
+        cached_require_proof = generate_answer(format(random.random(), 'f'), "000000", config)
+    return 'gAAAAAC' + cached_require_proof
