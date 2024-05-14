@@ -168,14 +168,14 @@ class ChatService:
             'Openai-Sentinel-Arkose-Token': self.arkose_token,
         })
         conversation_mode = {"kind": "primary_assistant"}
-        if "gizmo" in self.origin_model:
+        if "gpt-4o" in self.origin_model:
+            model = "gpt-4o"
+        elif "gpt-4-mobile" in self.origin_model:
+            model = "gpt-4-mobile"
+        elif "gpt-4-gizmo" in self.origin_model:
             model = "gpt-4"
             gizmo_id = self.data.get("model").split("gpt-4-gizmo-")[-1]
             conversation_mode = {"kind": "gizmo_interaction", "gizmo_id": gizmo_id}
-        elif "gpt-4-mobile" in self.origin_model:
-            model = "gpt-4-mobile"
-        elif "gpt-4o" in self.origin_model:
-            model = "gpt-4o"
         elif "gpt-4" in self.origin_model:
             model = "gpt-4"
         else:

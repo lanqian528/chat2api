@@ -42,16 +42,7 @@ async def num_tokens_from_messages(messages, model=''):
         encoding = tiktoken.encoding_for_model(model)
     except KeyError:
         encoding = tiktoken.get_encoding("cl100k_base")
-    if model in {
-        "gpt-3.5-turbo-0613",
-        "gpt-3.5-turbo-16k-0613",
-        "gpt-4-0314",
-        "gpt-4-32k-0314",
-        "gpt-4-0613",
-        "gpt-4-32k-0613",
-    }:
-        tokens_per_message = 3
-    elif model == "gpt-3.5-turbo-0301":
+    if model == "gpt-3.5-turbo-0301":
         tokens_per_message = 4
     else:
         tokens_per_message = 3
