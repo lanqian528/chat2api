@@ -149,14 +149,12 @@ class ChatService:
                     detail = r.json().get("detail", r.json())
                 else:
                     detail = r.text
-                if r.status_code == 403:
+                if "cf-please-wait" in detail:
                     raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
-                elif r.status_code == 429:
-                    if "cf-please-wait" in detail:
-                        raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
-                    else:
-                        raise HTTPException(status_code=r.status_code, detail="rate-limit")
+                if r.status_code == 429:
+                    raise HTTPException(status_code=r.status_code, detail="rate-limit")
                 raise HTTPException(status_code=r.status_code, detail=detail)
+
         except HTTPException as e:
             raise HTTPException(status_code=e.status_code, detail=e.detail)
         except Exception as e:
@@ -224,11 +222,15 @@ class ChatService:
             stream = self.data.get("stream", False)
             r = await self.s.post_stream(url, headers=self.chat_headers, json=self.chat_request, timeout=5, stream=True)
             if r.status_code != 200:
-                if r.status_code == 403:
-                    detail = "cf-please-wait"
+                rtext = await r.atext()
+                if "application/json" == r.headers.get("Content-Type", ""):
+                    detail = json.loads(rtext).get("detail", json.loads(rtext))
                 else:
-                    rtext = await r.atext()
-                    detail = json.loads(rtext).get("detail", rtext)
+                    detail = r.text[:100]
+                if "cf-please-wait" in rtext:
+                    raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
+                if r.status_code == 429:
+                    raise HTTPException(status_code=r.status_code, detail="rate-limit")
                 raise HTTPException(status_code=r.status_code, detail=detail)
 
             content_type = r.headers.get("Content-Type", "")
