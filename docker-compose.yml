@@ -11,6 +11,10 @@ services:
 #      - API_PREFIX=your_prefix
 #      - PROXY_URL=your_first_proxy, your_second_proxy
       - ARKOSE_TOKEN_URL=http://arkose:5006/token
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   arkose:
     image: lanqian528/funcaptcha_solver:latest

@@ -80,7 +80,7 @@ class ChatService:
     async def get_wss_url(self):
         url = f'{self.base_url}/register-websocket'
         headers = self.base_headers.copy()
-        r = await self.s.post(url, headers=headers, data='', timeout=2)
+        r = await self.s.post(url, headers=headers, data='', timeout=5)
         if r.status_code == 200:
             resp = r.json()
             logger.info(f'register-websocket response:{resp}')
@@ -95,7 +95,7 @@ class ChatService:
             await get_dpl(self)
             config = get_config(self.user_agent)
             data = {'p': calc_config_token(config)}
-            r = await self.s.post(url, headers=headers, json=data, timeout=1)
+            r = await self.s.post(url, headers=headers, json=data, timeout=5)
             if r.status_code == 200:
                 resp = r.json()
                 self.persona = resp.get("persona")
@@ -220,7 +220,7 @@ class ChatService:
                 raise HTTPException(status_code=e.status_code, detail=str(e))
             url = f'{self.base_url}/conversation'
             stream = self.data.get("stream", False)
-            r = await self.s.post_stream(url, headers=self.chat_headers, json=self.chat_request, timeout=5, stream=True)
+            r = await self.s.post_stream(url, headers=self.chat_headers, json=self.chat_request, timeout=10, stream=True)
             if r.status_code != 200:
                 rtext = await r.atext()
                 if "application/json" == r.headers.get("Content-Type", ""):
@@ -266,7 +266,7 @@ class ChatService:
         url = f"{self.base_url}/files/{file_id}/download"
         headers = self.base_headers.copy()
         try:
-            r = await self.s.get(url, headers=headers, timeout=2)
+            r = await self.s.get(url, headers=headers, timeout=5)
             if r.status_code == 200:
                 download_url = r.json().get('download_url')
                 return download_url
@@ -279,7 +279,7 @@ class ChatService:
         url = f"{self.base_url}/files/{file_id}/uploaded"
         headers = self.base_headers.copy()
         try:
-            r = await self.s.post(url, headers=headers, json={}, timeout=2)
+            r = await self.s.post(url, headers=headers, json={}, timeout=5)
             if r.status_code == 200:
                 download_url = r.json().get('download_url')
                 return download_url
@@ -297,7 +297,7 @@ class ChatService:
                 "file_size": file_size,
                 "timezone_offset_min": -480,
                 "use_case": use_case
-            }, timeout=2)
+            }, timeout=5)
             if r.status_code == 200:
                 res = r.json()
                 file_id = res.get('file_id')

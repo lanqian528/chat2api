@@ -32,19 +32,9 @@ class ScriptSrcParser(HTMLParser):
 async def get_dpl(service):
     if int(time.time()) - cached_time < 60 * 60:
         return True
-
-    headers = {
-        'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Content-Type': 'application/json',
-        'Oai-Device-Id': service.oai_device_id,
-        'Oai-Language': 'en-US',
-        'Origin': service.host_url,
-        'Referer': f'{service.host_url}/',
-        'User-Agent': service.user_agent
-    }
+    headers = service.base_headers.copy()
     try:
-        r = await service.s.get(service.host_url, headers=headers)
+        r = await service.s.get(f"{service.host_url}/?oai-dm=1", headers=headers)
         r.raise_for_status()
         parser = ScriptSrcParser()
         parser.feed(r.text)
@@ -103,5 +93,5 @@ def generate_answer(seed, diff, config):
 def calc_config_token(config):
     global cached_require_proof, cached_time
     if not cached_require_proof or int(time.time()) - cached_time >= 60 * 60:
-        cached_require_proof = generate_answer(format(random.random(), 'f'), "000000", config)
+        cached_require_proof = generate_answer(format(random.random(), 'f'), "0", config)
     return 'gAAAAAC' + cached_require_proof
