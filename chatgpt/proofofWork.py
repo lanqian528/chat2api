@@ -79,10 +79,10 @@ def calc_proof_token(seed, diff, config):
 
 def generate_answer(seed, diff, config):
     diff_len = len(diff) // 2
-    start = time.time() * 1000000 / 1000
+    start = int(time.time() * 1000000) / 1000
     seed_encoded = seed.encode()
 
-    for i in range(1000000):
+    for i in range(500000):
         config[3] = i
         config[9] = i
         json_data = json.dumps(config, separators=(',', ':'), ensure_ascii=False)
@@ -91,14 +91,15 @@ def generate_answer(seed, diff, config):
         hasher.update(seed_encoded + base.encode())
         hash_value = hasher.digest()
         if hash_value[:diff_len].hex() <= diff:
-            end = time.time() * 1000000 / 1000
+            end = int(time.time() * 1000000) / 1000
             logger.info(f'seed: {seed}, diff: {diff}, count: {i}, time: {(end - start)}ms')
             return base
 
     return "wQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + base64.b64encode(f'"{seed}"'.encode()).decode()
 
+
 def calc_config_token(config):
     global cached_require_proof, cached_time
     if not cached_require_proof or int(time.time()) - cached_time >= 60 * 60:
-        cached_require_proof = generate_answer(format(random.random(), 'f'), "0", config)
+        cached_require_proof = generate_answer(format(random.random()), "0", config)
     return 'gAAAAAC' + cached_require_proof

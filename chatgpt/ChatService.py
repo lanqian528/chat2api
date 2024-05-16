@@ -15,7 +15,7 @@ from chatgpt.proofofWork import calc_proof_token, calc_config_token, get_config,
 from chatgpt.wssClient import ac2wss, set_wss
 from utils.Client import Client
 from utils.Logger import logger
-from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled
+from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled, pow_difficulty
 
 
 class ChatService:
@@ -132,8 +132,10 @@ class ChatService:
 
                 proofofwork_required = proofofwork.get('required')
                 if proofofwork_required:
-                    proofofwork_seed = proofofwork.get("seed")
                     proofofwork_diff = proofofwork.get("difficulty")
+                    if proofofwork_diff.startswith("0" * (pow_difficulty + 1)):
+                        raise HTTPException(status_code=403, detail="Proof of work difficulty too high")
+                    proofofwork_seed = proofofwork.get("seed")
                     self.proof_token = await run_in_threadpool(calc_proof_token, proofofwork_seed, proofofwork_diff, config)
 
                 turnstile_required = turnstile.get('required')
