@@ -42,3 +42,4 @@ async def chat_refresh(refresh_token):
         raise HTTPException(status_code=401, detail=str(e))
     finally:
         await client.close()
+        del client

@@ -381,4 +381,4 @@ class ChatService:
                 except Exception as e:
                     logger.error(f"Closing websocket error: {str(e)}")
             await self.ws.close()
-            self.ws = None
+            del self.ws

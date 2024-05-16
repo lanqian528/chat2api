@@ -42,12 +42,12 @@ class Client:
         if self.session:
             try:
                 await self.session.close()
-                self.session = None
+                del self.session
             except Exception:
                 pass
         if self.session2:
             try:
                 await self.session2.close()
-                self.session2 = None
+                del self.session2
             except Exception:
                 pass

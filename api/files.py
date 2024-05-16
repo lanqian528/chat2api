@@ -21,6 +21,7 @@ async def get_file_content(url):
             return file_content, mime_type
         finally:
             await client.close()
+            del client
 
 
 async def determine_file_use_case(mime_type):
