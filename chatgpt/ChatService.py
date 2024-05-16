@@ -81,12 +81,16 @@ class ChatService:
         url = f'{self.base_url}/register-websocket'
         headers = self.base_headers.copy()
         r = await self.s.post(url, headers=headers, data='', timeout=5)
-        if r.status_code == 200:
-            resp = r.json()
-            logger.info(f'register-websocket response:{resp}')
-            wss_url = resp.get('wss_url')
-            return wss_url
-        return None
+        try:
+            if r.status_code == 200:
+                resp = r.json()
+                logger.info(f'register-websocket response:{resp}')
+                wss_url = resp.get('wss_url')
+                return wss_url
+            raise Exception(r.text)
+        except Exception as e:
+            logger.error(f"get_wss_url error: {str(e)}")
+            raise HTTPException(status_code=r.status_code, detail=f"Failed to get wss url: {str(e)}")
 
     async def get_chat_requirements(self):
         url = f'{self.base_url}/sentinel/chat-requirements'
@@ -115,7 +119,7 @@ class ChatService:
                 if proofofwork_required:
                     proofofwork_diff = proofofwork.get("difficulty")
                     if proofofwork_diff.startswith("0" * (pow_difficulty + 1)):
-                        raise HTTPException(status_code=403, detail="Proof of work difficulty too high")
+                        raise HTTPException(status_code=403, detail=f"Proof of work difficulty too high: {proofofwork_diff}")
                     proofofwork_seed = proofofwork.get("seed")
                     self.proof_token = await run_in_threadpool(calc_proof_token, proofofwork_seed, proofofwork_diff, config)
 
@@ -212,15 +216,12 @@ class ChatService:
     async def send_conversation(self):
         try:
             subprotocols = ["json.reliable.webpubsub.azure.v1"]
-            wss_r = None
             try:
                 if self.wss_mode:
                     if not self.wss_url:
                         self.wss_url = await self.get_wss_url()
                         await set_wss(self.access_token, self.wss_url)
-                    if self.wss_url:
-                        self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=subprotocols)
-                        wss_r = wss_stream_response(self.ws)
+                    self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=subprotocols)
             except websockets.exceptions.InvalidStatusCode as e:
                 raise HTTPException(status_code=e.status_code, detail=str(e))
             url = f'{self.base_url}/conversation'
@@ -231,11 +232,11 @@ class ChatService:
                 if "application/json" == r.headers.get("Content-Type", ""):
                     detail = json.loads(rtext).get("detail", json.loads(rtext))
                 else:
+                    if "cf-please-wait" in rtext:
+                        raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
+                    if r.status_code == 429:
+                        raise HTTPException(status_code=r.status_code, detail="rate-limit")
                     detail = r.text[:100]
-                if "cf-please-wait" in rtext:
-                    raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
-                if r.status_code == 429:
-                    raise HTTPException(status_code=r.status_code, detail="rate-limit")
                 raise HTTPException(status_code=r.status_code, detail=detail)
 
             content_type = r.headers.get("Content-Type", "")
@@ -249,9 +250,9 @@ class ChatService:
                 self.wss_url = resp.get('wss_url')
                 await set_wss(self.access_token, self.wss_url)
                 logger.info(f"next wss_url: {self.wss_url}")
-                if not wss_r:
+                if not self.ws:
                     self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=subprotocols)
-                    wss_r = wss_stream_response(self.ws)
+                wss_r = wss_stream_response(self.ws)
                 try:
                     if stream and isinstance(wss_r, types.AsyncGeneratorType):
                         return stream_response(self, wss_r, self.target_model, self.max_tokens)
@@ -380,3 +381,4 @@ class ChatService:
                 except Exception as e:
                     logger.error(f"Closing websocket error: {str(e)}")
             await self.ws.close()
+            self.ws = None

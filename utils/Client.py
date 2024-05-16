@@ -13,6 +13,7 @@ class Client:
         self.verify = verify
         self.impersonate = random.choice(["chrome", "safari", "safari_ios"])
         self.session = AsyncSession(proxies=self.proxies, timeout=self.timeout, verify=self.verify)
+        self.session2 = AsyncSession(proxies=self.proxies, timeout=self.timeout, verify=self.verify)
 
     async def post(self, *args, **kwargs):
         r = await self.session.post(*args, impersonate=self.impersonate, **kwargs)
@@ -22,10 +23,7 @@ class Client:
         if self.session:
             headers = headers or self.session.headers
             cookies = cookies or self.session.cookies
-            await self.session.close()
-            self.session = None
-        self.session = AsyncSession(proxies=self.proxies, timeout=self.timeout, verify=self.verify)
-        r = await self.session.post(*args, headers=headers, cookies=cookies, impersonate=self.impersonate, **kwargs)
+        r = await self.session2.post(*args, headers=headers, cookies=cookies, impersonate=self.impersonate, **kwargs)
         return r
 
     async def get(self, *args, **kwargs):
@@ -41,8 +39,15 @@ class Client:
         return r
 
     async def close(self):
-        try:
-            await self.session.close()
-            self.session = None
-        except Exception:
-            pass
+        if self.session:
+            try:
+                await self.session.close()
+                self.session = None
+            except Exception:
+                pass
+        if self.session2:
+            try:
+                await self.session2.close()
+                self.session2 = None
+            except Exception:
+                pass

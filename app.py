@@ -30,8 +30,7 @@ async def to_send_conversation(request_data, access_token):
         await chat_service.get_chat_requirements()
         return chat_service
     except HTTPException as e:
-        if chat_service.s.session:
-            await chat_service.close_client()
+        await chat_service.close_client()
         raise HTTPException(status_code=e.status_code, detail=e.detail)
 
 
@@ -46,7 +45,6 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
         raise HTTPException(status_code=400, detail={"error": "Invalid JSON body"})
 
     chat_service = await async_retry(to_send_conversation, request_data, access_token)
-    res = None
     try:
         await chat_service.prepare_send_conversation()
         res = await chat_service.send_conversation()
@@ -57,12 +55,10 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
             background = BackgroundTask(chat_service.close_client)
             return JSONResponse(res, media_type="application/json", background=background)
     except HTTPException as e:
-        if res and not isinstance(res, types.AsyncGeneratorType):
-            await chat_service.close_client()
+        await chat_service.close_client()
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception as e:
-        if res and not isinstance(res, types.AsyncGeneratorType):
-            await chat_service.close_client()
+        await chat_service.close_client()
         Logger.error(f"Server error, {str(e)}")
         raise HTTPException(status_code=500, detail="Server error")
 

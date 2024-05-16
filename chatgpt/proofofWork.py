@@ -32,7 +32,7 @@ class ScriptSrcParser(HTMLParser):
 
 
 async def get_dpl(service):
-    if int(time.time()) - cached_time < 60 * 60:
+    if int(time.time()) - cached_time < 10 * 60:
         return True
     headers = service.base_headers.copy()
     try:
@@ -65,9 +65,9 @@ def get_config(user_agent):
         "en-US",
         "en-US,en",
         0,
-        "webdriver−false",
-        "location",
-        "_N_E"
+        "login−[object NavigatorLogin]",
+        "_reactListeningpa877jnmig",
+        "onpointerout"
     ]
     return config
 
@@ -100,6 +100,6 @@ def generate_answer(seed, diff, config):
 
 def calc_config_token(config):
     global cached_require_proof, cached_time
-    if not cached_require_proof or int(time.time()) - cached_time >= 60 * 60:
+    if not cached_require_proof or int(time.time()) - cached_time >= 10 * 60:
         cached_require_proof = generate_answer(format(random.random()), "0", config)
     return 'gAAAAAC' + cached_require_proof
