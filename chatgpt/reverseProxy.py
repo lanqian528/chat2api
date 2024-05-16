@@ -101,7 +101,6 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
             data = await request.body()
 
         client = Client(proxy=random.choice(proxy_url_list) if proxy_url_list else None)
-        r = None
         try:
             r = await client.request(request.method, f"{base_url}/{path}", params=params, headers=headers,
                                      cookies=request_cookies, data=data, stream=True, allow_redirects=False)
@@ -127,13 +126,17 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
                 return StreamingResponse(r.aiter_content(), media_type=r.headers.get("content-type", ""),
                                          background=background)
             else:
-                content = ((await r.atext()).replace("chatgpt.com", origin_host)
-                           .replace("chat.openai.com", origin_host)
-                           .replace("ab.chatgpt.com", origin_host)
-                           .replace("cdn.oaistatic.com", origin_host)
-                           .replace("https", petrol))
-                response = Response(content=content, media_type=r.headers.get("content-type"),
-                                    status_code=r.status_code)
+                if "/conversation" in path or "/register-websocket" in path:
+                    response = Response(content=r.content, media_type=r.headers.get("content-type"),
+                                        status_code=r.status_code)
+                else:
+                    content = ((await r.atext()).replace("chatgpt.com", origin_host)
+                               .replace("chat.openai.com", origin_host)
+                               .replace("ab.chatgpt.com", origin_host)
+                               .replace("cdn.oaistatic.com", origin_host)
+                               .replace("https", petrol))
+                    response = Response(content=content, media_type=r.headers.get("content-type"),
+                                        status_code=r.status_code)
                 for cookie_name in r.cookies:
                     if cookie_name in request_cookies:
                         continue
@@ -145,8 +148,7 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
                             response.set_cookie(key=cookie_name, value=cookie_value)
                 return response
         finally:
-            if r and 'stream' not in r.headers.get("content-type", ""):
-                await client.close()
+            await client.close()
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
