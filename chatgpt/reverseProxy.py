@@ -127,7 +127,7 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
                                          background=background)
             else:
                 if "/conversation" in path or "/register-websocket" in path:
-                    response = Response(content=r.content, media_type=r.headers.get("content-type"),
+                    response = Response(content=(await r.atext()), media_type=r.headers.get("content-type"),
                                         status_code=r.status_code)
                 else:
                     content = ((await r.atext()).replace("chatgpt.com", origin_host)
