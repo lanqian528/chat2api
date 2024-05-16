@@ -110,6 +110,15 @@ class ChatService:
                 arkose = resp.get('arkose', {})
                 proofofwork = resp.get('proofofwork', {})
                 turnstile = resp.get('turnstile', {})
+
+                proofofwork_required = proofofwork.get('required')
+                if proofofwork_required:
+                    proofofwork_diff = proofofwork.get("difficulty")
+                    if proofofwork_diff.startswith("0" * (pow_difficulty + 1)):
+                        raise HTTPException(status_code=403, detail="Proof of work difficulty too high")
+                    proofofwork_seed = proofofwork.get("seed")
+                    self.proof_token = await run_in_threadpool(calc_proof_token, proofofwork_seed, proofofwork_diff, config)
+
                 arkose_required = arkose.get('required')
                 if arkose_required:
                     if not self.arkose_token_url:
@@ -125,18 +134,12 @@ class ChatService:
                         r2esp = r2.json()
                         logger.info(f"arkose_token: {r2esp}")
                         self.arkose_token = r2esp.get('token')
+                        if not self.arkose_token:
+                            raise HTTPException(status_code=403, detail="Failed to get Arkose token")
                     except Exception:
                         raise HTTPException(status_code=403, detail="Failed to get Arkose token")
                     finally:
                         await arkose_client.close()
-
-                proofofwork_required = proofofwork.get('required')
-                if proofofwork_required:
-                    proofofwork_diff = proofofwork.get("difficulty")
-                    if proofofwork_diff.startswith("0" * (pow_difficulty + 1)):
-                        raise HTTPException(status_code=403, detail="Proof of work difficulty too high")
-                    proofofwork_seed = proofofwork.get("seed")
-                    self.proof_token = await run_in_threadpool(calc_proof_token, proofofwork_seed, proofofwork_diff, config)
 
                 turnstile_required = turnstile.get('required')
                 if turnstile_required:
@@ -171,7 +174,7 @@ class ChatService:
             'Openai-Sentinel-Proof-Token': self.proof_token,
         })
         if self.arkose_token:
-            self.chat_headers['Openai-Sentinel-Arkose-Required'] = self.arkose_token
+            self.chat_headers['Openai-Sentinel-Arkose-Token'] = self.arkose_token
 
         conversation_mode = {"kind": "primary_assistant"}
         if "gpt-4o" in self.origin_model:

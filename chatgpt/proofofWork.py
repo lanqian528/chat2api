@@ -26,7 +26,7 @@ class ScriptSrcParser(HTMLParser):
             if "src" in attrs_dict:
                 src = attrs_dict["src"]
                 cached_scripts.append(src)
-                if not cached_dpl and "dpl" in src:
+                if "dpl" in src:
                     cached_dpl = src[src.index("dpl"):]
                     cached_time = int(time.time())
 
@@ -79,7 +79,7 @@ def calc_proof_token(seed, diff, config):
 
 def generate_answer(seed, diff, config):
     diff_len = len(diff) // 2
-    start = int(time.time() * 1000000) / 1000
+    start = time.time()
     seed_encoded = seed.encode()
 
     for i in range(500000):
@@ -91,8 +91,8 @@ def generate_answer(seed, diff, config):
         hasher.update(seed_encoded + base.encode())
         hash_value = hasher.digest()
         if hash_value[:diff_len].hex() <= diff:
-            end = int(time.time() * 1000000) / 1000
-            logger.info(f'seed: {seed}, diff: {diff}, count: {i}, time: {(end - start)}ms')
+            end = time.time()
+            logger.info(f'seed: {seed}, diff: {diff}, count: {i}, time: {int((end - start) * 1000000) / 1000}ms')
             return base
 
     return "wQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + base64.b64encode(f'"{seed}"'.encode()).decode()

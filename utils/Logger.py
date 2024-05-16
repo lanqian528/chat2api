@@ -14,7 +14,7 @@ class Logger:
 
     @staticmethod
     def error(message):
-        logging.error("\033[0;31m" + "-" * 120 + '\n| ' + str(message) + "\033[0m" + "\n" + "└" + "-" * 150)
+        logging.error("\033[0;31m" + "-" * 50 + '\n| ' + str(message) + "\033[0m" + "\n" + "└" + "-" * 80)
 
     @staticmethod
     def debug(message):
