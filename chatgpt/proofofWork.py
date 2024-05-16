@@ -274,6 +274,7 @@ window_key = [
     "__intercomReloadLocation"
 ]
 
+
 class ScriptSrcParser(HTMLParser):
     def handle_starttag(self, tag, attrs):
         global cached_scripts, cached_dpl, cached_time
@@ -312,7 +313,6 @@ def get_parse_time():
 
 
 def get_config(user_agent):
-    random.seed(int(time.time() * 1e9))
     core = random.choice(cores)
     screen = random.choice(screens)
     config = [
@@ -321,7 +321,7 @@ def get_config(user_agent):
         4294705152,
         0,
         user_agent,
-        random.choice(cached_scripts) if cached_scripts else "",
+        random.choice(cached_scripts),
         cached_dpl,
         "en-US",
         "en-US,en",
@@ -333,14 +333,16 @@ def get_config(user_agent):
     return config
 
 
-def get_answer(seed, diff, config):
-    proof = generate_answer(seed, diff, config)
-    return "gAAAAAB" + proof
+def get_answer_token(seed, diff, config):
+    start = time.time()
+    answer = generate_answer(seed, diff, config)
+    end = time.time()
+    logger.info(f'seed: {seed}, diff: {diff}, time: {int((end - start) * 1e6) / 1e3}ms')
+    return "gAAAAAB" + answer
 
 
 def generate_answer(seed, diff, config):
     diff_len = len(diff)
-    start = time.time()
     seed_encoded = seed.encode()
 
     for i in range(500000):
@@ -352,15 +354,11 @@ def generate_answer(seed, diff, config):
         hasher.update(seed_encoded + base.encode())
         hash_value = hasher.digest()
         if hash_value.hex()[:diff_len] <= diff:
-            end = time.time()
-            logger.info(f'seed: {seed}, diff: {diff}, count: {i}, time: {int((end - start) * 1000000) / 1000}ms')
             return base
 
     return "wQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + base64.b64encode(f'"{seed}"'.encode()).decode()
 
 
 def get_requirements_token(config):
-    global cached_require_proof, cached_time
-    if not cached_require_proof or int(time.time()) - cached_time >= 15 * 60:
-        cached_require_proof = generate_answer(format(random.random()), "0", config)
-    return 'gAAAAAC' + cached_require_proof
+    require_token = generate_answer(format(random.random()), "0", config)
+    return 'gAAAAAC' + require_token
