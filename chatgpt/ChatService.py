@@ -11,7 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from api.files import get_image_size, get_file_extension, determine_file_use_case
 from api.models import model_proxy
 from chatgpt.chatFormat import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
-from chatgpt.proofofWork import calc_proof_token, calc_config_token, get_config, get_dpl
+from chatgpt.proofofWork import get_config, get_dpl, get_answer, get_requirements_token
 from chatgpt.wssClient import ac2wss, set_wss
 from utils.Client import Client
 from utils.Logger import logger
@@ -98,7 +98,7 @@ class ChatService:
         try:
             await get_dpl(self)
             config = get_config(self.user_agent)
-            data = {'p': calc_config_token(config)}
+            data = {'p': get_requirements_token(config)}
             r = await self.s.post(url, headers=headers, json=data, timeout=5)
             if r.status_code == 200:
                 resp = r.json()
@@ -121,7 +121,7 @@ class ChatService:
                     if proofofwork_diff.startswith("0" * (pow_difficulty + 1)):
                         raise HTTPException(status_code=403, detail=f"Proof of work difficulty too high: {proofofwork_diff}")
                     proofofwork_seed = proofofwork.get("seed")
-                    self.proof_token = await run_in_threadpool(calc_proof_token, proofofwork_seed, proofofwork_diff, config)
+                    self.proof_token = await run_in_threadpool(get_answer, proofofwork_seed, proofofwork_diff, config)
 
                 arkose_required = arkose.get('required')
                 if arkose_required:
