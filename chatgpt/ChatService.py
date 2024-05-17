@@ -3,7 +3,6 @@ import random
 import types
 import uuid
 
-import asyncio
 import websockets
 from fastapi import HTTPException
 from starlette.concurrency import run_in_threadpool
@@ -248,11 +247,12 @@ class ChatService:
                 rtext = await r.atext()
                 resp = json.loads(rtext)
                 self.wss_url = resp.get('wss_url')
+                conversation_id = resp.get('conversation_id')
                 await set_wss(self.access_token, self.wss_url)
                 logger.info(f"next wss_url: {self.wss_url}")
                 if not self.ws:
                     self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=subprotocols)
-                wss_r = wss_stream_response(self.ws)
+                wss_r = wss_stream_response(self.ws, conversation_id)
                 try:
                     if stream and isinstance(wss_r, types.AsyncGeneratorType):
                         return stream_response(self, wss_r, self.target_model, self.max_tokens)
@@ -373,12 +373,5 @@ class ChatService:
     async def close_client(self):
         await self.s.close()
         if self.ws:
-            while not self.ws.closed:
-                try:
-                    await asyncio.wait_for(self.ws.recv(), timeout=3)
-                except asyncio.TimeoutError:
-                    break
-                except Exception as e:
-                    logger.error(f"Closing websocket error: {str(e)}")
             await self.ws.close()
             del self.ws
