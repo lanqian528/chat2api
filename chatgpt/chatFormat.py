@@ -19,7 +19,7 @@ moderation_message = "I'm sorry, I cannot provide or engage in any content relat
 async def format_not_stream_response(response, prompt_tokens, max_tokens, model):
     chat_id = f"chatcmpl-{''.join(random.choice(string.ascii_letters + string.digits) for _ in range(29))}"
     system_fingerprint_list = model_system_fingerprint.get(model, None)
-    system_fingerprint = random.choice(system_fingerprint_list) if system_fingerprint_list else None
+    system_fingerprint = random.choice(system_fingerprint_list) if len(system_fingerprint_list) > 0 else None
     created_time = int(time.time())
     all_text = ""
     async for chunk in response:
@@ -94,7 +94,7 @@ async def wss_stream_response(websocket):
 async def stream_response(service, response, model, max_tokens):
     chat_id = f"chatcmpl-{''.join(random.choice(string.ascii_letters + string.digits) for _ in range(29))}"
     system_fingerprint_list = model_system_fingerprint.get(model, None)
-    system_fingerprint = random.choice(system_fingerprint_list) if system_fingerprint_list else None
+    system_fingerprint = random.choice(system_fingerprint_list) if len(system_fingerprint_list) > 0 else None
     created_time = int(time.time())
     completion_tokens = -1
     len_last_content = 0

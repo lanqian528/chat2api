@@ -100,7 +100,7 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
         else:
             data = await request.body()
 
-        client = Client(proxy=random.choice(proxy_url_list) if proxy_url_list else None)
+        client = Client(proxy=random.choice(proxy_url_list) if len(proxy_url_list) > 0 else None)
         try:
             background = BackgroundTask(client.close)
             r = await client.request(request.method, f"{base_url}/{path}", params=params, headers=headers,

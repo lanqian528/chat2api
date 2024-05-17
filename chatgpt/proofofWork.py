@@ -321,7 +321,7 @@ def get_config(user_agent):
         4294705152,
         0,
         user_agent,
-        random.choice(cached_scripts),
+        random.choice(cached_scripts) if len(cached_scripts) > 0 else None,
         cached_dpl,
         "en-US",
         "en-US,en",
