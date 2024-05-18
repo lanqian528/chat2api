@@ -1,4 +1,3 @@
-import base64
 import hashlib
 import json
 import random
@@ -362,7 +361,7 @@ def generate_answer(seed, diff, config):
         if hash_value[:diff_len] <= target_diff:
             return base_encode.decode()
 
-    return "wQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + base64.b64encode(f'"{seed}"'.encode()).decode()
+    return "wQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + pybase64.b64encode(f'"{seed}"'.encode()).decode()
 
 
 def get_requirements_token(config):

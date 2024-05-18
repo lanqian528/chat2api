@@ -1,11 +1,11 @@
 import asyncio
-import base64
 import json
 import random
 import string
 import time
 import uuid
 
+import pybase64
 import websockets
 
 from api.files import get_file_content
@@ -76,7 +76,7 @@ async def wss_stream_response(websocket, conversation_id):
                 data = resultObj.get("data", {})
                 if conversation_id != data.get("conversation_id", ""):
                     continue
-                decoded_bytes = base64.b64decode(data.get("body", None))
+                decoded_bytes = pybase64.b64decode(data.get("body", None))
                 yield decoded_bytes
             else:
                 print("No message received within the specified time.")
