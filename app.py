@@ -12,6 +12,10 @@ from utils.authorization import verify_token
 from utils.config import api_prefix
 from utils.retry import async_retry
 
+import warnings
+
+warnings.filterwarnings("ignore")
+
 app = FastAPI()
 
 app.add_middleware(

@@ -69,7 +69,7 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
         if path.startswith("v1/"):
             base_url = "https://ab.chatgpt.com"
         else:
-            base_url = random.choice(chatgpt_base_url_list)
+            base_url = random.choice(chatgpt_base_url_list) if chatgpt_base_url_list else "https://chatgpt.com"
         params = dict(request.query_params)
         headers = {
             key: value for key, value in request.headers.items()

@@ -25,7 +25,7 @@ class ChatService:
 
     async def set_dynamic_data(self, data):
         self.proxy_url = random.choice(proxy_url_list) if proxy_url_list else None
-        self.host_url = random.choice(chatgpt_base_url_list)
+        self.host_url = random.choice(chatgpt_base_url_list) if chatgpt_base_url_list else "https://chatgpt.com"
         self.arkose_token_url = random.choice(arkose_token_url_list) if arkose_token_url_list else None
 
         self.s = Client(proxy=self.proxy_url)

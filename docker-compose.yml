@@ -8,13 +8,7 @@ services:
     ports:
       - '5005:5005'
     environment:
-#      - API_PREFIX=your_prefix
-#      - PROXY_URL=your_first_proxy, your_second_proxy
       - ARKOSE_TOKEN_URL=http://arkose:5006/token
-    deploy:
-      resources:
-        limits:
-          memory: 1G
 
   arkose:
     image: lanqian528/funcaptcha_solver:latest
@@ -22,7 +16,3 @@ services:
     restart: unless-stopped
     ports:
       - '5006:5006'
-#    environment:
-#      - VERSION=2.4.8
-#      - HASH=ce2493911f3dfdadca4d3d4a7370a09d
-#      - PROXY_URL=your_first_proxy
