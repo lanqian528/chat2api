@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse, Response
 from starlette.background import BackgroundTask
 
 from utils.Client import Client
-from utils.config import chatgpt_base_url_list, proxy_url_list
+from utils.config import chatgpt_base_url_list, proxy_url_list, enable_gateway
 
 headers_reject_list = [
     "x-real-ip",
@@ -60,6 +60,8 @@ headers_reject_list = [
 
 
 async def chatgpt_reverse_proxy(request: Request, path: str):
+    if not enable_gateway:
+        raise HTTPException(status_code=404, detail="Gateway is disabled")
     try:
         origin_host = request.url.netloc
         if ":" in origin_host:

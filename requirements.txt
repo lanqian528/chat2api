@@ -5,3 +5,4 @@ tiktoken
 python-dotenv
 websockets
 pillow
+pybase64

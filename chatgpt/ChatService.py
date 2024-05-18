@@ -118,7 +118,7 @@ class ChatService:
                 proofofwork_required = proofofwork.get('required')
                 if proofofwork_required:
                     proofofwork_diff = proofofwork.get("difficulty")
-                    if proofofwork_diff.startswith("0" * (pow_difficulty + 1)):
+                    if proofofwork_diff <= pow_difficulty:
                         raise HTTPException(status_code=403, detail=f"Proof of work difficulty too high: {proofofwork_diff}")
                     proofofwork_seed = proofofwork.get("seed")
                     self.proof_token = await run_in_threadpool(get_answer_token, proofofwork_seed, proofofwork_diff, config)
@@ -207,6 +207,7 @@ class ChatService:
             "force_paragen_model_slug": "",
             "force_nulligen": False,
             "force_rate_limit": False,
+            "force_ues_sse": True,
             "websocket_request_id": f"{uuid.uuid4()}"
         }
         if self.conversation_id:

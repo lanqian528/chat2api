@@ -156,8 +156,9 @@ CHATGPT_BASE_URL=https://chatgpt.com                 // ChatGPT网关地址，�
 HISTORY_DISABLED=true                                // 是否不保存聊天记录并返回 conversation_id，true为不保存且不返回
 PROXY_URL=your_first_proxy, your_second_proxy        // 代理url，多个代理用逗号分隔
 ARKOSE_TOKEN_URL=https://arkose.example.com/token    // 获取Arkose token的地址，上文有提供说明
-POW_DIFFICULTY=4                                     // 要解决的工作量证明难度，数值越大，计算时间越长，建议3或者4
+POW_DIFFICULTY=000032                                // 要解决的工作量证明难度，字符串越小，计算时间越长，建议000032
 RETRY_TIMES=3                                        // 出错重试次数
+ENABLE_GATEWAY=true                                  // 是否启用网关模式(WEBUI)，true为启用
 ```
 
 ## License
