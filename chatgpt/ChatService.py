@@ -51,7 +51,6 @@ class ChatService:
         self.chat_headers = None
         self.chat_request = None
 
-        self.s.session.cookies.set("__Secure-next-auth.callback-url", "https%3A%2F%2Fchatgpt.com;", secure=True)
         self.base_headers = {
             'Accept': '*/*',
             'Accept-Encoding': 'gzip, deflate, br, zstd',
@@ -76,6 +75,9 @@ class ChatService:
         else:
             self.base_url = self.host_url + "/backend-anon"
 
+        await get_dpl(self)
+        self.s.session.cookies.set("__Secure-next-auth.callback-url", "https%3A%2F%2Fchatgpt.com;", domain=self.host_url.split("://")[1], secure=True)
+
     async def get_wss_url(self):
         url = f'{self.base_url}/register-websocket'
         headers = self.base_headers.copy()
@@ -95,7 +97,6 @@ class ChatService:
         url = f'{self.base_url}/sentinel/chat-requirements'
         headers = self.base_headers.copy()
         try:
-            await get_dpl(self)
             config = get_config(self.user_agent)
             data = {'p': get_requirements_token(config)}
             r = await self.s.post(url, headers=headers, json=data, timeout=5)

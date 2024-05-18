@@ -294,7 +294,7 @@ async def get_dpl(service):
         return True
     headers = service.base_headers.copy()
     try:
-        r = await service.s.get(f"{service.host_url}/?oai-dm=1", headers=headers)
+        r = await service.s.get(f"{service.host_url}/?oai-dm=1", headers=headers, timeout=5)
         r.raise_for_status()
         parser = ScriptSrcParser()
         parser.feed(r.text)

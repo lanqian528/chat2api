@@ -36,15 +36,12 @@ async def to_send_conversation(request_data, access_token):
 
 @app.post(f"/{api_prefix}/v1/chat/completions" if api_prefix else "/v1/chat/completions")
 async def send_conversation(request: Request, token=Depends(verify_token)):
-    access_token = None
-    if token and (token.startswith("eyJhbGciOi") or token.startswith("fk-")):
-        access_token = token
     try:
         request_data = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail={"error": "Invalid JSON body"})
 
-    chat_service = await async_retry(to_send_conversation, request_data, access_token)
+    chat_service = await async_retry(to_send_conversation, request_data, token)
     try:
         await chat_service.prepare_send_conversation()
         res = await chat_service.send_conversation()

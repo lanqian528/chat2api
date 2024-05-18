@@ -20,6 +20,6 @@ async def verify_token(token: str = Depends(oauth2_scheme)):
     elif not authorization_list:
         return token
     elif token and token in authorization_list:
-        return token
+        return None
     else:
         raise HTTPException(status_code=401)

@@ -23,7 +23,7 @@ arkose_token_url = os.getenv('ARKOSE_TOKEN_URL', '').replace(' ', '')
 proxy_url = os.getenv('PROXY_URL', '').replace(' ', '')
 history_disabled_str = os.getenv('HISTORY_DISABLED', 'true').replace(' ', '')
 history_disabled = is_true(history_disabled_str)
-pow_difficulty = int(os.getenv('POW_DIFFICULTY', 3))
+pow_difficulty = int(os.getenv('POW_DIFFICULTY', 4))
 retry_times = int(os.getenv('RETRY_TIMES', 3))
 
 authorization_list = authorization.split(',') if authorization else []
@@ -32,7 +32,7 @@ arkose_token_url_list = arkose_token_url.split(',') if arkose_token_url else []
 proxy_url_list = proxy_url.split(',') if proxy_url else []
 
 logger.info("-" * 60)
-logger.info("Chat2Api v1.0.0 | https://github.com/lanqian528/chat2api")
+logger.info("Chat2Api v1.0.1 | https://github.com/lanqian528/chat2api")
 logger.info("-" * 60)
 logger.info("Environment variables:")
 logger.info("API_PREFIX:        " + str(api_prefix))
