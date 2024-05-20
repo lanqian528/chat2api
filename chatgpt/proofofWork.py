@@ -337,9 +337,9 @@ def get_config(user_agent):
 
 def get_answer_token(seed, diff, config):
     start = time.time()
-    answer = generate_answer(seed, diff, config)
+    answer, solved = generate_answer(seed, diff, config)
     end = time.time()
-    logger.info(f'seed: {seed}, diff: {diff}, time: {int((end - start) * 1e6) / 1e3}ms')
+    logger.info(f'diff: {diff}, time: {int((end - start) * 1e6) / 1e3}ms, solved: {solved}')
     return "gAAAAAB" + answer
 
 
@@ -359,14 +359,14 @@ def generate_answer(seed, diff, config):
         base_encode = pybase64.b64encode(final_json_bytes)
         hash_value = hashlib.sha3_512(seed_encoded + base_encode).digest()
         if hash_value[:diff_len] <= target_diff:
-            return base_encode.decode()
+            return base_encode.decode(), True
 
-    return "wQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + pybase64.b64encode(f'"{seed}"'.encode()).decode()
+    return "wQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + pybase64.b64encode(f'"{seed}"'.encode()).decode(), False
 
 
 def get_requirements_token(config):
-    require_token = generate_answer(format(random.random()), "0fffff", config)
-    return 'gAAAAAC' + require_token
+    require, solved = generate_answer(format(random.random()), "0fffff", config)
+    return 'gAAAAAC' + require
 
 
 if __name__ == "__main__":
@@ -374,7 +374,8 @@ if __name__ == "__main__":
         "https://cdn.oaistatic.com/_next/static/cXh69klOLzS0Gy2joLDRS/_ssgManifest.js?dpl=453ebaec0d44c2decab71692e1bfe39be35a24b3")
     cached_dpl = "453ebaec0d44c2decab71692e1bfe39be35a24b3"
     cached_time = int(time.time())
-    seed = format(random.random())
-    diff = "0fffff"
-    config = get_config("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome")
-    answer = get_answer_token(seed, diff, config)
+    for i in range(10):
+        seed = format(random.random())
+        diff = "000032"
+        config = get_config("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome")
+        answer = get_answer_token(seed, diff, config)

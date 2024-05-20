@@ -21,7 +21,8 @@ https://t.me/chat2api 要提问请先阅读完仓库介绍
 > - [x] GPT-4 画图、代码、联网
 > - [x] 支持GPTs (传入模型名：gpt-4-gizmo-g-*)
 > - [x] 上传图片、文件 (格式为API对应格式，支持url和base64)
-> - [x] 反向代理 UI (http://127.0.0.1:5005, 不支持登录使用)
+> - [x] WebUI (http://127.0.0.1:5005, 不支持登录使用)
+> - [x] 可作为网关使用，可多机分布部署
 
 > TODO
 > - [ ] 暂无，欢迎提 issue
@@ -123,6 +124,22 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 ```
 
 
+## 环境变量
+
+每个环境变量都有默认值，如果不懂环境变量的含义，请不要设置，更不要传空值
+
+```
+API_PREFIX=your_prefix                               // API前缀，设置后需请求 /your_prefix/v1/chat/completions
+CHATGPT_BASE_URL=https://chatgpt.com                 // ChatGPT网关地址，设置后会改变请求的网站，多个网关用逗号分隔
+HISTORY_DISABLED=true                                // 是否不保存聊天记录并返回 conversation_id，true为不保存且不返回
+PROXY_URL=your_first_proxy, your_second_proxy        // 代理url，多个代理用逗号分隔
+ARKOSE_TOKEN_URL=https://arkose.example.com/token    // 获取Arkose token的地址，上文有提供说明
+POW_DIFFICULTY=000032                                // 要解决的工作量证明难度，字符串越小，计算时间越长，建议000032
+RETRY_TIMES=3                                        // 出错重试次数
+ENABLE_GATEWAY=true                                  // 是否启用网关模式(WEBUI)，true为启用
+```
+
+
 
 ## 常见问题
 
@@ -138,28 +155,12 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 >  - 99%的账号都支持免费 `GPT-4o` ，但根据IP地区开启，目前日本和新加坡IP已知开启概率较大
 
 > - AccessToken 如何获取？
->  - chatgpt官网登录后，再打开 https://chatgpt.com/api/auth/session 获取 `accessToken` 这个值
+>   - chatgpt官网登录后，再打开 https://chatgpt.com/api/auth/session 获取 `accessToken` 这个值
 > - PLUS账号报错`403`？
->  - PLUS账号需要配置 `ArkoseToken`，请根据上文进行配置
+>   - PLUS账号需要配置 `ArkoseToken`，请根据上文进行配置
 > - ArkoseToken 是什么，怎么获取？
->  - 请参考上文的说明，更多请参考 https://www.arkoselabs.com/
+>   - 请参考上文的说明，更多请参考 https://www.arkoselabs.com/
 
-
-
-## 环境变量
-
-每个环境变量都有默认值，如果不懂环境变量的含义，请不要设置，更不要传空值
-
-```
-API_PREFIX=your_prefix                               // API前缀，设置后需请求 /your_prefix/v1/chat/completions
-CHATGPT_BASE_URL=https://chatgpt.com                 // ChatGPT网关地址，设置后会改变请求的网站，多个网关用逗号分隔
-HISTORY_DISABLED=true                                // 是否不保存聊天记录并返回 conversation_id，true为不保存且不返回
-PROXY_URL=your_first_proxy, your_second_proxy        // 代理url，多个代理用逗号分隔
-ARKOSE_TOKEN_URL=https://arkose.example.com/token    // 获取Arkose token的地址，上文有提供说明
-POW_DIFFICULTY=000032                                // 要解决的工作量证明难度，字符串越小，计算时间越长，建议000032
-RETRY_TIMES=3                                        // 出错重试次数
-ENABLE_GATEWAY=true                                  // 是否启用网关模式(WEBUI)，true为启用
-```
 
 ## License
 
