@@ -8,10 +8,6 @@
 
 🔍 回复格式与真实api完全一致，适配几乎所有客户端
 
-## 赞助商
-
-[![Capsolver](docs/capsolver.jpg)](https://capsolver.com)
-
 ## 交流群
 
 https://t.me/chat2api 要提问请先阅读完仓库介绍
@@ -30,6 +26,10 @@ https://t.me/chat2api 要提问请先阅读完仓库介绍
 
 > TODO
 > - [ ] 暂无，欢迎提 issue
+
+## 赞助商
+
+[![Capsolver](docs/capsolver.jpg)](https://capsolver.com)
 
 ## 部署
 
