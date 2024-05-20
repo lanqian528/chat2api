@@ -137,6 +137,7 @@ ARKOSE_TOKEN_URL=https://arkose.example.com/token    // 获取Arkose token的地
 POW_DIFFICULTY=000032                                // 要解决的工作量证明难度，字符串越小，计算时间越长，建议000032
 RETRY_TIMES=3                                        // 出错重试次数
 ENABLE_GATEWAY=true                                  // 是否启用网关模式(WEBUI)，true为启用
+CONVERSATION_ONLY=false                              // 使用的网关支持在服务端处理pow和arkose时可以开启，开启则直接使用对话接口
 ```
 
 

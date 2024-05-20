@@ -27,6 +27,7 @@ history_disabled = is_true(os.getenv('HISTORY_DISABLED', True))
 pow_difficulty = os.getenv('POW_DIFFICULTY', '000032')
 retry_times = int(os.getenv('RETRY_TIMES', 3))
 enable_gateway = is_true(os.getenv('ENABLE_GATEWAY', True))
+conversation_only = is_true(os.getenv('CONVERSATION_ONLY', False))
 
 authorization_list = authorization.split(',') if authorization else []
 chatgpt_base_url_list = chatgpt_base_url.split(',') if chatgpt_base_url else []
@@ -34,7 +35,7 @@ arkose_token_url_list = arkose_token_url.split(',') if arkose_token_url else []
 proxy_url_list = proxy_url.split(',') if proxy_url else []
 
 logger.info("-" * 60)
-logger.info("Chat2Api v1.0.6 | https://github.com/lanqian528/chat2api")
+logger.info("Chat2Api v1.0.7 | https://github.com/lanqian528/chat2api")
 logger.info("-" * 60)
 logger.info("Environment variables:")
 logger.info("API_PREFIX:        " + str(api_prefix))
@@ -46,4 +47,5 @@ logger.info("HISTORY_DISABLED:  " + str(history_disabled))
 logger.info("POW_DIFFICULTY:    " + str(pow_difficulty))
 logger.info("RETRY_TIMES:       " + str(retry_times))
 logger.info("ENABLE_GATEWAY:    " + str(enable_gateway))
+logger.info("CONVERSATION_ONLY: " + str(conversation_only))
 logger.info("-" * 60)

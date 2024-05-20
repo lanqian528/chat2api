@@ -14,7 +14,8 @@ from chatgpt.proofofWork import get_config, get_dpl, get_answer_token, get_requi
 from chatgpt.wssClient import ac2wss, set_wss
 from utils.Client import Client
 from utils.Logger import logger
-from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled, pow_difficulty
+from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled, pow_difficulty, \
+    conversation_only
 
 
 class ChatService:
@@ -94,6 +95,8 @@ class ChatService:
             raise HTTPException(status_code=r.status_code, detail=f"Failed to get wss url: {str(e)}")
 
     async def get_chat_requirements(self):
+        if conversation_only:
+            return None
         url = f'{self.base_url}/sentinel/chat-requirements'
         headers = self.base_headers.copy()
         try:
@@ -179,6 +182,11 @@ class ChatService:
         })
         if self.arkose_token:
             self.chat_headers['Openai-Sentinel-Arkose-Token'] = self.arkose_token
+
+        if conversation_only:
+            self.chat_headers.pop('Openai-Sentinel-Chat-Requirements-Token', None)
+            self.chat_headers.pop('Openai-Sentinel-Proof-Token', None)
+            self.chat_headers.pop('Openai-Sentinel-Arkose-Token', None)
 
         conversation_mode = {"kind": "primary_assistant"}
         if "gpt-4o" in self.origin_model:

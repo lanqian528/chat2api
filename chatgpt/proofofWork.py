@@ -8,6 +8,7 @@ from html.parser import HTMLParser
 import pybase64
 
 from utils.Logger import logger
+from utils.config import conversation_only
 
 cores = [16, 24, 32]
 screens = [3000, 4000, 6000]
@@ -300,6 +301,8 @@ async def get_dpl(service):
         cached_dpl = "453ebaec0d44c2decab71692e1bfe39be35a24b3"
         cached_time = int(time.time())
     try:
+        if conversation_only:
+            return True
         r = await service.s.get(f"{service.host_url}/?oai-dm=1", headers=headers, timeout=5)
         r.raise_for_status()
         parser = ScriptSrcParser()
