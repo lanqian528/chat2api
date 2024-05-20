@@ -124,7 +124,9 @@ class ChatService:
                     if proofofwork_diff <= pow_difficulty:
                         raise HTTPException(status_code=403, detail=f"Proof of work difficulty too high: {proofofwork_diff}")
                     proofofwork_seed = proofofwork.get("seed")
-                    self.proof_token = await run_in_threadpool(get_answer_token, proofofwork_seed, proofofwork_diff, config)
+                    self.proof_token, solved = await run_in_threadpool(get_answer_token, proofofwork_seed, proofofwork_diff, config)
+                    if not solved:
+                        raise HTTPException(status_code=403, detail="Failed to solve proof of work")
 
                 arkose_required = arkose.get('required')
                 if arkose_required:
@@ -154,7 +156,7 @@ class ChatService:
 
                 self.chat_token = resp.get('token')
                 if not self.chat_token:
-                    raise HTTPException(status_code=502, detail=f"Failed to get chat token: {r.text}")
+                    raise HTTPException(status_code=403, detail=f"Failed to get chat token: {r.text}")
                 return self.chat_token
             else:
                 if "application/json" == r.headers.get("Content-Type", ""):

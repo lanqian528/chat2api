@@ -343,7 +343,7 @@ def get_answer_token(seed, diff, config):
     answer, solved = generate_answer(seed, diff, config)
     end = time.time()
     logger.info(f'diff: {diff}, time: {int((end - start) * 1e6) / 1e3}ms, solved: {solved}')
-    return "gAAAAAB" + answer
+    return "gAAAAAB" + answer, solved
 
 
 def generate_answer(seed, diff, config):

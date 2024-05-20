@@ -29,8 +29,8 @@ app.add_middleware(
 
 async def to_send_conversation(request_data, access_token):
     chat_service = ChatService(access_token)
-    await chat_service.set_dynamic_data(request_data)
     try:
+        await chat_service.set_dynamic_data(request_data)
         await chat_service.get_chat_requirements()
         return chat_service
     except HTTPException as e:

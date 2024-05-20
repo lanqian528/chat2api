@@ -11,8 +11,9 @@ async def async_retry(func, *args, max_retries=retry_times, **kwargs):
             return result
         except HTTPException as e:
             if attempt == max_retries:
+                logger.error(f"Throw an exception {e.status_code}, {e.detail}")
                 raise HTTPException(status_code=e.status_code, detail=e.detail)
-            logger.error(f"Retry {attempt + 1} status code {e.status_code}, {e.detail}. Retrying...")
+            logger.info(f"Retry {attempt + 1} status code {e.status_code}, {e.detail}. Retrying...")
 
 
 def retry(func, *args, max_retries=retry_times, **kwargs):
@@ -22,5 +23,6 @@ def retry(func, *args, max_retries=retry_times, **kwargs):
             return result
         except HTTPException as e:
             if attempt == max_retries:
+                logger.error(f"Throw an exception {e.status_code}, {e.detail}")
                 raise HTTPException(status_code=e.status_code, detail=e.detail)
             logger.error(f"Retry {attempt + 1} status code {e.status_code}, {e.detail}. Retrying...")
