@@ -33,7 +33,11 @@ https://t.me/chat2api 要提问请先阅读完仓库介绍
 
 ## Tokens 管理
 
-访问/tokens 或者 /api_prefix/tokens 可以查看现有Tokens数量，也可以上传新的Tokens，或者清除Tokens
+首先配置环境变量 `AUTHORIZATION`，然后运行程序
+
+访问 `/tokens` 或者 `/api_prefix/tokens` 可以查看现有 Tokens 数量，也可以上传新的 Tokens ，或者清空 Tokens
+
+请求时传入 `AUTHORIZATION` 中你配置的值即可多账号轮询， `AUTHORIZATION` 可以配置多个值，用英文逗号分隔
 
 ![tokens.png](docs/tokens.png)
 
