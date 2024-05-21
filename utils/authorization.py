@@ -37,27 +37,24 @@ async def verify_token(req_token: str = Depends(oauth2_scheme)):
         else:
             return None
     else:
-        if authorization_list:
-            if req_token in authorization_list:
-                if token_list:
-                    global count
-                    count += 1
-                    count %= len(token_list)
-                    return await verify_token(token_list[count])
-                else:
-                    return None
+        if req_token in authorization_list:
+            if token_list:
+                global count
+                count += 1
+                count %= len(token_list)
+                return await verify_token(token_list[count])
             else:
-                if req_token.startswith("eyJhbGciOi") or req_token.startswith("fk-"):
-                    access_token = req_token
-                    return access_token
-                elif len(req_token) == 45:
-                    try:
-                        access_token = await rt2ac(req_token)
-                        return access_token
-                    except HTTPException as e:
-                        logger.error(f"Unauthorized :access token {req_token}")
-                        raise HTTPException(status_code=e.status_code, detail=e.detail)
-                else:
-                    return req_token
+                return None
         else:
-            return req_token
+            if req_token.startswith("eyJhbGciOi") or req_token.startswith("fk-"):
+                access_token = req_token
+                return access_token
+            elif len(req_token) == 45:
+                try:
+                    access_token = await rt2ac(req_token)
+                    return access_token
+                except HTTPException as e:
+                    logger.error(f"Unauthorized :access token {req_token}")
+                    raise HTTPException(status_code=e.status_code, detail=e.detail)
+            else:
+                return req_token
