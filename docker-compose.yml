@@ -7,6 +7,8 @@ services:
     restart: unless-stopped
     ports:
       - '5005:5005'
+    volumes:
+      - ./data:/app/data # 挂载tokens的目录
     environment:
       - ARKOSE_TOKEN_URL=http://arkose:5006/token
 

@@ -15,6 +15,8 @@ https://t.me/chat2api 要提问请先阅读完仓库介绍
 ## 功能
 
 > 已完成
+> - [x] 流式、非流式传输
+> - [x] 多账号轮询，同时支持AccessToken和RefreshToken
 > - [x] 免登录 GPT3.5 对话
 > - [x] GPT-3.5 对话 (传入模型名不包含gpt-4，则默认使用gpt-3.5，也就是text-davinci-002-render-sha)
 > - [x] GPT-4 对话 (传入模型名包含: gpt-4，gpt-4o，gpt-4-moblie 即可使用对应模型， 需传入AccessToken)
@@ -133,11 +135,17 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 每个环境变量都有默认值，如果不懂环境变量的含义，请不要设置，更不要传空值
 
 ```
-API_PREFIX=your_prefix                               // API前缀，设置后需请求 /your_prefix/v1/chat/completions
+# 安全相关
+API_PREFIX=your_prefix                               // API前缀密码，不设置容易被人访问，设置后需请求 /your_prefix/v1/chat/completions
+AUTHORIZATION=sk-xxxxxxxx,sk-yyyyyyyy                // 填写data文件夹下的token.txt后，请求时传入AUTHORIZATION可多账号轮询
+
+# 请求相关
 CHATGPT_BASE_URL=https://chatgpt.com                 // ChatGPT网关地址，设置后会改变请求的网站，多个网关用逗号分隔
-HISTORY_DISABLED=true                                // 是否不保存聊天记录并返回 conversation_id，true为不保存且不返回
 PROXY_URL=your_first_proxy, your_second_proxy        // 代理url，多个代理用逗号分隔
 ARKOSE_TOKEN_URL=https://arkose.example.com/token    // 获取Arkose token的地址，上文有提供说明
+
+# 功能相关
+HISTORY_DISABLED=true                                // 是否不保存聊天记录并返回 conversation_id，true为不保存且不返回
 POW_DIFFICULTY=000032                                // 要解决的工作量证明难度，字符串越小，计算时间越长，建议000032
 RETRY_TIMES=3                                        // 出错重试次数
 ENABLE_GATEWAY=true                                  // 是否启用网关模式(WEBUI)，true为启用
@@ -156,8 +164,8 @@ CONVERSATION_ONLY=false                              // 使用的网关支持在
 >   - `502`：服务器网关错误，或网络不可用，请尝试更换网络环境。
 
 > - 已知情况：
->  - 日本IP很多不支持免登，免登3.5建议使用美国IP
->  - 99%的账号都支持免费 `GPT-4o` ，但根据IP地区开启，目前日本和新加坡IP已知开启概率较大
+>   - 日本IP很多不支持免登，免登3.5建议使用美国IP
+>   - 99%的账号都支持免费 `GPT-4o` ，但根据IP地区开启，目前日本和新加坡IP已知开启概率较大
 
 > - AccessToken 如何获取？
 >   - chatgpt官网登录后，再打开 https://chatgpt.com/api/auth/session 获取 `accessToken` 这个值

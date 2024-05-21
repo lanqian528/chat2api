@@ -1,1 +1,6 @@
 .env
+*.pyc
+/.git/
+/.idea/
+/docs/
+/tmp/
