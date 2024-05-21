@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tokens 管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const apiPrefix = "{{ api_prefix }}";
+            const uploadForm = document.getElementById('uploadForm');
+            const clearForm = document.getElementById('clearForm');
+
+            if (apiPrefix) {
+                uploadForm.action = `/${apiPrefix}/tokens/upload`;
+                clearForm.action = `/${apiPrefix}/tokens/clear`;
+            } else {
+                uploadForm.action = "/tokens/upload";
+                clearForm.action = "/tokens/clear";
+            }
+        });
+    </script>
+</head>
+<body class="bg-gradient-to-r from-blue-200 via-purple-200 to-pink-200 flex justify-center items-center min-h-screen">
+    <div class="bg-white p-10 rounded-lg shadow-2xl w-128 text-center">
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-6">Tokens 管理</h1>
+        <p class="text-gray-600 mb-6">当前可用 Tokens 数量：<span class="text-blue-600">{{ tokens_count }}</span></p>
+        <form id="uploadForm" method="post" class="mb-6">
+            <textarea name="text" rows="10" placeholder="一行一个Token，可以是 AccessToken 或 RefreshToken" class="w-full p-4 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"></textarea>
+            <p class="text-gray-600 mb-4">注：使用docker时如果挂载了data文件夹则重启后不需要再次上传</p>
+            <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition duration-300 mb-4">上传</button>
+        </form>
+        <form id="clearForm" method="post">
+            <button type="submit" class="w-full bg-red-600 text-white py-3 rounded-md hover:bg-red-700 transition duration-300">清空Tokens</button>
+        </form>
+        <p class="text-gray-600 mt-6">点击清空，将会清空所有已保存的 Tokens</p>
+    </div>
+</body>
+</html>

@@ -1,23 +1,24 @@
-import os
 import types
+import warnings
 
-from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi import FastAPI, Request, Depends, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
 from starlette.background import BackgroundTask
 
 from chatgpt.ChatService import ChatService
 from chatgpt.reverseProxy import chatgpt_reverse_proxy
 from utils.Logger import logger
-from utils.authorization import verify_token
+from utils.authorization import verify_token, token_list
 from utils.config import api_prefix
 from utils.retry import async_retry
-
-import warnings
 
 warnings.filterwarnings("ignore")
 
 app = FastAPI()
+templates = Jinja2Templates(directory="templates")
 
 app.add_middleware(
     CORSMiddleware,
@@ -63,6 +64,35 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
         await chat_service.close_client()
         logger.error(f"Server error, {str(e)}")
         raise HTTPException(status_code=500, detail="Server error")
+
+
+@app.get(f"/{api_prefix}/tokens" if api_prefix else "/upload", response_class=HTMLResponse)
+async def upload_html(request: Request):
+    tokens_count = len(token_list)
+    return templates.TemplateResponse("tokens.html", {"request": request, "api_prefix": api_prefix, "tokens_count": tokens_count})
+
+
+@app.post(f"/{api_prefix}/tokens/upload" if api_prefix else "/tokens/upload")
+async def upload_post(request: Request, text: str = Form(...)):
+    lines = text.split("\n")
+    for line in lines:
+        if line.strip() and not line.startswith("#"):
+            token_list.append(line.strip())
+            with open("data/token.txt", "a", encoding="utf-8") as f:
+                f.write(line.strip() + "\n")
+    logger.info(f"Token list count: {len(token_list)}")
+    tokens_count = len(token_list)
+    return templates.TemplateResponse("tokens.html", {"request": request, "api_prefix": api_prefix, "tokens_count": tokens_count})
+
+
+@app.post(f"/{api_prefix}/tokens/clear" if api_prefix else "/tokens/clear")
+async def upload_post(request: Request):
+    token_list.clear()
+    with open("data/token.txt", "w", encoding="utf-8") as f:
+        pass
+    logger.info(f"Token list count: {len(token_list)}")
+    tokens_count = len(token_list)
+    return templates.TemplateResponse("tokens.html", {"request": request, "api_prefix": api_prefix, "tokens_count": tokens_count})
 
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])

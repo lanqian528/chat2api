@@ -6,3 +6,4 @@ python-dotenv
 websockets
 pillow
 pybase64
+jinja2

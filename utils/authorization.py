@@ -12,6 +12,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 count = 0
 token_list = []
 
+DATA_FOLDER = "data"
+TOKENS_FILE = os.path.join(DATA_FOLDER, "token.txt")
+if not os.path.exists(DATA_FOLDER):
+    os.makedirs(DATA_FOLDER)
+
 if os.path.exists("data/token.txt"):
     with open("data/token.txt", "r", encoding="utf-8") as f:
         for line in f:

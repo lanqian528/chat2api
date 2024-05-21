@@ -137,7 +137,7 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 ```
 # 安全相关
 API_PREFIX=your_prefix                               // API前缀密码，不设置容易被人访问，设置后需请求 /your_prefix/v1/chat/completions
-AUTHORIZATION=sk-xxxxxxxx,sk-yyyyyyyy                // 填写data文件夹下的token.txt后，请求时传入AUTHORIZATION可多账号轮询
+AUTHORIZATION=sk-xxxxxxxx,sk-yyyyyyyy                // 先到 /tokens 上传ac或rt，请求时传入 AUTHORIZATION 可多账号轮询
 
 # 请求相关
 CHATGPT_BASE_URL=https://chatgpt.com                 // ChatGPT网关地址，设置后会改变请求的网站，多个网关用逗号分隔

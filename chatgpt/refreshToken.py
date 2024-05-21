@@ -1,5 +1,8 @@
+import json
+import os
 import random
 import time
+from functools import cache
 
 from fastapi import HTTPException
 
@@ -7,11 +10,30 @@ from utils.Client import Client
 from utils.Logger import logger
 from utils.config import proxy_url_list
 
-refresh_map = {}
-fake_map = {}
+
+DATA_FOLDER = "data"
+REFRESH_MAP_FILE = os.path.join(DATA_FOLDER, "refresh_map.json")
+
+if not os.path.exists(DATA_FOLDER):
+    os.makedirs(DATA_FOLDER)
+
+
+@cache
+def load_refresh_map():
+    if os.path.exists(REFRESH_MAP_FILE):
+        with open(REFRESH_MAP_FILE, "r") as file:
+            return json.load(file)
+    else:
+        return {}
+
+
+def save_refresh_map(refresh_map):
+    with open(REFRESH_MAP_FILE, "w") as file:
+        json.dump(refresh_map, file)
 
 
 async def rt2ac(refresh_token):
+    refresh_map = load_refresh_map()
     if refresh_token in refresh_map and int(time.time()) - refresh_map.get(refresh_token, {}).get("timestamp", 0) < 24 * 60 * 60:
         access_token = refresh_map[refresh_token]["token"]
         logger.info(f"refresh_token -> access_token from cache")
@@ -19,6 +41,7 @@ async def rt2ac(refresh_token):
     else:
         access_token = await chat_refresh(refresh_token)
         refresh_map[refresh_token] = {"token": access_token, "timestamp": int(time.time())}
+        save_refresh_map(refresh_map)
         logger.info(f"refresh_token -> access_token with openai: {access_token}")
         return access_token
 
