@@ -1,8 +1,0 @@
---------------------------删除这部分内容----------------------------
-# 将AccessToken或者RefreshToken放在此文件中,然后将文件名改为token.txt
-# 一行一个Token, 请不要有多余的空格或者换行
-# 例如：
-OMo96QgRRXwEIkqKRasfOFNAFNLKFNwPv3  # RefreshToken
-eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ik1UaEVOVUpHTkVNMVFURTRNMEZCTWpkQ05UZ...  # AccessToken
-eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ik1UaEVOVUpHTkVNMVFURTRNMEZCTWpkQ05UZ...  # AccessToken
---------------------------删除这部分内容----------------------------

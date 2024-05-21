@@ -16,7 +16,6 @@ https://t.me/chat2api 要提问请先阅读完仓库介绍
 
 > 已完成
 > - [x] 流式、非流式传输
-> - [x] 多账号轮询，同时支持AccessToken和RefreshToken
 > - [x] 免登录 GPT3.5 对话
 > - [x] GPT-3.5 对话 (传入模型名不包含gpt-4，则默认使用gpt-3.5，也就是text-davinci-002-render-sha)
 > - [x] GPT-4 对话 (传入模型名包含: gpt-4，gpt-4o，gpt-4-moblie 即可使用对应模型， 需传入AccessToken)
@@ -25,13 +24,18 @@ https://t.me/chat2api 要提问请先阅读完仓库介绍
 > - [x] 上传图片、文件 (格式为API对应格式，支持url和base64)
 > - [x] WebUI (http://127.0.0.1:5005, 不支持登录使用)
 > - [x] 可作为网关使用，可多机分布部署
+> - [x] 多账号轮询，同时支持AccessToken和RefreshToken
+> - [x] Tokens 管理，支持上传、清除
 
 > TODO
 > - [ ] 暂无，欢迎提 issue
+> 
 
-## 赞助商
+## Tokens 管理
 
-[![Capsolver](docs/capsolver.jpg)](https://capsolver.com)
+访问/tokens 或者 /api_prefix/tokens 可以查看现有Tokens数量，也可以上传新的Tokens，或者清除Tokens
+
+![tokens.png](docs/tokens.png)
 
 ## 部署
 
@@ -173,6 +177,11 @@ CONVERSATION_ONLY=false                              // 使用的网关支持在
 >   - PLUS账号需要配置 `ArkoseToken`，请根据上文进行配置
 > - ArkoseToken 是什么，怎么获取？
 >   - 请参考上文的说明，更多请参考 https://www.arkoselabs.com/
+
+
+## 赞助商
+
+[![Capsolver](docs/capsolver.jpg)](https://capsolver.com)
 
 
 ## License
