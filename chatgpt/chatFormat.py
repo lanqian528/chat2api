@@ -268,7 +268,7 @@ async def api_messages_to_chat(service, api_messages):
                                 "height": height
                             })
                         else:
-                            file_tokens += file_size
+                            file_tokens += file_size // 1000
                             attachments.append({
                                 "id": file_id,
                                 "size": file_size,

@@ -295,11 +295,7 @@ async def get_dpl(service):
     if int(time.time()) - cached_time < 15 * 60:
         return True
     headers = service.base_headers.copy()
-    if len(cached_scripts) == 0:
-        cached_scripts.append(
-            "https://cdn.oaistatic.com/_next/static/cXh69klOLzS0Gy2joLDRS/_ssgManifest.js?dpl=453ebaec0d44c2decab71692e1bfe39be35a24b3")
-        cached_dpl = "453ebaec0d44c2decab71692e1bfe39be35a24b3"
-        cached_time = int(time.time())
+    cached_scripts.clear()
     try:
         if conversation_only:
             return True
@@ -307,8 +303,15 @@ async def get_dpl(service):
         r.raise_for_status()
         parser = ScriptSrcParser()
         parser.feed(r.text)
-        return True
+        if len(cached_scripts) == 0:
+            raise Exception("No scripts found")
+        else:
+            return True
     except Exception:
+        cached_scripts.append(
+            "https://cdn.oaistatic.com/_next/static/cXh69klOLzS0Gy2joLDRS/_ssgManifest.js?dpl=453ebaec0d44c2decab71692e1bfe39be35a24b3")
+        cached_dpl = "453ebaec0d44c2decab71692e1bfe39be35a24b3"
+        cached_time = int(time.time())
         return False
 
 

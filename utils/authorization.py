@@ -14,17 +14,19 @@ token_list = []
 
 DATA_FOLDER = "data"
 TOKENS_FILE = os.path.join(DATA_FOLDER, "token.txt")
+
 if not os.path.exists(DATA_FOLDER):
     os.makedirs(DATA_FOLDER)
 
-if os.path.exists("data/token.txt"):
-    with open("data/token.txt", "r", encoding="utf-8") as f:
+if os.path.exists(TOKENS_FILE):
+    with open(TOKENS_FILE, "r", encoding="utf-8") as f:
         for line in f:
             if line.strip() and not line.startswith("#"):
                 token_list.append(line.strip())
 else:
-    with open("data/token.txt", "w", encoding="utf-8") as f:
+    with open(TOKENS_FILE, "w", encoding="utf-8") as f:
         pass
+
 if token_list:
     logger.info(f"Token list count: {len(token_list)}")
 

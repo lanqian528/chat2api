@@ -2,7 +2,6 @@ import json
 import os
 import random
 import time
-from functools import cache
 
 from fastapi import HTTPException
 
@@ -17,14 +16,11 @@ REFRESH_MAP_FILE = os.path.join(DATA_FOLDER, "refresh_map.json")
 if not os.path.exists(DATA_FOLDER):
     os.makedirs(DATA_FOLDER)
 
-
-@cache
-def load_refresh_map():
-    if os.path.exists(REFRESH_MAP_FILE):
-        with open(REFRESH_MAP_FILE, "r") as file:
-            return json.load(file)
-    else:
-        return {}
+if os.path.exists(REFRESH_MAP_FILE):
+    with open(REFRESH_MAP_FILE, "r") as file:
+        refresh_map = json.load(file)
+else:
+    refresh_map = {}
 
 
 def save_refresh_map(refresh_map):
@@ -33,8 +29,7 @@ def save_refresh_map(refresh_map):
 
 
 async def rt2ac(refresh_token):
-    refresh_map = load_refresh_map()
-    if refresh_token in refresh_map and int(time.time()) - refresh_map.get(refresh_token, {}).get("timestamp", 0) < 24 * 60 * 60:
+    if refresh_token in refresh_map and int(time.time()) - refresh_map.get(refresh_token, {}).get("timestamp", 0) < 2 * 24 * 60 * 60:
         access_token = refresh_map[refresh_token]["token"]
         logger.info(f"refresh_token -> access_token from cache")
         return access_token
