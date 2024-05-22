@@ -109,7 +109,7 @@ class ChatService:
                 resp = r.json()
                 self.persona = resp.get("persona")
                 if "gpt-4" in self.origin_model and self.persona != "chatgpt-paid":
-                    if "gpt-4o" not in self.origin_model:
+                    if "gpt-4o" not in self.origin_model and "gpt-4-gizmo" not in self.origin_model:
                         raise HTTPException(status_code=404, detail={
                             "message": f"The model `{self.origin_model}` does not exist or you do not have access to it.",
                             "type": "invalid_request_error",
@@ -202,7 +202,7 @@ class ChatService:
         elif "gpt-4-mobile" in self.origin_model:
             model = "gpt-4-mobile"
         elif "gpt-4-gizmo" in self.origin_model:
-            model = "gpt-4"
+            model = "gpt-4o"
             gizmo_id = self.data.get("model").split("gpt-4-gizmo-")[-1]
             conversation_mode = {"kind": "gizmo_interaction", "gizmo_id": gizmo_id}
         elif "gpt-4" in self.origin_model:
