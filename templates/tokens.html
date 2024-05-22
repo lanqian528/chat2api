@@ -11,12 +11,12 @@
             const uploadForm = document.getElementById('uploadForm');
             const clearForm = document.getElementById('clearForm');
 
-            if (apiPrefix) {
-                uploadForm.action = `/${apiPrefix}/tokens/upload`;
-                clearForm.action = `/${apiPrefix}/tokens/clear`;
-            } else {
+            if (apiPrefix === "None") {
                 uploadForm.action = "/tokens/upload";
                 clearForm.action = "/tokens/clear";
+            } else {
+                uploadForm.action = `/${apiPrefix}/tokens/upload`;
+                clearForm.action = `/${apiPrefix}/tokens/clear`;
             }
         });
     </script>

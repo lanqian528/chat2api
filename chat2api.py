@@ -86,7 +86,7 @@ async def upload_post(request: Request, text: str = Form(...)):
                 f.write(line.strip() + "\n")
     logger.info(f"Token list count: {len(token_list)}")
     tokens_count = len(token_list)
-    return templates.TemplateResponse("tokens.html", {"request": request, "api_prefix": api_prefix, "tokens_count": tokens_count})
+    return {"status": "success", "tokens_count": tokens_count}
 
 
 @app.post(f"/{api_prefix}/tokens/clear" if api_prefix else "/tokens/clear")
@@ -96,7 +96,7 @@ async def upload_post(request: Request):
         pass
     logger.info(f"Token list count: {len(token_list)}")
     tokens_count = len(token_list)
-    return templates.TemplateResponse("tokens.html", {"request": request, "api_prefix": api_prefix, "tokens_count": tokens_count})
+    return {"status": "success", "tokens_count": tokens_count}
 
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])
