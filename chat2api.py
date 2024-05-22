@@ -38,6 +38,10 @@ async def to_send_conversation(request_data, access_token):
     except HTTPException as e:
         await chat_service.close_client()
         raise HTTPException(status_code=e.status_code, detail=e.detail)
+    except Exception as e:
+        await chat_service.close_client()
+        logger.error(f"Server error, {str(e)}")
+        raise HTTPException(status_code=500, detail="Server error")
 
 
 @app.post(f"/{api_prefix}/v1/chat/completions" if api_prefix else "/v1/chat/completions")

@@ -48,6 +48,8 @@ class ChatService:
         self.api_messages = self.data.get("messages", [])
         self.prompt_tokens = 0
         self.max_tokens = self.data.get("max_tokens", 2147483647)
+        if not isinstance(self.max_tokens, int):
+            self.max_tokens = 2147483647
 
         self.chat_headers = None
         self.chat_request = None
