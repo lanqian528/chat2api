@@ -47,7 +47,7 @@ async def handle_request_limit(request_data, access_token):
 
 
 def clean_dict():
-    logger.info("-" * 50)
+    logger.info("-" * 60)
     logger.info("Start to clean limit_access_token......")
     current_time = time.time()
     keys_to_remove = [key for key, clear_time in limit_access_token.items() if clear_time < current_time]

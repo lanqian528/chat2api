@@ -17,7 +17,7 @@ from utils.Client import Client
 from utils.Logger import logger
 from utils.authorization import verify_token
 from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled, pow_difficulty, \
-    conversation_only, enable_limit, limit_status_code
+    conversation_only, enable_limit, limit_status_code, upload_by_url
 
 
 class ChatService:
@@ -188,7 +188,7 @@ class ChatService:
 
     async def prepare_send_conversation(self):
         try:
-            chat_messages, self.prompt_tokens = await api_messages_to_chat(self, self.api_messages)
+            chat_messages, self.prompt_tokens = await api_messages_to_chat(self, self.api_messages, upload_by_url)
         except Exception as e:
             logger.error(f"Failed to format messages: {str(e)}")
             raise HTTPException(status_code=400, detail="Failed to format messages.")

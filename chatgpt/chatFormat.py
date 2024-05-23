@@ -1,6 +1,7 @@
 import asyncio
 import json
 import random
+import re
 import string
 import time
 import uuid
@@ -166,6 +167,8 @@ async def stream_response(service, response, model, max_tokens):
                         parts = content.get("parts", [])
                         delta = {}
                         for part in parts:
+                            if isinstance(part, str):
+                                continue
                             inner_content_type = part.get('content_type')
                             if inner_content_type == "image_asset_pointer":
                                 last_content_type = "image_asset_pointer"
@@ -225,12 +228,49 @@ async def stream_response(service, response, model, max_tokens):
             continue
 
 
-async def api_messages_to_chat(service, api_messages):
+def get_url_from_content(content):
+    if isinstance(content, str) and content.startswith('http'):
+        try:
+            url = re.match(r'(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))', content.split(' ')[0])[0]
+            content = content.replace(url, '').strip()
+            return url, content
+        except Exception:
+            return None, content
+    return None, content
+
+
+def format_messages_with_url(content):
+    url_list = []
+    while True:
+        url, content = get_url_from_content(content)
+        if url:
+            url_list.append(url)
+        else:
+            break
+    new_content = [
+        {
+            "type": "text",
+            "text": content
+        }
+    ]
+    for url in url_list:
+        new_content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": url
+            }
+        })
+    return new_content
+
+
+async def api_messages_to_chat(service, api_messages, upload_by_url=False):
     file_tokens = 0
     chat_messages = []
     for api_message in api_messages:
         role = api_message.get('role')
         content = api_message.get('content')
+        if upload_by_url:
+            content = format_messages_with_url(content)
         if isinstance(content, list):
             parts = []
             attachments = []
