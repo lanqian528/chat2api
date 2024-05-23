@@ -6,16 +6,16 @@ from fastapi import FastAPI, Request, Depends, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.templating import Jinja2Templates
 from starlette.background import BackgroundTask
 
 from chatgpt.ChatService import ChatService
-from chatgpt.chatLimit import handle_request_limit, clean_dict
+from chatgpt.chatLimit import clean_dict
 from chatgpt.reverseProxy import chatgpt_reverse_proxy
 from utils.Logger import logger
-from utils.authorization import verify_token, token_list
+from utils.authorization import token_list
 from utils.config import api_prefix
-from utils.config import enable_limit, limit_status_code
 from utils.retry import async_retry
 
 warnings.filterwarnings("ignore")
@@ -23,6 +23,8 @@ warnings.filterwarnings("ignore")
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 scheduler = BackgroundScheduler()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -38,8 +40,8 @@ async def app_start():
     scheduler.start()
 
 
-async def to_send_conversation(request_data, access_token):
-    chat_service = ChatService(access_token)
+async def to_send_conversation(request_data, req_token):
+    chat_service = ChatService(req_token)
     try:
         await chat_service.set_dynamic_data(request_data)
         await chat_service.get_chat_requirements()
@@ -54,18 +56,13 @@ async def to_send_conversation(request_data, access_token):
 
 
 @app.post(f"/{api_prefix}/v1/chat/completions" if api_prefix else "/v1/chat/completions")
-async def send_conversation(request: Request, token=Depends(verify_token)):
+async def send_conversation(request: Request, req_token: str = Depends(oauth2_scheme)):
     try:
         request_data = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail={"error": "Invalid JSON body"})
 
-    if enable_limit:
-        limit_response = await handle_request_limit(request_data, token)
-        if limit_response:
-            raise HTTPException(status_code=int(limit_status_code), detail=limit_response)
-
-    chat_service = await async_retry(to_send_conversation, request_data, token)
+    chat_service = await async_retry(to_send_conversation, request_data, req_token)
     try:
         await chat_service.prepare_send_conversation()
         res = await chat_service.send_conversation()
@@ -77,6 +74,8 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
             return JSONResponse(res, media_type="application/json", background=background)
     except HTTPException as e:
         await chat_service.close_client()
+        if e.status_code == 500:
+            raise HTTPException(status_code=500, detail="Server error")
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception as e:
         await chat_service.close_client()

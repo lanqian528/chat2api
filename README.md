@@ -32,6 +32,7 @@ https://t.me/chat2api
 > - [x] WebUI (http://127.0.0.1:5005, 不支持登录使用)
 > - [x] 可作为网关使用，可多机分布部署
 > - [x] 多账号轮询，同时支持AccessToken和RefreshToken
+> - [x] 请求失败重试，自动轮询下一个Token
 > - [x] Tokens 管理，支持上传、清除
 
 > TODO

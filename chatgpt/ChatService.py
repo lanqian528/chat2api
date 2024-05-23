@@ -10,22 +10,32 @@ from starlette.concurrency import run_in_threadpool
 from api.files import get_image_size, get_file_extension, determine_file_use_case
 from api.models import model_proxy
 from chatgpt.chatFormat import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
-from chatgpt.chatLimit import check_isLimit
+from chatgpt.chatLimit import check_isLimit, handle_request_limit
 from chatgpt.proofofWork import get_config, get_dpl, get_answer_token, get_requirements_token
 from chatgpt.wssClient import ac2wss, set_wss
 from utils.Client import Client
 from utils.Logger import logger
+from utils.authorization import verify_token
 from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled, pow_difficulty, \
-    conversation_only
+    conversation_only, enable_limit, limit_status_code
 
 
 class ChatService:
-    def __init__(self, access_token=None):
+    def __init__(self, req_token=None):
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"
-        self.access_token = access_token
+        self.req_token = req_token
         self.chat_token = "gAAAAAB"
+        self.s = None
+        self.ws = None
 
     async def set_dynamic_data(self, data):
+        self.access_token = await verify_token(self.req_token)
+
+        if enable_limit:
+            limit_response = await handle_request_limit(data, self.access_token)
+            if limit_response:
+                raise HTTPException(status_code=int(limit_status_code), detail=limit_response)
+
         self.proxy_url = random.choice(proxy_url_list) if proxy_url_list else None
         self.host_url = random.choice(chatgpt_base_url_list) if chatgpt_base_url_list else "https://chatgpt.com"
         self.arkose_token_url = random.choice(arkose_token_url_list) if arkose_token_url_list else None
@@ -391,7 +401,8 @@ class ChatService:
             logger.error("Failed to get upload url")
 
     async def close_client(self):
-        await self.s.close()
+        if self.s:
+            await self.s.close()
         if self.ws:
             await self.ws.close()
             del self.ws

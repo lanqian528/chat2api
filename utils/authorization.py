@@ -1,13 +1,10 @@
 import os
 
-from fastapi import Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import HTTPException
 
 from chatgpt.refreshToken import rt2ac
 from utils.Logger import logger
 from utils.config import authorization_list
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 count = 0
 token_list = []
@@ -31,10 +28,10 @@ if token_list:
     logger.info(f"Token list count: {len(token_list)}")
 
 
-async def verify_token(req_token: str = Depends(oauth2_scheme)):
+async def verify_token(req_token):
     if not req_token:
         if authorization_list:
-            logger.error("Unauthorized access token")
+            logger.error("Unauthorized with empty token.")
             raise HTTPException(status_code=401)
         else:
             return None
@@ -56,7 +53,7 @@ async def verify_token(req_token: str = Depends(oauth2_scheme)):
                     access_token = await rt2ac(req_token)
                     return access_token
                 except HTTPException as e:
-                    logger.error(f"Unauthorized :access token {req_token}")
+                    logger.error(f"{e.detail}: {req_token}")
                     raise HTTPException(status_code=e.status_code, detail=e.detail)
             else:
                 return req_token

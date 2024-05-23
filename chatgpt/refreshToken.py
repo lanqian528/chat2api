@@ -57,7 +57,7 @@ async def chat_refresh(refresh_token):
         else:
             raise Exception("Unknown or invalid refresh token.")
     except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to refresh access_token: {str(e)}")
     finally:
         await client.close()
         del client
