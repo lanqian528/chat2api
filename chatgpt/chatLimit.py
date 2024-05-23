@@ -3,23 +3,20 @@ import time
 from datetime import datetime
 from utils.Logger import logger
 
-#  开启线程锁
 lock = threading.Lock()
-# 对于密钥的限制
 limit_access_token = {}
 
 
 def check_isLimit(detail, access_token):
     if detail.get('clears_in'):
-        clearTime = time.time() + detail.get('clears_in')
-        initial_access_list(access_token, clearTime)
+        clear_time = time.time() + detail.get('clears_in')
+        initial_access_list(access_token, clear_time)
 
 
 def initial_access_list(key, clear_time):
     with lock:
         limit_access_token[key] = clear_time
-    logger.info(
-        f"{key[:40]}: Reached 429 limit, will be cleared at {datetime.fromtimestamp(clear_time).replace(second=0, microsecond=0)}")
+    logger.info(f"{key[:40]}: Reached 429 limit, will be cleared at {datetime.fromtimestamp(clear_time).replace(second=0, microsecond=0)}")
 
 
 def remove_refresh_list(key):
@@ -40,20 +37,18 @@ async def handle_request_limit(request_data, access_token):
                 remove_refresh_list(access_token)
             else:
                 clear_date = datetime.fromtimestamp(limit_time).replace(second=0, microsecond=0)
-                logger.info(f"Request limit exceeded. "
-                            f"You can continue with the default model now, "
-                            f"or try again after {clear_date}")
-                return f"Request limit exceeded. You can continue with the default model now, or try again after {clear_date}"
+                result = f"Request limit exceeded. You can continue with the default model now, or try again after {clear_date}"
+                logger.info(result)
+                return result
         return None
     except Exception as e:
         logger.error(e)
         return None
 
 
-# 清理函数，用于删除长时间未使用的键值对
 def clean_dict():
-    logger.info(f"==========================================")
-    logger.info("开始执行清理过期的limit_access_token......")
+    logger.info("-" * 50)
+    logger.info("Start to clean limit_access_token......")
     current_time = time.time()
     keys_to_remove = [key for key, clear_time in limit_access_token.items() if clear_time < current_time]
     for key in keys_to_remove:

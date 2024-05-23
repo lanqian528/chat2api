@@ -1,6 +1,7 @@
 import types
 import warnings
 
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Request, Depends, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -9,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.background import BackgroundTask
 
 from chatgpt.ChatService import ChatService
-from chatgpt.chatLimit import handle_request_limit
+from chatgpt.chatLimit import handle_request_limit, clean_dict
 from chatgpt.reverseProxy import chatgpt_reverse_proxy
 from utils.Logger import logger
 from utils.authorization import verify_token, token_list
@@ -21,7 +22,7 @@ warnings.filterwarnings("ignore")
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
-
+scheduler = BackgroundScheduler()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,9 +32,15 @@ app.add_middleware(
 )
 
 
+@app.on_event("startup")
+async def app_start():
+    scheduler.add_job(id='updateLimit_run', func=clean_dict, trigger='cron', hour=3, minute=0)
+    scheduler.start()
+
+
 async def to_send_conversation(request_data, access_token):
+    chat_service = ChatService(access_token)
     try:
-        chat_service = ChatService(access_token)
         await chat_service.set_dynamic_data(request_data)
         await chat_service.get_chat_requirements()
         return chat_service
@@ -80,12 +87,11 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
 @app.get(f"/{api_prefix}/tokens" if api_prefix else "/tokens", response_class=HTMLResponse)
 async def upload_html(request: Request):
     tokens_count = len(token_list)
-    return templates.TemplateResponse("tokens.html",
-                                      {"request": request, "api_prefix": api_prefix, "tokens_count": tokens_count})
+    return templates.TemplateResponse("tokens.html", {"request": request, "api_prefix": api_prefix, "tokens_count": tokens_count})
 
 
 @app.post(f"/{api_prefix}/tokens/upload" if api_prefix else "/tokens/upload")
-async def upload_post(request: Request, text: str = Form(...)):
+async def upload_post(text: str = Form(...)):
     lines = text.split("\n")
     for line in lines:
         if line.strip() and not line.startswith("#"):
@@ -98,7 +104,7 @@ async def upload_post(request: Request, text: str = Form(...)):
 
 
 @app.post(f"/{api_prefix}/tokens/clear" if api_prefix else "/tokens/clear")
-async def upload_post(request: Request):
+async def upload_post():
     token_list.clear()
     with open("data/token.txt", "w", encoding="utf-8") as f:
         pass
