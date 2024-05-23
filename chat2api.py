@@ -3,12 +3,13 @@ import warnings
 
 from fastapi import FastAPI, Request, Depends, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
 from starlette.background import BackgroundTask
 
 from chatgpt.ChatService import ChatService
+from chatgpt.chatLimit import check_isLimit, handle_request_limit
 from chatgpt.reverseProxy import chatgpt_reverse_proxy
 from utils.Logger import logger
 from utils.authorization import verify_token, token_list
@@ -30,13 +31,17 @@ app.add_middleware(
 
 
 async def to_send_conversation(request_data, access_token):
-    chat_service = ChatService(access_token)
     try:
+        limit_response = await handle_request_limit(request_data, access_token)
+        if limit_response:
+            raise HTTPException(status_code=429, detail=limit_response)
+        chat_service = ChatService(access_token)
         await chat_service.set_dynamic_data(request_data)
         await chat_service.get_chat_requirements()
         return chat_service
     except HTTPException as e:
         await chat_service.close_client()
+        await check_isLimit(e, access_token)
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception as e:
         await chat_service.close_client()
@@ -73,7 +78,8 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
 @app.get(f"/{api_prefix}/tokens" if api_prefix else "/tokens", response_class=HTMLResponse)
 async def upload_html(request: Request):
     tokens_count = len(token_list)
-    return templates.TemplateResponse("tokens.html", {"request": request, "api_prefix": api_prefix, "tokens_count": tokens_count})
+    return templates.TemplateResponse("tokens.html",
+                                      {"request": request, "api_prefix": api_prefix, "tokens_count": tokens_count})
 
 
 @app.post(f"/{api_prefix}/tokens/upload" if api_prefix else "/tokens/upload")
