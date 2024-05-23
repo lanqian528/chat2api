@@ -7,8 +7,7 @@ from fastapi import HTTPException
 
 from utils.Client import Client
 from utils.Logger import logger
-from utils.config import proxy_url_list
-
+from utils.config import proxy_url_list, refresh_server
 
 DATA_FOLDER = "data"
 REFRESH_MAP_FILE = os.path.join(DATA_FOLDER, "refresh_map.json")
@@ -42,6 +41,17 @@ async def rt2ac(refresh_token):
 
 
 async def chat_refresh(refresh_token):
+    try:
+        if refresh_server == "oai":
+            access_token = oai_refresh(refresh_token)
+        elif refresh_server == "oaifree":
+            access_token = oai_refresh(refresh_token)
+        return access_token
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+
+async def oai_refresh(refresh_token):
     data = {
         "client_id": "pdlLIX2Y72MIl2rhLhTE9VV9bN905kBh",
         "grant_type": "refresh_token",
@@ -50,7 +60,7 @@ async def chat_refresh(refresh_token):
     }
     client = Client(proxy=random.choice(proxy_url_list) if proxy_url_list else None)
     try:
-        r = await client.post("https://auth0.openai.com/oauth/token", json=data, timeout=5)
+        r = client.post("https://auth0.openai.com/oauth/token", json=data, timeout=5)
         if r.status_code == 200:
             access_token = r.json()['access_token']
             return access_token
@@ -59,5 +69,24 @@ async def chat_refresh(refresh_token):
     except Exception as e:
         raise HTTPException(status_code=401, detail=str(e))
     finally:
-        await client.close()
+        client.close()
+        del client
+
+
+def oaifree_refresh(refresh_token):
+    data = {
+        'refresh_token': refresh_token,
+    }
+    client = Client(proxy=random.choice(proxy_url_list) if proxy_url_list else None)
+    try:
+        r = client.post("https://token.oaifree.com/api/auth/refresh", json=data, timeout=5)
+        if r.status_code == 200:
+            access_token = r.json()['access_token']
+            return access_token
+        else:
+            raise Exception("Unknown or invalid refresh token.")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    finally:
+        client.close()
         del client

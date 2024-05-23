@@ -30,6 +30,7 @@ enable_gateway = is_true(os.getenv('ENABLE_GATEWAY', True))
 conversation_only = is_true(os.getenv('CONVERSATION_ONLY', False))
 enable_limit = is_true(os.getenv('ENABLE_LIMIT', True))
 limit_status_code = os.getenv('LIMIT_STATUS_CODE', 429)
+refresh_server = os.getenv('RFRESH_SERVER', 'oai')
 
 authorization_list = authorization.split(',') if authorization else []
 chatgpt_base_url_list = chatgpt_base_url.split(',') if chatgpt_base_url else []
@@ -51,4 +52,6 @@ logger.info("RETRY_TIMES:       " + str(retry_times))
 logger.info("ENABLE_GATEWAY:    " + str(enable_gateway))
 logger.info("CONVERSATION_ONLY: " + str(conversation_only))
 logger.info("ENABLE_LIMIT:      " + str(enable_limit))
+logger.info("LIMIT_STATUS_CODE  " + str(limit_status_code))
+logger.info("RFRESH_SERVER:     " + str(refresh_server))
 logger.info("-" * 60)
