@@ -1,76 +1,77 @@
 # CHAT2API
 
-🤖 一个简单的ChatGPT TO API代理
+🤖 一个简单的 ChatGPT TO API 代理
 
 🌟 无需账号即可使用免费、无限的 `GPT-3.5`
 
-💥 支持AccessToken使用账号，支持 `GPT-4`、`GPT-4o`、 `GPTs`
+💥 支持 AccessToken 使用账号，支持 `GPT-4`、`GPT-4o`、 `GPTs`
 
-🔍 回复格式与真实api完全一致，适配几乎所有客户端
+🔍 回复格式与真实 API 完全一致，适配几乎所有客户端
 
 ## 交流群
 
-https://t.me/chat2api 
+[https://t.me/chat2api](https://t.me/chat2api)
 
-要提问请先阅读完仓库文档，尤其是常见问题部分
+要提问请先阅读完仓库文档，尤其是常见问题部分。
 
 提问时请提供：
-1. 启动日志截图 (敏感信息打码，包括 `环境变量` 和 `版本号`)，
-2. 报错的日志信息 (敏感信息打码)，
-3. 接口返回的 `状态码` 和 `响应体`，
+
+1. 启动日志截图（敏感信息打码，包括环境变量和版本号）
+2. 报错的日志信息（敏感信息打码）
+3. 接口返回的状态码和响应体
 
 ## 功能
+### 最新版 v1.1.6
 
 > 已完成
 > - [x] 流式、非流式传输
-> - [x] 免登录 GPT3.5 对话
-> - [x] GPT-3.5 对话 (传入模型名不包含gpt-4，则默认使用gpt-3.5，也就是text-davinci-002-render-sha)
-> - [x] GPT-4 对话 (传入模型名包含: gpt-4，gpt-4o，gpt-4-moblie 即可使用对应模型， 需传入AccessToken)
+> - [x] 免登录 GPT-3.5 对话
+> - [x] GPT-3.5 对话（传入模型名不包含 gpt-4，则默认使用 gpt-3.5，也就是 text-davinci-002-render-sha）
+> - [x] GPT-4 对话（传入模型名包含: gpt-4，gpt-4o，gpt-4-moblie 即可使用对应模型，需传入 AccessToken）
 > - [x] GPT-4 画图、代码、联网
-> - [x] 支持GPTs (传入模型名：gpt-4-gizmo-g-*)
-> - [x] 上传图片、文件 (格式为API对应格式，支持url和base64)
-> - [x] WebUI (http://127.0.0.1:5005, 不支持登录使用)
+> - [x] 支持 GPTs（传入模型名：gpt-4-gizmo-g-*）
+> - [x] 上传图片、文件（格式为 API 对应格式，支持 URL 和 base64）
+> - [x] WebUI（[http://127.0.0.1:5005](http://127.0.0.1:5005)，不支持登录使用）
 > - [x] 可作为网关使用，可多机分布部署
-> - [x] 多账号轮询，同时支持AccessToken和RefreshToken
-> - [x] 请求失败重试，自动轮询下一个Token
+> - [x] 多账号轮询，同时支持 AccessToken 和 RefreshToken
+> - [x] 请求失败重试，自动轮询下一个 Token
 > - [x] Tokens 管理，支持上传、清除
 
 > TODO
 > - [ ] 暂无，欢迎提 issue
-> 
 
 ## Tokens 管理
 
-首先配置环境变量 `AUTHORIZATION`，然后运行程序
+首先配置环境变量 `AUTHORIZATION`，然后运行程序。
 
-访问 `/tokens` 或者 `/api_prefix/tokens` 可以查看现有 Tokens 数量，也可以上传新的 Tokens ，或者清空 Tokens
+访问 `/tokens` 或者 `/api_prefix/tokens` 可以查看现有 Tokens 数量，也可以上传新的 Tokens ，或者清空 Tokens。
 
-请求时传入 `AUTHORIZATION` 中你配置的值即可多账号轮询， `AUTHORIZATION` 可以配置多个值，用英文逗号分隔
+请求时传入 `AUTHORIZATION` 中你配置的值即可多账号轮询， `AUTHORIZATION` 可以配置多个值，用英文逗号分隔。
 
 ![tokens.png](docs/tokens.png)
 
 ## 环境变量
 
-每个环境变量都有默认值，如果不懂环境变量的含义，请不要设置，更不要传空值，字符串无需引号
+每个环境变量都有默认值，如果不懂环境变量的含义，请不要设置，更不要传空值，字符串无需引号。
 
 | 分类   | 变量名               | 示例值                                 | 描述                                                        |
 |------|-------------------|-------------------------------------|-----------------------------------------------------------|
-| 安全相关 | API_PREFIX        | your_prefix                         | API前缀密码，不设置容易被人访问，设置后需请求 /your_prefix/v1/chat/completions |
+| 安全相关 | API_PREFIX        | your_prefix                         | API 前缀密码，不设置容易被人访问，设置后需请求 /your_prefix/v1/chat/completions |
 |      | AUTHORIZATION     | sk-xxxxxxxx, sk-yyyyyyyy            | 为使用多账号轮询 Tokens 设置的授权，英文逗号分隔                              |
-| 请求相关 | CHATGPT_BASE_URL  | https://chatgpt.com                 | ChatGPT网关地址，设置后会改变请求的网站，多个网关用逗号分隔                         |
-|      | PROXY_URL         | your_first_proxy, your_second_proxy | 代理URL，多个代理用逗号分隔                                           |
-|      | ARKOSE_TOKEN_URL  | https://arkose.example.com/token    | 获取Arkose token的地址                                         |
+| 请求相关 | CHATGPT_BASE_URL  | https://chatgpt.com                 | ChatGPT 网关地址，设置后会改变请求的网站，多个网关用逗号分隔                         |
+|      | PROXY_URL         | your_first_proxy, your_second_proxy | 代理 URL，多个代理用逗号分隔                                           |
+|      | ARKOSE_TOKEN_URL  | https://arkose.example.com/token    | 获取 Arkose token 的地址                                         |
 | 功能相关 | HISTORY_DISABLED  | true                                | 是否不保存聊天记录并返回 conversation_id                              |
 |      | POW_DIFFICULTY    | 00003a                              | 要解决的工作量证明难度                                               |
 |      | RETRY_TIMES       | 3                                   | 出错重试次数                                                    |
-|      | ENABLE_GATEWAY    | true                                | 是否启用网关模式(WEBUI)                                           |
+|      | ENABLE_GATEWAY    | true                                | 是否启用网关模式（WEBUI）                                           |
 |      | CONVERSATION_ONLY | false                               | 是否直接使用对话接口                                                |
 |      | ENABLE_LIMIT      | true                                | 开启后不尝试突破官方次数限制，尽可能防止封号                                    |
 
 
 ## 部署
 
-### zeabur部署
+### Zeabur 部署
 
 [![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/6HEGIZ?referralCode=LanQian528)
 
@@ -83,9 +84,9 @@ pip install -r requirements.txt
 python app.py
 ```
 
-### Docker部署
+### Docker 部署
 
-您需要安装Docker和Docker Compose。
+您需要安装 Docker 和 Docker Compose。
 
 ```bash
 docker run -d \
@@ -94,22 +95,22 @@ docker run -d \
   lanqian528/chat2api:latest
 ```
 
-### (推荐，可用 PLUS 账号) Docker Compose部署
+### (推荐，可用 PLUS 账号) Docker Compose 部署
 
-创建一个新的目录，例如chat2api，并进入该目录：
+创建一个新的目录，例如 chat2api，并进入该目录：
 
 ```bash
 mkdir chat2api
 cd chat2api
 ```
 
-在此目录中下载库中的docker-compose.yml文件：
+在此目录中下载库中的 docker-compose.yml 文件：
 
 ```bash
 wget https://raw.githubusercontent.com/LanQian528/chat2api/main/docker-compose.yml
 ```
 
-修改docker-compose.yml文件中的环境变量，保存后：
+修改 docker-compose.yml 文件中的环境变量，保存后：
 
 ```bash
 docker-compose up -d
@@ -117,13 +118,13 @@ docker-compose up -d
 
 ## 使用
 
-1. 在网页使用, 直接访问以下地址, 仅支持使用免登 GPT3.5:
+1. 在网页使用，直接访问以下地址，仅支持使用免登 GPT-3.5：
 
 ```
 http://127.0.0.1:5005
 ```
 
-2. 使用 API , 支持传入 AccessToken 或 RefreshToken, 可用 GPT-4, GPT-4o, GPTs:
+2. 使用 API ，支持传入 AccessToken 或 RefreshToken，可用 GPT-4, GPT-4o, GPTs：
 
 ```bash
 curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
@@ -136,68 +137,65 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
    }'
 ```
 
-将你账号的 `AccessToken` 或 `RefreshToken` 当作 `OpenAI APIKEY` 传入 
+将你账号的 `AccessToken` 或 `RefreshToken` 当作 `OpenAI APIKEY` 传入。
 
-如果设置了 `AUTHORIZATION` 环境变量，可以将设置的值当作 `OpenAI APIKEY` 传入进行多 Tokens 轮询
+如果设置了 `AUTHORIZATION` 环境变量，可以将设置的值当作 `OpenAI APIKEY` 传入进行多 Tokens 轮询。
 
-> - `AccessToken` 获取: chatgpt官网登录后，再打开 https://chatgpt.com/api/auth/session 获取 `accessToken` 这个值
+> - `AccessToken` 获取: chatgpt官网登录后，再打开 [https://chatgpt.com/api/auth/session](https://chatgpt.com/api/auth/session) 获取 `accessToken` 这个值。
 > - `RefreshToken` 获取: 此处不提供获取方法。
-> - 免登录 gpt3.5 无需传入 Token
-
+> - 免登录 gpt-3.5 无需传入 Token。
 
 ## ArkoseToken
 
 > #### 目前支持外部服务提供 ArkoseToken
 >
-> #### 推荐使用 docker-compose 方式部署, 已内置 Arkose 服务
+> #### 推荐使用 docker-compose 方式部署，已内置 Arkose 服务
 
-1. 设置环境变量ARKOSE_TOKEN_URL
+1. 设置环境变量 `ARKOSE_TOKEN_URL`
 
-2. 在需要`ArkoseToken`的时候，`chat2api`会向`ARKOSE_TOKEN_URL`发送`POST`请求
+2. 在需要 `ArkoseToken` 的时候，`chat2api` 会向 `ARKOSE_TOKEN_URL` 发送 `POST` 请求
 
 3. 请按照以下格式提供外部服务：
 
 - 请求体：
 
-```request body
+```json
 {"blob": "rFYaxQNEApDlx/Db.KyrE79pAAFBs70CYtbM4pMNUsc7jIkLGdiDs7vziHRGe78bqWXDo0AYyq2A10qIlcTt89lBYXJqCbONC/nD8C199pEZ/c9ocVKKtM27jZQ7fyOpWd9p5qjKeXT4xEGBFpoE3Re1DwdQeijYp7VMJQyw7RYN+IDB1QEx3aKSO6aTI+ivnhw9ztfn/p1SkvAyyOhur/ArF08WQ+rXQpxpttaSQlzMsIwlYbuUUuYE2f9JrQaYG7qip1DKvju111P6wTNy4QVlMXG32VrzaOWh4nmQ0lOcZ1DmN6u2aeJZotffHV2zOOQAqqnParidTbN+qFre2t77ZwBuGKGqLyT8LeOp02GdFwcyw0kkeX+L7vwYAzBpjA5ky0r0X+i8HpzWt8QCyWzEW9kHn9LLCTwg2MOumzjb66Ad4WDe+C1bAcOKuEyXiYh+a1cWZAOdzEuxEg90yCfI7DZR94BsoDR85gEC/Og88i098u5HV7hZZEOQ6J8fmi68FSyPkN7oLCmBsZCMAZqzapNP/MkeIMExrdw7Jf/PtMrZN4bwM56mWfyIJf5h/zXu8PUajVwE9Pj/M5VtB0spZg49JNeHExosVCAB0C0JW+T8vEIwoqiY4pRQ0lbMHTQZFpU2xURTgcgh+m6g1SEYR1FY3de1XnzfiTQq1RTNJPydj5xpt6r6okr8yIJdRhmVXlQI+pS7vi3+Lls2hnpr7L+l1mcUIMPZNBCs3AUFJNpp6SwQjZkPvKggg1p+uS6PdvKRizM9O9+FKc103AhuSia8KTrvU8tWhBhCzIHCD4LNfnkjuBWSdbDttva4AEXUoPuKkQCWaBzq4lQPUIHFOM9HmNe738vVkNdAuOYffxDNegcpIxLVgZGfbgLQ="}
 ```
 
 - 响应体：
 
-```response body
+```json
 {"token": "45017c7bb17115f36.7290869304|r=ap-southeast-1|meta=3|metabgclr=transparent|metaiconclr=%23757575|guitextcolor=%23000000|pk=0A1D34FC-659D-4E23-B17B-694DCFCF6A6C|at=40|sup=1|rid=3|ag=101|cdn_url=https%3A%2F%2Ftcr9i.openai.com%2Fcdn%2Ffc|lurl=https%3A%2F%2Faudio-ap-southeast-1.arkoselabs.com|surl=https%3A%2F%2Ftcr9i.openai.com|smurl=https%3A%2F%2Ftcr9i.openai.com%2Fcdn%2Ffc%2Fassets%2Fstyle-manager"}
 ```
-
 
 ## 常见问题
 
 > - 错误代码：
->   - `401`：当前IP不支持免登录，请尝试更换IP地址，或者在环境变量 `PROXY_URL` 中设置代理，或者你的身份验证失败。
->   - `403`：请在日志中查看具体报错信息
->   - `429`：当前IP请求1小时内请求超过限制，请稍后再试，或更换ip。
+>   - `401`：当前 IP 不支持免登录，请尝试更换 IP 地址，或者在环境变量 `PROXY_URL` 中设置代理，或者你的身份验证失败。
+>   - `403`：请在日志中查看具体报错信息。
+>   - `429`：当前 IP 请求1小时内请求超过限制，请稍后再试，或更换 IP。
 >   - `500`：服务器内部错误，请求失败。
 >   - `502`：服务器网关错误，或网络不可用，请尝试更换网络环境。
 
 > - 已知情况：
->   - 日本IP很多不支持免登，免登3.5建议使用美国IP
->   - 99%的账号都支持免费 `GPT-4o` ，但根据IP地区开启，目前日本和新加坡IP已知开启概率较大
+>   - 日本 IP 很多不支持免登，免登 GPT-3.5 建议使用美国 IP。
+>   - 99%的账号都支持免费 `GPT-4o` ，但根据 IP 地区开启，目前日本和新加坡 IP 已知开启概率较大。
 
 > - 环境变量 `AUTHORIZATION` 是什么？
->   - 是一个自己给chat2api设置的一个身份验证，设置后才可使用已保存的 Tokens 轮询，请求时当作 `APIKEY` 传入
+>   - 是一个自己给 chat2api 设置的一个身份验证，设置后才可使用已保存的 Tokens 轮询，请求时当作 `APIKEY` 传入。
 > - AccessToken 如何获取？
->   - chatgpt官网登录后，再打开 https://chatgpt.com/api/auth/session 获取 `accessToken` 这个值
-> - PLUS账号报错`403`？
->   - PLUS账号需要配置 `ArkoseToken`，请根据上文进行配置
+>   - chatgpt官网登录后，再打开 [https://chatgpt.com/api/auth/session](https://chatgpt.com/api/auth/session) 获取 `accessToken` 这个值。
+> - PLUS 账号报错 `403`？
+>   - PLUS 账号需要配置 `ArkoseToken`，请根据上文进行配置。
 > - ArkoseToken 是什么，怎么获取？
->   - 请参考上文的说明，更多请参考 https://www.arkoselabs.com/
-
+>   - 请参考上文的说明，更多请参考 [https://www.arkoselabs.com/](https://www.arkoselabs.com/)
 
 ## 赞助商
 
 [![Capsolver](docs/capsolver.jpg)](https://capsolver.com/?utm_source=github&utm_medium=github_banner&utm_campaign=chat2api)
 
-
 ## License
 
 MIT License
+
