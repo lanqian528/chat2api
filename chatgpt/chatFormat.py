@@ -1,21 +1,18 @@
 import asyncio
 import json
 import random
+import re
 import string
 import time
 import uuid
-from collections import deque
-from functools import reduce
 
 import pybase64
 import websockets
-from urlextract import URLExtract
 
 from api.files import get_file_content
 from api.models import model_system_fingerprint
 from api.tokens import split_tokens_from_content, calculate_image_tokens, num_tokens_from_messages
 from utils.Logger import logger
-from utils.config import max_file_num, enable_search, enable_gpt4o_search
 
 moderation_message = "I'm sorry, I cannot provide or engage in any content related to pornography, violence, or any unethical material. If you have any other questions or need assistance, please feel free to let me know. I'll do my best to provide support and assistance."
 
@@ -170,6 +167,8 @@ async def stream_response(service, response, model, max_tokens):
                         parts = content.get("parts", [])
                         delta = {}
                         for part in parts:
+                            if isinstance(part, str):
+                                continue
                             inner_content_type = part.get('content_type')
                             if inner_content_type == "image_asset_pointer":
                                 last_content_type = "image_asset_pointer"
@@ -229,40 +228,49 @@ async def stream_response(service, response, model, max_tokens):
             continue
 
 
-async def api_messages_to_chat(service, api_messages, ori_model_name):
+def get_url_from_content(content):
+    if isinstance(content, str) and content.startswith('http'):
+        try:
+            url = re.match(r'(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))', content.split(' ')[0])[0]
+            content = content.replace(url, '').strip()
+            return url, content
+        except Exception:
+            return None, content
+    return None, content
+
+
+def format_messages_with_url(content):
+    url_list = []
+    while True:
+        url, content = get_url_from_content(content)
+        if url:
+            url_list.append(url)
+        else:
+            break
+    new_content = [
+        {
+            "type": "text",
+            "text": content
+        }
+    ]
+    for url in url_list:
+        new_content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": url
+            }
+        })
+    return new_content
+
+
+async def api_messages_to_chat(service, api_messages, upload_by_url=False):
     file_tokens = 0
     chat_messages = []
-    contains_url = False
-    enable_search_models = 'gpt-3.5' not in ori_model_name and 'claude-3' not in ori_model_name
-    if 'gpt-4o' in ori_model_name:
-        api_enable_search = enable_search and enable_gpt4o_search
-    else:
-        api_enable_search = enable_search and enable_search_models
-
-    if api_enable_search:
-        all_urls = deque(maxlen=max_file_num)
-        url_positions = []
-        extractor = URLExtract()
-
-        for i, message in enumerate(api_messages):
-            content = message.get("content", "")
-            if not isinstance(content, list) and enable_search:
-                urls = extractor.find_urls(str(content), True)
-                urls = [url for url in urls if url.startswith(('https', 'http'))][:max_file_num]
-                message["content"] = content.strip()
-                url_positions.extend([(i, urls)])
-                all_urls.extend(urls)
-
-        all_urls = list(all_urls)
-        contains_url = bool(all_urls)
-        if len(all_urls) > 0:
-            logger.info(f"当前请求消息里的包含的URLS:{all_urls}")
-        # 将列表转换为字典
-        final_positions = dict(url_positions)
-
-    for index, api_message in enumerate(api_messages):
+    for api_message in api_messages:
         role = api_message.get('role')
         content = api_message.get('content')
+        if upload_by_url:
+            content = format_messages_with_url(content)
         if isinstance(content, list):
             parts = []
             attachments = []
@@ -310,65 +318,10 @@ async def api_messages_to_chat(service, api_messages, ori_model_name):
             metadata = {
                 "attachments": attachments
             }
-
-        # 当模型为3.5或者claude 或者 文本不包含url的时候，直接请求
-        elif not api_enable_search or not contains_url:
+        else:
             content_type = "text"
             parts = [content]
             metadata = {}
-
-        else:
-            metadata = {}
-            parts = []
-            attachments = []
-            tem_urls = []
-            content_type = "multimodal_text"
-            all_urls = final_positions.get(index, [])
-
-            for url in all_urls:
-                file_content, mime_type = await get_file_content(url)
-                file_meta = await service.upload_file(file_content, mime_type)
-                if file_meta:
-                    tem_urls.append(url)
-                    file_id = file_meta["file_id"]
-                    file_size = file_meta["size_bytes"]
-                    file_name = file_meta["file_name"]
-                    mime_type = file_meta["mime_type"]
-                    if mime_type.startswith("image/"):
-                        width, height = file_meta["width"], file_meta["height"]
-                        file_tokens += await calculate_image_tokens(width, height, "auto")
-                        parts.append({
-                            "content_type": "image_asset_pointer",
-                            "asset_pointer": f"file-service://{file_id}",
-                            "size_bytes": file_size,
-                            "width": width,
-                            "height": height
-                        })
-                        attachments.append({
-                            "id": file_id,
-                            "size": file_size,
-                            "name": file_name,
-                            "mime_type": mime_type,
-                            "width": width,
-                            "height": height
-                        })
-                    else:
-                        file_tokens += file_size // 1000
-                        attachments.append({
-                            "id": file_id,
-                            "size": file_size,
-                            "name": file_name,
-                            "mime_type": mime_type,
-                        })
-
-            if attachments:
-                metadata = {
-                    "attachments": attachments
-                }
-                # 删除content里的url，防止影响信息
-                content = reduce(lambda text, url: text.replace(url, ''), tem_urls, content).strip()
-            parts.append(content)
-
         chat_message = {
             "id": f"{uuid.uuid4()}",
             "author": {"role": role},
