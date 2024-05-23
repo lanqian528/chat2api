@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from api.files import get_image_size, get_file_extension, determine_file_use_case
 from api.models import model_proxy
 from chatgpt.chatFormat import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
+from chatgpt.chatLimit import check_isLimit
 from chatgpt.proofofWork import get_config, get_dpl, get_answer_token, get_requirements_token
 from chatgpt.wssClient import ac2wss, set_wss
 from utils.Client import Client
@@ -79,7 +80,8 @@ class ChatService:
             self.base_url = self.host_url + "/backend-anon"
 
         await get_dpl(self)
-        self.s.session.cookies.set("__Secure-next-auth.callback-url", "https%3A%2F%2Fchatgpt.com;", domain=self.host_url.split("://")[1], secure=True)
+        self.s.session.cookies.set("__Secure-next-auth.callback-url", "https%3A%2F%2Fchatgpt.com;",
+                                   domain=self.host_url.split("://")[1], secure=True)
 
     async def get_wss_url(self):
         url = f'{self.base_url}/register-websocket'
@@ -124,9 +126,11 @@ class ChatService:
                 if proofofwork_required:
                     proofofwork_diff = proofofwork.get("difficulty")
                     if proofofwork_diff <= pow_difficulty:
-                        raise HTTPException(status_code=403, detail=f"Proof of work difficulty too high: {proofofwork_diff}")
+                        raise HTTPException(status_code=403,
+                                            detail=f"Proof of work difficulty too high: {proofofwork_diff}")
                     proofofwork_seed = proofofwork.get("seed")
-                    self.proof_token, solved = await run_in_threadpool(get_answer_token, proofofwork_seed, proofofwork_diff, config)
+                    self.proof_token, solved = await run_in_threadpool(get_answer_token, proofofwork_seed,
+                                                                       proofofwork_diff, config)
                     if not solved:
                         raise HTTPException(status_code=403, detail="Failed to solve proof of work")
 
@@ -170,7 +174,6 @@ class ChatService:
                 if r.status_code == 429:
                     raise HTTPException(status_code=r.status_code, detail="rate-limit")
                 raise HTTPException(status_code=r.status_code, detail=detail)
-
         except HTTPException as e:
             raise HTTPException(status_code=e.status_code, detail=e.detail)
         except Exception as e:
@@ -243,11 +246,14 @@ class ChatService:
                 raise HTTPException(status_code=e.status_code, detail=str(e))
             url = f'{self.base_url}/conversation'
             stream = self.data.get("stream", False)
-            r = await self.s.post_stream(url, headers=self.chat_headers, json=self.chat_request, timeout=10, stream=True)
+            r = await self.s.post_stream(url, headers=self.chat_headers, json=self.chat_request, timeout=10,
+                                         stream=True)
             if r.status_code != 200:
                 rtext = await r.atext()
                 if "application/json" == r.headers.get("Content-Type", ""):
                     detail = json.loads(rtext).get("detail", json.loads(rtext))
+                    if r.status_code == 429:
+                        check_isLimit(detail, access_token=self.access_token)
                 else:
                     if "cf-please-wait" in rtext:
                         raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
@@ -260,7 +266,9 @@ class ChatService:
             if "text/event-stream" in content_type and stream:
                 return stream_response(self, r.aiter_lines(), self.target_model, self.max_tokens)
             elif "text/event-stream" in content_type and not stream:
-                return await format_not_stream_response(stream_response(self, r.aiter_lines(), self.target_model, self.max_tokens), self.prompt_tokens, self.max_tokens, self.target_model)
+                return await format_not_stream_response(
+                    stream_response(self, r.aiter_lines(), self.target_model, self.max_tokens), self.prompt_tokens,
+                    self.max_tokens, self.target_model)
             elif "application/json" in content_type:
                 rtext = await r.atext()
                 resp = json.loads(rtext)
@@ -275,7 +283,9 @@ class ChatService:
                     if stream and isinstance(wss_r, types.AsyncGeneratorType):
                         return stream_response(self, wss_r, self.target_model, self.max_tokens)
                     else:
-                        return await format_not_stream_response(stream_response(self, wss_r, self.target_model, self.max_tokens), self.prompt_tokens, self.max_tokens, self.target_model)
+                        return await format_not_stream_response(
+                            stream_response(self, wss_r, self.target_model, self.max_tokens), self.prompt_tokens,
+                            self.max_tokens, self.target_model)
                 finally:
                     if not isinstance(wss_r, types.AsyncGeneratorType):
                         await self.ws.close()

@@ -9,11 +9,12 @@ from fastapi.templating import Jinja2Templates
 from starlette.background import BackgroundTask
 
 from chatgpt.ChatService import ChatService
-from chatgpt.chatLimit import check_isLimit, handle_request_limit
+from chatgpt.chatLimit import handle_request_limit
 from chatgpt.reverseProxy import chatgpt_reverse_proxy
 from utils.Logger import logger
 from utils.authorization import verify_token, token_list
 from utils.config import api_prefix
+from utils.config import enable_limit, limit_status_code
 from utils.retry import async_retry
 
 warnings.filterwarnings("ignore")
@@ -32,16 +33,12 @@ app.add_middleware(
 
 async def to_send_conversation(request_data, access_token):
     try:
-        limit_response = await handle_request_limit(request_data, access_token)
-        if limit_response:
-            raise HTTPException(status_code=429, detail=limit_response)
         chat_service = ChatService(access_token)
         await chat_service.set_dynamic_data(request_data)
         await chat_service.get_chat_requirements()
         return chat_service
     except HTTPException as e:
         await chat_service.close_client()
-        await check_isLimit(e, access_token)
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception as e:
         await chat_service.close_client()
@@ -55,6 +52,11 @@ async def send_conversation(request: Request, token=Depends(verify_token)):
         request_data = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail={"error": "Invalid JSON body"})
+
+    if enable_limit:
+        limit_response = await handle_request_limit(request_data, token)
+        if limit_response:
+            raise HTTPException(status_code=int(limit_status_code), detail=limit_response)
 
     chat_service = await async_retry(to_send_conversation, request_data, token)
     try:
