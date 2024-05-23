@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from api.files import get_image_size, get_file_extension, determine_file_use_case
 from api.models import model_proxy
 from chatgpt.chatFormat import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
+from chatgpt.chatLimit import check_isLimit
 from chatgpt.proofofWork import get_config, get_dpl, get_answer_token, get_requirements_token
 from chatgpt.wssClient import ac2wss, set_wss
 from utils.Client import Client
@@ -170,7 +171,6 @@ class ChatService:
                 if r.status_code == 429:
                     raise HTTPException(status_code=r.status_code, detail="rate-limit")
                 raise HTTPException(status_code=r.status_code, detail=detail)
-
         except HTTPException as e:
             raise HTTPException(status_code=e.status_code, detail=e.detail)
         except Exception as e:
@@ -248,6 +248,8 @@ class ChatService:
                 rtext = await r.atext()
                 if "application/json" == r.headers.get("Content-Type", ""):
                     detail = json.loads(rtext).get("detail", json.loads(rtext))
+                    if r.status_code == 429:
+                        check_isLimit(detail, access_token=self.access_token)
                 else:
                     if "cf-please-wait" in rtext:
                         raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
