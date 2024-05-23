@@ -188,7 +188,7 @@ class ChatService:
 
     async def prepare_send_conversation(self):
         try:
-            chat_messages, self.prompt_tokens = await api_messages_to_chat(self, self.api_messages)
+            chat_messages, self.prompt_tokens = await api_messages_to_chat(self, self.api_messages, self.origin_model)
         except Exception as e:
             logger.error(f"Failed to format messages: {str(e)}")
             raise HTTPException(status_code=400, detail="Failed to format messages.")
