@@ -7,8 +7,7 @@ from fastapi import HTTPException
 
 from utils.Client import Client
 from utils.Logger import logger
-from utils.config import proxy_url_list
-
+from utils.config import proxy_url_list, refresh_server
 
 DATA_FOLDER = "data"
 REFRESH_MAP_FILE = os.path.join(DATA_FOLDER, "refresh_map.json")
@@ -42,6 +41,17 @@ async def rt2ac(refresh_token):
 
 
 async def chat_refresh(refresh_token):
+    try:
+        if refresh_server == "oai":
+            access_token = await oai_refresh(refresh_token)
+        else:
+            access_token = await oaifree_refresh(refresh_token)
+        return access_token
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+
+async def oai_refresh(refresh_token):
     data = {
         "client_id": "pdlLIX2Y72MIl2rhLhTE9VV9bN905kBh",
         "grant_type": "refresh_token",
@@ -58,6 +68,25 @@ async def chat_refresh(refresh_token):
             raise Exception("Unknown or invalid refresh token.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to refresh access_token: {str(e)}")
+    finally:
+        await client.close()
+        del client
+
+
+async def oaifree_refresh(refresh_token):
+    data = {
+        'refresh_token': refresh_token,
+    }
+    client = Client(proxy=random.choice(proxy_url_list) if proxy_url_list else None)
+    try:
+        r = await client.post("https://token.oaifree.com/api/auth/refresh", data=data, timeout=5)
+        if r.status_code == 200:
+            access_token = r.json()['access_token']
+            return access_token
+        else:
+            raise Exception("Unknown or invalid refresh token.")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
     finally:
         await client.close()
         del client
