@@ -103,6 +103,7 @@ async def stream_response(service, response, model, max_tokens):
     len_last_content = 0
     last_content_type = None
     last_recipient = None
+    start = False
     end = False
     message_id = None
     async for chunk in response:
@@ -116,14 +117,22 @@ async def stream_response(service, response, model, max_tokens):
                 finish_reason = None
                 message = chunk_old_data.get("message", {})
                 role = message.get('author', {}).get('role')
-                if role == 'user':
+                if role == 'user' or role == 'system':
+                    continue
+
+                status = message.get("status")
+                if start:
+                    pass
+                elif status == "in_progress":
+                    start = True
+                else:
                     continue
 
                 conversation_id = chunk_old_data.get("conversation_id")
-                status = message.get("status")
                 content = message.get("content", {})
                 recipient = message.get("recipient", "")
                 current_message_id = message.get('id')
+
                 if not message and chunk_old_data.get("type") == "moderation":
                     delta = {"role": "assistant", "content": moderation_message}
                     finish_reason = "stop"
@@ -180,11 +189,7 @@ async def stream_response(service, response, model, max_tokens):
                                     delta = {"content": f"\n```\n![image]({image_download_url})\n"}
                                 else:
                                     delta = {"content": f"\n```\nFailed to load the image.\n"}
-                    elif not message.get("end_turn") or not message.get("metadata").get("finish_details"):
-                        message_id = None
-                        len_last_content = 0
-                        continue
-                    else:
+                    elif message.get("end_turn"):
                         part = content.get("parts", [])[0]
                         new_text = part[len_last_content:]
                         if not new_text:
@@ -193,6 +198,10 @@ async def stream_response(service, response, model, max_tokens):
                             delta = {"content": new_text}
                         finish_reason = "stop"
                         end = True
+                    else:
+                        message_id = None
+                        len_last_content = 0
+                        continue
                 else:
                     continue
                 if not end and not delta.get("content"):
@@ -245,6 +254,7 @@ def format_messages_with_url(content):
         url, content = get_url_from_content(content)
         if url:
             url_list.append(url)
+            logger.info(f"Found a file_url from messages: {url}")
         else:
             break
     new_content = [
