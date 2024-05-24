@@ -21,7 +21,7 @@
 3. 接口返回的状态码和响应体
 
 ## 功能
-### 最新版 v1.1.8
+### 最新版 v1.1.9
 
 > 已完成
 > - [x] 流式、非流式传输
@@ -30,6 +30,7 @@
 > - [x] GPT-4 对话（传入模型名包含: gpt-4，gpt-4o，gpt-4-moblie 即可使用对应模型，需传入 AccessToken）
 > - [x] GPT-4 画图、代码、联网
 > - [x] 支持 GPTs（传入模型名：gpt-4-gizmo-g-*）
+> - [x] 支持 Team Plus 账号（需传入 team account id）
 > - [x] 上传图片、文件（格式为 API 对应格式，支持 URL 和 base64）
 > - [x] WebUI（[http://127.0.0.1:5005](http://127.0.0.1:5005)，不支持登录使用）
 > - [x] 可作为网关使用，可多机分布部署
@@ -139,6 +140,14 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 ```
 
 将你账号的 `AccessToken` 或 `RefreshToken` 当作 `OpenAI APIKEY` 传入。
+
+如果有team账号，可以传入 `ChatGPT-Account-ID`，使用 Team 工作区：
+
+- 传入方式一：
+`headers` 中传入 `ChatGPT-Account-ID`值
+
+- 传入方式二：
+`Authorization: Bearer <AccessToken 或 RefreshToken>,<ChatGPT-Account-ID>`
 
 如果设置了 `AUTHORIZATION` 环境变量，可以将设置的值当作 `OpenAI APIKEY` 传入进行多 Tokens 轮询。
 

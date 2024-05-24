@@ -29,7 +29,13 @@ class ChatService:
         self.ws = None
 
     async def set_dynamic_data(self, data):
-        self.access_token = await verify_token(self.req_token)
+        req_len = len(self.req_token.split(","))
+        if req_len == 1:
+            self.access_token = await verify_token(self.req_token)
+            self.account_id = None
+        else:
+            self.access_token = await verify_token(self.req_token.split(",")[0])
+            self.account_id = self.req_token.split(",")[1]
 
         if enable_limit:
             limit_response = await handle_request_limit(data, self.access_token)
@@ -49,6 +55,7 @@ class ChatService:
         self.arkose_token = None
         self.proof_token = None
 
+        self.account_id = data.get('Chatgpt-Account-Id', self.account_id)
         self.parent_message_id = data.get('parent_message_id')
         self.conversation_id = data.get('conversation_id')
         self.history_disabled = data.get('history_disabled', history_disabled)
@@ -86,6 +93,8 @@ class ChatService:
         if self.access_token:
             self.base_url = self.host_url + "/backend-api"
             self.base_headers['Authorization'] = f'Bearer {self.access_token}'
+            if self.account_id:
+                self.base_headers['Chatgpt-Account-Id'] = self.account_id
         else:
             self.base_url = self.host_url + "/backend-anon"
 
