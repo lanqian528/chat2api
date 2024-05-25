@@ -75,6 +75,7 @@ async def send_conversation(request: Request, req_token: str = Depends(oauth2_sc
     except HTTPException as e:
         await chat_service.close_client()
         if e.status_code == 500:
+            logger.error(f"Server error, {str(e)}")
             raise HTTPException(status_code=500, detail="Server error")
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception as e:

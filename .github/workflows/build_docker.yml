@@ -37,7 +37,7 @@ jobs:
           images: lanqian528/chat2api
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=v1.1.9
+            type=raw,value=v1.1.10
 
       - name: Build and push
         uses: docker/build-push-action@v5

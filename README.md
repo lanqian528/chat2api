@@ -21,7 +21,7 @@
 3. 接口返回的状态码和响应体
 
 ## 功能
-### 最新版 v1.1.9
+### 最新版 v1.1.10
 
 > 已完成
 > - [x] 流式、非流式传输
@@ -63,12 +63,13 @@
 |      | PROXY_URL         | your_first_proxy, your_second_proxy | 代理 URL，多个代理用逗号分隔                                             |
 |      | ARKOSE_TOKEN_URL  | https://arkose.example.com/token    | 获取 Arkose token 的地址                                          |
 | 功能相关 | HISTORY_DISABLED  | true                                | 是否不保存聊天记录并返回 conversation_id                                 |
-|      | POW_DIFFICULTY    | 00003a                              | 要解决的工作量证明难度                                                  |
-|      | RETRY_TIMES       | 3                                   | 出错重试次数                                                       |
+|      | POW_DIFFICULTY    | 00003a                              | 要解决的工作量证明难度，不懂别设置                                            |
+|      | RETRY_TIMES       | 3                                   | 出错重试次数，使用 AUTHORIZATION 会自动轮询下一个账号                           |
 |      | ENABLE_GATEWAY    | true                                | 是否启用网关模式（WEBUI）                                              |
-|      | CONVERSATION_ONLY | false                               | 是否直接使用对话接口                                                   |
+|      | CONVERSATION_ONLY | false                               | 是否直接使用对话接口，如果你用的网关支持自动解决pow和arkose才启用                        |
 |      | ENABLE_LIMIT      | true                                | 开启后不尝试突破官方次数限制，尽可能防止封号                                       |
 |      | UPLOAD_BY_URL     | false                               | 开启后按照 `URL+空格+正文` 进行对话，自动解析 URL 内容并上传，多个 URL 用空格分隔           |
+|      | CHECK_MODEL       | false                               | 检查账号是否支持传入模型，开启后可以稍微避免4o返回3.5内容，但是会增加请求时延，且并不能解决降智问题         |
 
 
 ## 部署
