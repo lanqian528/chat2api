@@ -29,13 +29,17 @@ class ChatService:
         self.ws = None
 
     async def set_dynamic_data(self, data):
-        req_len = len(self.req_token.split(","))
-        if req_len == 1:
-            self.access_token = await verify_token(self.req_token)
-            self.account_id = None
+        if req_len:
+            req_len = len(self.req_token.split(","))
+            if req_len == 1:
+                self.access_token = await verify_token(self.req_token)
+                self.account_id = None
+            else:
+                self.access_token = await verify_token(self.req_token.split(",")[0])
+                self.account_id = self.req_token.split(",")[1]
         else:
-            self.access_token = await verify_token(self.req_token.split(",")[0])
-            self.account_id = self.req_token.split(",")[1]
+            self.access_token = None
+            self.account_id = None
 
         if enable_limit:
             limit_response = await handle_request_limit(data, self.access_token)
