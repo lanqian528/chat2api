@@ -113,10 +113,11 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
                 if "oai-dm=1" not in r.headers.get("Location"):
                     return Response(status_code=307, headers={
                         "Location": r.headers.get("Location").replace("chat.openai.com", origin_host)
-                            .replace("chatgpt.com", origin_host)
-                            .replace("https", petrol) + "?oai-dm=1"}, background=background)
+                                    .replace("chatgpt.com", origin_host)
+                                    .replace("https", petrol) + "?oai-dm=1"}, background=background)
                 else:
-                    return Response(status_code=307, headers={"Location": r.headers.get("Location")}, background=background)
+                    return Response(status_code=307, headers={"Location": r.headers.get("Location")},
+                                    background=background)
             elif r.status_code == 302:
                 return Response(status_code=302,
                                 headers={"Location": r.headers.get("Location").replace("chatgpt.com", origin_host)

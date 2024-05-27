@@ -9,7 +9,6 @@ from utils.Client import Client
 from utils.Logger import logger
 from utils.config import proxy_url_list
 
-
 DATA_FOLDER = "data"
 REFRESH_MAP_FILE = os.path.join(DATA_FOLDER, "refresh_map.json")
 
@@ -29,7 +28,8 @@ def save_refresh_map(refresh_map):
 
 
 async def rt2ac(refresh_token):
-    if refresh_token in refresh_map and int(time.time()) - refresh_map.get(refresh_token, {}).get("timestamp", 0) < 2 * 24 * 60 * 60:
+    if refresh_token in refresh_map and int(time.time()) - refresh_map.get(refresh_token, {}).get("timestamp",
+                                                                                                  0) < 2 * 24 * 60 * 60:
         access_token = refresh_map[refresh_token]["token"]
         logger.info(f"refresh_token -> access_token from cache")
         return access_token

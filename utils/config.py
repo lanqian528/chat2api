@@ -21,6 +21,7 @@ def is_true(x):
 api_prefix = os.getenv('API_PREFIX', None)
 authorization = os.getenv('AUTHORIZATION', '').replace(' ', '')
 chatgpt_base_url = os.getenv('CHATGPT_BASE_URL', 'https://chatgpt.com').replace(' ', '')
+auth_key = os.getenv('AUTH_KEY', None)
 arkose_token_url = os.getenv('ARKOSE_TOKEN_URL', '').replace(' ', '')
 proxy_url = os.getenv('PROXY_URL', '').replace(' ', '')
 history_disabled = is_true(os.getenv('HISTORY_DISABLED', True))
@@ -39,12 +40,13 @@ arkose_token_url_list = arkose_token_url.split(',') if arkose_token_url else []
 proxy_url_list = proxy_url.split(',') if proxy_url else []
 
 logger.info("-" * 60)
-logger.info("Chat2Api v1.1.11 | https://github.com/lanqian528/chat2api")
+logger.info("Chat2Api v1.1.12 | https://github.com/lanqian528/chat2api")
 logger.info("-" * 60)
 logger.info("Environment variables:")
 logger.info("API_PREFIX:        " + str(api_prefix))
 logger.info("AUTHORIZATION:     " + str(authorization_list))
 logger.info("CHATGPT_BASE_URL:  " + str(chatgpt_base_url_list))
+logger.info("AUTH_KEY:          " + str(auth_key))
 logger.info("ARKOSE_TOKEN_URL:  " + str(arkose_token_url_list))
 logger.info("PROXY_URL:         " + str(proxy_url_list))
 logger.info("HISTORY_DISABLED:  " + str(history_disabled))

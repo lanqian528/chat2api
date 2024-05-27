@@ -1,6 +1,7 @@
 import threading
 import time
 from datetime import datetime
+
 from utils.Logger import logger
 
 lock = threading.Lock()
@@ -16,7 +17,8 @@ def check_isLimit(detail, access_token):
 def initial_access_list(key, clear_time):
     with lock:
         limit_access_token[key] = clear_time
-    logger.info(f"{key[:40]}: Reached 429 limit, will be cleared at {datetime.fromtimestamp(clear_time).replace(second=0, microsecond=0)}")
+    logger.info(
+        f"{key[:40]}: Reached 429 limit, will be cleared at {datetime.fromtimestamp(clear_time).replace(second=0, microsecond=0)}")
 
 
 def remove_refresh_list(key):

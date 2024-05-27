@@ -87,7 +87,8 @@ async def send_conversation(request: Request, req_token: str = Depends(oauth2_sc
 @app.get(f"/{api_prefix}/tokens" if api_prefix else "/tokens", response_class=HTMLResponse)
 async def upload_html(request: Request):
     tokens_count = len(token_list)
-    return templates.TemplateResponse("tokens.html", {"request": request, "api_prefix": api_prefix, "tokens_count": tokens_count})
+    return templates.TemplateResponse("tokens.html",
+                                      {"request": request, "api_prefix": api_prefix, "tokens_count": tokens_count})
 
 
 @app.post(f"/{api_prefix}/tokens/upload" if api_prefix else "/tokens/upload")
