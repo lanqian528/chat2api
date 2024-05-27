@@ -410,6 +410,9 @@ class ChatService:
             return False
 
     async def upload_file(self, file_content, mime_type):
+        if not file_content or not mime_type:
+            return None
+
         width, height = None, None
         if mime_type.startswith("image/"):
             try:
