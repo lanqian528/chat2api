@@ -15,7 +15,8 @@ async def get_file_content(url):
         client = Client()
         try:
             r = await client.get(url)
-            r.raise_for_status()
+            if r.status_code != 200:
+                return None, None
             file_content = r.content
             mime_type = r.headers.get('Content-Type', '').split(';')[0].strip()
             return file_content, mime_type
