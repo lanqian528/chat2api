@@ -29,7 +29,7 @@ class ChatService:
         self.ws = None
 
     async def set_dynamic_data(self, data):
-        if req_len:
+        if self.req_token:
             req_len = len(self.req_token.split(","))
             if req_len == 1:
                 self.access_token = await verify_token(self.req_token)
