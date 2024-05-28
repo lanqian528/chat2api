@@ -290,7 +290,8 @@ async def api_messages_to_chat(service, api_messages, upload_by_url=False):
         role = api_message.get('role')
         content = api_message.get('content')
         if upload_by_url:
-            content = format_messages_with_url(content)
+            if isinstance(content, str):
+                content = format_messages_with_url(content)
         if isinstance(content, list):
             parts = []
             attachments = []
@@ -298,7 +299,7 @@ async def api_messages_to_chat(service, api_messages, upload_by_url=False):
             for i in content:
                 if i.get("type") == "text":
                     parts.append(i.get("text"))
-                if i.get("type") == "image_url":
+                elif i.get("type") == "image_url":
                     image_url = i.get("image_url")
                     url = image_url.get("url")
                     detail = image_url.get("detail", "auto")

@@ -4,6 +4,7 @@ import pybase64
 from PIL import Image
 
 from utils.Client import Client
+from utils.config import export_proxy_url
 
 
 async def get_file_content(url):
@@ -14,7 +15,7 @@ async def get_file_content(url):
     else:
         client = Client()
         try:
-            r = await client.get(url)
+            r = await client.get(url, proxy=export_proxy_url, timeout=60)
             if r.status_code != 200:
                 return None, None
             file_content = r.content
