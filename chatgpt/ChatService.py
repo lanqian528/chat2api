@@ -2,6 +2,7 @@ import json
 import random
 import types
 import uuid
+import requests
 
 import websockets
 from fastapi import HTTPException
@@ -45,8 +46,10 @@ class ChatService:
             limit_response = await handle_request_limit(data, self.access_token)
             if limit_response:
                 raise HTTPException(status_code=int(limit_status_code), detail=limit_response)
-
-        self.proxy_url = random.choice(proxy_url_list) if proxy_url_list else None
+        response = requests.post('http://139.9.190.210:5000/api')
+        proxy = response.json()['proxy']
+        print(proxy)
+        self.proxy_url = 'http://' + proxy if proxy else None
         self.host_url = random.choice(chatgpt_base_url_list) if chatgpt_base_url_list else "https://chatgpt.com"
         self.arkose_token_url = random.choice(arkose_token_url_list) if arkose_token_url_list else None
 
