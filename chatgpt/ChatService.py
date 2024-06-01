@@ -264,18 +264,20 @@ class ChatService:
         logger.info(f"Model mapping: {self.origin_model} -> {self.req_model}")
         self.chat_request = {
             "action": "next",
-            "messages": chat_messages,
-            "parent_message_id": self.parent_message_id if self.parent_message_id else f"{uuid.uuid4()}",
-            "model": self.req_model,
-            "timezone_offset_min": -480,
-            "suggestions": [],
-            "history_and_training_disabled": self.history_disabled,
             "conversation_mode": conversation_mode,
+            "force_nulligen": False,
             "force_paragen": False,
             "force_paragen_model_slug": "",
-            "force_nulligen": False,
             "force_rate_limit": False,
             "force_ues_sse": True,
+            "history_and_training_disabled": self.history_disabled,
+            "messages": chat_messages,
+            "model": self.req_model,
+            "parent_message_id": self.parent_message_id if self.parent_message_id else f"{uuid.uuid4()}",
+            "reset_rate_limits": False,
+            "suggestions": [],
+            "timezone_offset_min": -480,
+            "variant_purpose": "comparison_implicit",
             "websocket_request_id": f"{uuid.uuid4()}"
         }
         if self.conversation_id:
