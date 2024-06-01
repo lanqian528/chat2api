@@ -291,8 +291,9 @@ class ChatService:
                         self.wss_url = await self.get_wss_url()
                         await set_wss(self.access_token, self.wss_url)
                     self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=subprotocols)
-            except websockets.exceptions.InvalidStatusCode as e:
-                raise HTTPException(status_code=e.status_code, detail=str(e))
+            except Exception as e:
+                logger.error(f"Failed to connect to wss: {str(e)}", )
+                raise HTTPException(status_code=502, detail="Failed to connect to wss")
             url = f'{self.base_url}/conversation'
             stream = self.data.get("stream", False)
             r = await self.s.post_stream(url, headers=self.chat_headers, json=self.chat_request, timeout=10,
@@ -326,7 +327,11 @@ class ChatService:
                 await set_wss(self.access_token, self.wss_url)
                 logger.info(f"next wss_url: {self.wss_url}")
                 if not self.ws:
-                    self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=subprotocols)
+                    try:
+                        self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=subprotocols)
+                    except Exception as e:
+                        logger.error(f"Failed to connect to wss: {str(e)}", )
+                        raise HTTPException(status_code=502, detail="Failed to connect to wss")
                 wss_r = wss_stream_response(self.ws, conversation_id)
                 try:
                     if stream and isinstance(wss_r, types.AsyncGeneratorType):
