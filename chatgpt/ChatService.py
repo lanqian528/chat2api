@@ -10,20 +10,20 @@ from starlette.concurrency import run_in_threadpool
 from api.files import get_image_size, get_file_extension, determine_file_use_case
 from api.models import model_proxy
 from chatgpt.chatFormat import api_messages_to_chat, stream_response, wss_stream_response, format_not_stream_response
-from chatgpt.chatLimit import check_isLimit, handle_request_limit
+from chatgpt.chatLimit import check_is_limit, handle_request_limit
 from chatgpt.proofofWork import get_config, get_dpl, get_answer_token, get_requirements_token
-from chatgpt.wssClient import ac2wss, set_wss
+from chatgpt.wssClient import token2wss, set_wss
 from utils.Client import Client
 from utils.Logger import logger
-from utils.authorization import verify_token
+from utils.authorization import verify_token, get_req_token
 from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled, pow_difficulty, \
-    conversation_only, enable_limit, limit_status_code, upload_by_url, check_model, auth_key
+    conversation_only, enable_limit, upload_by_url, check_model, auth_key
 
 
 class ChatService:
-    def __init__(self, req_token=None):
+    def __init__(self, origin_token=None):
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"
-        self.req_token = req_token
+        self.req_token = get_req_token(origin_token)
         self.chat_token = "gAAAAAB"
         self.s = None
         self.ws = None
@@ -41,10 +41,23 @@ class ChatService:
             self.access_token = None
             self.account_id = None
 
-        if enable_limit:
-            limit_response = await handle_request_limit(data, self.access_token)
+        self.data = data
+        await self.set_model()
+        if enable_limit and self.req_token:
+            limit_response = await handle_request_limit(self.req_token, self.req_model)
             if limit_response:
-                raise HTTPException(status_code=int(limit_status_code), detail=limit_response)
+                raise HTTPException(status_code=429, detail=limit_response)
+
+        self.account_id = self.data.get('Chatgpt-Account-Id', self.account_id)
+        self.parent_message_id = self.data.get('parent_message_id')
+        self.conversation_id = self.data.get('conversation_id')
+        self.history_disabled = self.data.get('history_disabled', history_disabled)
+
+        self.api_messages = self.data.get("messages", [])
+        self.prompt_tokens = 0
+        self.max_tokens = self.data.get("max_tokens", 2147483647)
+        if not isinstance(self.max_tokens, int):
+            self.max_tokens = 2147483647
 
         self.proxy_url = random.choice(proxy_url_list) if proxy_url_list else None
         self.host_url = random.choice(chatgpt_base_url_list) if chatgpt_base_url_list else "https://chatgpt.com"
@@ -52,38 +65,12 @@ class ChatService:
 
         self.s = Client(proxy=self.proxy_url)
         self.ws = None
-        self.wss_mode, self.wss_url = await ac2wss(self.access_token)
+        self.wss_mode, self.wss_url = await token2wss(self.req_token)
 
         self.oai_device_id = str(uuid.uuid4())
         self.persona = None
         self.arkose_token = None
         self.proof_token = None
-
-        self.account_id = data.get('Chatgpt-Account-Id', self.account_id)
-        self.parent_message_id = data.get('parent_message_id')
-        self.conversation_id = data.get('conversation_id')
-        self.history_disabled = data.get('history_disabled', history_disabled)
-
-        self.data = data
-
-        self.origin_model = self.data.get("model", "gpt-3.5-turbo-0125")
-        self.resp_model = model_proxy.get(self.origin_model, self.origin_model)
-        if "gpt-4o" in self.origin_model:
-            self.req_model = "gpt-4o"
-        elif "gpt-4-mobile" in self.origin_model:
-            self.req_model = "gpt-4-mobile"
-        elif "gpt-4-gizmo" in self.origin_model:
-            self.req_model = "gpt-4o"
-        elif "gpt-4" in self.origin_model:
-            self.req_model = "gpt-4"
-        else:
-            self.req_model = "text-davinci-002-render-sha"
-
-        self.api_messages = self.data.get("messages", [])
-        self.prompt_tokens = 0
-        self.max_tokens = self.data.get("max_tokens", 2147483647)
-        if not isinstance(self.max_tokens, int):
-            self.max_tokens = 2147483647
 
         self.chat_headers = None
         self.chat_request = None
@@ -120,6 +107,20 @@ class ChatService:
         await get_dpl(self)
         self.s.session.cookies.set("__Secure-next-auth.callback-url", "https%3A%2F%2Fchatgpt.com;",
                                    domain=self.host_url.split("://")[1], secure=True)
+
+    async def set_model(self):
+        self.origin_model = self.data.get("model", "gpt-3.5-turbo-0125")
+        self.resp_model = model_proxy.get(self.origin_model, self.origin_model)
+        if "gpt-4o" in self.origin_model:
+            self.req_model = "gpt-4o"
+        elif "gpt-4-mobile" in self.origin_model:
+            self.req_model = "gpt-4-mobile"
+        elif "gpt-4-gizmo" in self.origin_model:
+            self.req_model = "gpt-4o"
+        elif "gpt-4" in self.origin_model:
+            self.req_model = "gpt-4"
+        else:
+            self.req_model = "text-davinci-002-render-sha"
 
     async def get_wss_url(self):
         url = f'{self.base_url}/register-websocket'
@@ -291,7 +292,6 @@ class ChatService:
                 if self.wss_mode:
                     if not self.wss_url:
                         self.wss_url = await self.get_wss_url()
-                        await set_wss(self.access_token, self.wss_url)
                     self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=subprotocols)
             except Exception as e:
                 logger.error(f"Failed to connect to wss: {str(e)}", )
@@ -305,7 +305,7 @@ class ChatService:
                 if "application/json" == r.headers.get("Content-Type", ""):
                     detail = json.loads(rtext).get("detail", json.loads(rtext))
                     if r.status_code == 429:
-                        check_isLimit(detail, access_token=self.access_token)
+                        check_is_limit(detail, token=self.req_token, model=self.req_model)
                 else:
                     if "cf-please-wait" in rtext:
                         raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
@@ -316,8 +316,10 @@ class ChatService:
 
             content_type = r.headers.get("Content-Type", "")
             if "text/event-stream" in content_type and stream:
+                await set_wss(self.req_token, False)
                 return stream_response(self, r.aiter_lines(), self.resp_model, self.max_tokens)
             elif "text/event-stream" in content_type and not stream:
+                await set_wss(self.req_token, False)
                 return await format_not_stream_response(
                     stream_response(self, r.aiter_lines(), self.resp_model, self.max_tokens), self.prompt_tokens,
                     self.max_tokens, self.resp_model)
@@ -326,7 +328,7 @@ class ChatService:
                 resp = json.loads(rtext)
                 self.wss_url = resp.get('wss_url')
                 conversation_id = resp.get('conversation_id')
-                await set_wss(self.access_token, self.wss_url)
+                await set_wss(self.req_token, True, self.wss_url)
                 logger.info(f"next wss_url: {self.wss_url}")
                 if not self.ws:
                     try:

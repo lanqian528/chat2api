@@ -32,7 +32,6 @@ retry_times = int(os.getenv('RETRY_TIMES', 3))
 enable_gateway = is_true(os.getenv('ENABLE_GATEWAY', True))
 conversation_only = is_true(os.getenv('CONVERSATION_ONLY', False))
 enable_limit = is_true(os.getenv('ENABLE_LIMIT', True))
-limit_status_code = os.getenv('LIMIT_STATUS_CODE', 429)
 upload_by_url = is_true(os.getenv('UPLOAD_BY_URL', False))
 check_model = is_true(os.getenv('CHECK_MODEL', False))
 
@@ -42,7 +41,7 @@ arkose_token_url_list = arkose_token_url.split(',') if arkose_token_url else []
 proxy_url_list = proxy_url.split(',') if proxy_url else []
 
 logger.info("-" * 60)
-logger.info("Chat2Api v1.1.16 | https://github.com/lanqian528/chat2api")
+logger.info("Chat2Api v1.2.0 | https://github.com/lanqian528/chat2api")
 logger.info("-" * 60)
 logger.info("Environment variables:")
 logger.info("API_PREFIX:        " + str(api_prefix))

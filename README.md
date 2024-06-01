@@ -22,7 +22,7 @@
 
 ## 功能
 
-### 最新版 v1.1.16
+### 最新版 v1.2.0
 
 > 已完成
 > - [x] 流式、非流式传输
@@ -38,6 +38,7 @@
 > - [x] 多账号轮询，同时支持 AccessToken 和 RefreshToken
 > - [x] 请求失败重试，自动轮询下一个 Token
 > - [x] Tokens 管理，支持上传、清除
+> - [x] 定时使用 RefreshToken 刷新 AccessToken
 
 > TODO
 > - [ ] 暂无，欢迎提 issue
