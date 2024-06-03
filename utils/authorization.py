@@ -1,8 +1,9 @@
+import asyncio
 import os
 
 from fastapi import HTTPException
 
-from chatgpt.refreshToken import rt2ac
+from chatgpt.refreshToken import rt2ac, save_refresh_map
 from utils.Logger import logger
 from utils.config import authorization_list
 from utils.config import enable_refresh_rt
@@ -33,6 +34,19 @@ if token_list:
 if enable_refresh_rt:
     start_refresh_sheduler(token_list,RT_FILE, TOKENS_FILE)
 
+def get_req_token(req_token):
+    if req_token in authorization_list:
+        if token_list:
+            global count
+            count += 1
+            count %= len(token_list)
+            return token_list[count]
+        else:
+            return None
+    else:
+        return req_token
+
+
 async def verify_token(req_token):
     if not req_token:
         if authorization_list:
@@ -41,24 +55,27 @@ async def verify_token(req_token):
         else:
             return None
     else:
-        if req_token in authorization_list:
-            if token_list:
-                global count
-                count += 1
-                count %= len(token_list)
-                return await verify_token(token_list[count])
-            else:
-                return None
-        else:
-            if req_token.startswith("eyJhbGciOi") or req_token.startswith("fk-"):
-                access_token = req_token
+        if req_token.startswith("eyJhbGciOi") or req_token.startswith("fk-"):
+            access_token = req_token
+            return access_token
+        elif len(req_token) == 45:
+            try:
+                access_token = await rt2ac(req_token)
                 return access_token
-            elif len(req_token) == 45:
-                try:
-                    access_token = await rt2ac(req_token)
-                    return access_token
-                except HTTPException as e:
-                    logger.error(f"{e.detail}: {req_token}")
-                    raise HTTPException(status_code=e.status_code, detail=e.detail)
-            else:
-                return req_token
+            except HTTPException as e:
+                logger.error(f"{e.detail}: {req_token}")
+                raise HTTPException(status_code=e.status_code, detail=e.detail)
+        else:
+            return req_token
+
+
+async def refresh_all_tokens():
+    for token in token_list:
+        if len(token) == 45:
+            try:
+                await asyncio.sleep(2)
+                await rt2ac(token)
+            except HTTPException as e:
+                logger.error(f"{e.detail}: {token}")
+                raise HTTPException(status_code=e.status_code, detail=e.detail)
+    logger.info("All tokens refreshed.")
