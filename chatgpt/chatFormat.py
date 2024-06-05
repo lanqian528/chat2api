@@ -276,6 +276,8 @@ def format_messages_with_url(content):
             logger.info(f"Found a file_url from messages: {url}")
         else:
             break
+    if not url_list:
+        return content
     new_content = [
         {
             "type": "text",

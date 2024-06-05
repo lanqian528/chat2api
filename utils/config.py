@@ -34,6 +34,7 @@ conversation_only = is_true(os.getenv('CONVERSATION_ONLY', False))
 enable_limit = is_true(os.getenv('ENABLE_LIMIT', True))
 upload_by_url = is_true(os.getenv('UPLOAD_BY_URL', False))
 check_model = is_true(os.getenv('CHECK_MODEL', False))
+scheduled_refresh = is_true(os.getenv('SCHEDULED_REFRESH', False))
 
 authorization_list = authorization.split(',') if authorization else []
 chatgpt_base_url_list = chatgpt_base_url.split(',') if chatgpt_base_url else []
@@ -41,7 +42,7 @@ arkose_token_url_list = arkose_token_url.split(',') if arkose_token_url else []
 proxy_url_list = proxy_url.split(',') if proxy_url else []
 
 logger.info("-" * 60)
-logger.info("Chat2Api v1.2.0 | https://github.com/lanqian528/chat2api")
+logger.info("Chat2Api v1.2.1 | https://github.com/lanqian528/chat2api")
 logger.info("-" * 60)
 logger.info("Environment variables:")
 logger.info("API_PREFIX:        " + str(api_prefix))
@@ -59,4 +60,5 @@ logger.info("CONVERSATION_ONLY: " + str(conversation_only))
 logger.info("ENABLE_LIMIT:      " + str(enable_limit))
 logger.info("UPLOAD_BY_URL:     " + str(upload_by_url))
 logger.info("CHECK_MODEL:       " + str(check_model))
+logger.info("SCHEDULED_REFRESH: " + str(scheduled_refresh))
 logger.info("-" * 60)

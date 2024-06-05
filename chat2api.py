@@ -15,7 +15,7 @@ from chatgpt.ChatService import ChatService
 from chatgpt.reverseProxy import chatgpt_reverse_proxy
 from utils.Logger import logger
 from utils.authorization import token_list, refresh_all_tokens
-from utils.config import api_prefix
+from utils.config import api_prefix, scheduled_refresh
 from utils.retry import async_retry
 
 warnings.filterwarnings("ignore")
@@ -36,9 +36,10 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def app_start():
-    scheduler.add_job(id='refresh', func=refresh_all_tokens, trigger='cron', hour=3, minute=0, day='*/4')
-    scheduler.start()
-    asyncio.get_event_loop().call_later(0, lambda: asyncio.create_task(refresh_all_tokens()))
+    if scheduled_refresh:
+        scheduler.add_job(id='refresh', func=refresh_all_tokens, trigger='cron', hour=3, minute=0, day='*/4', kwargs={'force_refresh': True})
+        scheduler.start()
+        asyncio.get_event_loop().call_later(0, lambda: asyncio.create_task(refresh_all_tokens(force_refresh=False)))
 
 
 async def to_send_conversation(request_data, req_token):

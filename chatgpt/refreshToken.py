@@ -27,9 +27,8 @@ def save_refresh_map(refresh_map):
         json.dump(refresh_map, file)
 
 
-async def rt2ac(refresh_token):
-    if refresh_token in refresh_map and int(time.time()) - refresh_map.get(refresh_token, {}).get("timestamp",
-                                                                                                  0) < 5 * 24 * 60 * 60:
+async def rt2ac(refresh_token, force_refresh=False):
+    if not force_refresh and (refresh_token in refresh_map and int(time.time()) - refresh_map.get(refresh_token, {}).get("timestamp", 0) < 5 * 24 * 60 * 60):
         access_token = refresh_map[refresh_token]["token"]
         logger.info(f"refresh_token -> access_token from cache")
         return access_token
