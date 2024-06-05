@@ -33,7 +33,7 @@
 > - [x] 支持 GPTs（传入模型名：gpt-4-gizmo-g-*）
 > - [x] 支持 Team Plus 账号（需传入 team account id）
 > - [x] 上传图片、文件（格式为 API 对应格式，支持 URL 和 base64）
-> - [x] WebUI（[http://127.0.0.1:5005](http://127.0.0.1:5005)，不支持登录使用）
+> - [x] WebUI（[http://127.0.0.1:5005](http://127.0.0.1:5005)，不支持登录使用, 网关副产品，因此不做维护）
 > - [x] 可作为网关使用，可多机分布部署
 > - [x] 多账号轮询，同时支持 AccessToken 和 RefreshToken
 > - [x] 请求失败重试，自动轮询下一个 Token
@@ -74,7 +74,7 @@
 |      | ENABLE_LIMIT      | `true`                                                      | `true`                | 开启后不尝试突破官方次数限制，尽可能防止封号                                       |
 |      | UPLOAD_BY_URL     | `false`                                                     | `false`               | 开启后按照 `URL+空格+正文` 进行对话，自动解析 URL 内容并上传，多个 URL 用空格分隔           |
 |      | CHECK_MODEL       | `false`                                                     | `false`               | 检查账号是否支持传入模型，开启后可以稍微避免4o返回3.5内容，但是会增加请求时延，且并不能解决降智问题         |
-|      | SCHEDULED_REFRESH | `false`                                                     | `false`               | 是否开启定时刷新aceestoken，开启后每次启动程序将会全部非强制刷新一次，每4天晚上3点全部强制刷新一次。     |
+|      | SCHEDULED_REFRESH | `false`                                                     | `false`               | 是否定时刷新 AccessToken ，开启后每次启动程序将会全部非强制刷新一次，每4天晚上3点全部强制刷新一次。    |
 
 ## 部署
 
