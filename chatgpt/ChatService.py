@@ -459,6 +459,23 @@ class ChatService:
         else:
             logger.error("Failed to get upload url")
 
+    async def get_response_file_url(self, conversation_id, message_id, sandbox_path):
+        try:
+            url = f"{self.base_url}/conversation/{conversation_id}/interpreter/download"
+            params = {
+                "message_id": message_id,
+                "sandbox_path": sandbox_path
+            }
+            headers = self.base_headers.copy()
+            r = await self.s.get(url, headers=headers, params=params, timeout=10)
+            if r.status_code != 200:
+                return None
+            else:
+                return r.json().get("download_url")
+        except Exception:
+            logger.info("Failed to get response file url")
+            return None
+
     async def close_client(self):
         if self.s:
             await self.s.close()

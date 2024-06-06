@@ -110,11 +110,12 @@ async def stream_response(service, response, model, max_tokens):
     completion_tokens = -1
     len_last_content = 0
     len_last_citation = 0
+    last_message_id = None
     last_content_type = None
     last_recipient = None
     start = False
     end = False
-    message_id = None
+
     async for chunk in response:
         chunk = chunk.decode("utf-8")
         if end:
@@ -138,9 +139,9 @@ async def stream_response(service, response, model, max_tokens):
                     continue
 
                 conversation_id = chunk_old_data.get("conversation_id")
+                message_id = message.get("id")
                 content = message.get("content", {})
                 recipient = message.get("recipient", "")
-                current_message_id = message.get('id')
 
                 if not message and chunk_old_data.get("type") == "moderation":
                     delta = {"role": "assistant", "content": moderation_message}
@@ -151,10 +152,9 @@ async def stream_response(service, response, model, max_tokens):
                     if outer_content_type == "text":
                         part = content.get("parts", [])[0]
                         if not part:
-                            message_id = message.get("id")
                             new_text = ""
                         else:
-                            if message_id and message_id != message.get("id"):
+                            if last_message_id and last_message_id != message_id:
                                 continue
                             citation = message.get("metadata", {}).get("citations", [])
                             if len(citation) > len_last_citation:
@@ -210,17 +210,27 @@ async def stream_response(service, response, model, max_tokens):
                         part = content.get("parts", [])[0]
                         new_text = part[len_last_content:]
                         if not new_text:
-                            delta = {}
+                            matches = re.findall(r'\(sandbox:(.*?)\)', part)
+                            if matches:
+                                file_url_content = ""
+                                for i, sandbox_path in enumerate(matches):
+                                    file_download_url = await service.get_response_file_url(conversation_id, message_id, sandbox_path)
+                                    if file_download_url:
+                                        file_url_content += f"\n```\n![File {i+1}]({file_download_url})\n"
+                                delta = {"content": file_url_content}
+                            else:
+                                delta = {}
                         else:
                             delta = {"content": new_text}
                         finish_reason = "stop"
                         end = True
                     else:
-                        message_id = None
+                        last_message_id = None
                         len_last_content = 0
                         continue
                 else:
                     continue
+                last_message_id = message_id
                 if not end and not delta.get("content"):
                     delta = {"role": "assistant", "content": ""}
                 chunk_new_data = {
@@ -240,7 +250,7 @@ async def stream_response(service, response, model, max_tokens):
                 }
                 if not service.history_disabled:
                     chunk_new_data.update({
-                        "message_id": current_message_id,
+                        "message_id": message_id,
                         "conversation_id": conversation_id,
                     })
                 completion_tokens += 1
