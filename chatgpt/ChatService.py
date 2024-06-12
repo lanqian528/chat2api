@@ -65,7 +65,11 @@ class ChatService:
 
         self.s = Client(proxy=self.proxy_url)
         self.ws = None
-        self.wss_mode, self.wss_url = await token2wss(self.req_token)
+        if conversation_only:
+            self.wss_mode = False
+            self.wss_url = None
+        else:
+            self.wss_mode, self.wss_url = await token2wss(self.req_token)
 
         self.oai_device_id = str(uuid.uuid4())
         self.persona = None
@@ -287,12 +291,11 @@ class ChatService:
 
     async def send_conversation(self):
         try:
-            subprotocols = ["json.reliable.webpubsub.azure.v1"]
             try:
                 if self.wss_mode:
                     if not self.wss_url:
                         self.wss_url = await self.get_wss_url()
-                    self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=subprotocols)
+                    self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=["json.reliable.webpubsub.azure.v1"])
             except Exception as e:
                 logger.error(f"Failed to connect to wss: {str(e)}", )
                 raise HTTPException(status_code=502, detail="Failed to connect to wss")
@@ -308,10 +311,13 @@ class ChatService:
                         check_is_limit(detail, token=self.req_token, model=self.req_model)
                 else:
                     if "cf-please-wait" in rtext:
+                        logger.error(f"Failed to send conversation: cf-please-wait")
                         raise HTTPException(status_code=r.status_code, detail="cf-please-wait")
                     if r.status_code == 429:
+                        logger.error(f"Failed to send conversation: rate-limit")
                         raise HTTPException(status_code=r.status_code, detail="rate-limit")
                     detail = r.text[:100]
+                logger.error(f"Failed to send conversation: {detail}")
                 raise HTTPException(status_code=r.status_code, detail=detail)
 
             content_type = r.headers.get("Content-Type", "")
@@ -332,7 +338,7 @@ class ChatService:
                 logger.info(f"next wss_url: {self.wss_url}")
                 if not self.ws:
                     try:
-                        self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=subprotocols)
+                        self.ws = await websockets.connect(self.wss_url, ping_interval=None, subprotocols=["json.reliable.webpubsub.azure.v1"])
                     except Exception as e:
                         logger.error(f"Failed to connect to wss: {str(e)}", )
                         raise HTTPException(status_code=502, detail="Failed to connect to wss")
@@ -458,6 +464,23 @@ class ChatService:
                 logger.error("Failed to upload file")
         else:
             logger.error("Failed to get upload url")
+
+    async def get_response_file_url(self, conversation_id, message_id, sandbox_path):
+        try:
+            url = f"{self.base_url}/conversation/{conversation_id}/interpreter/download"
+            params = {
+                "message_id": message_id,
+                "sandbox_path": sandbox_path
+            }
+            headers = self.base_headers.copy()
+            r = await self.s.get(url, headers=headers, params=params, timeout=10)
+            if r.status_code != 200:
+                return None
+            else:
+                return r.json().get("download_url")
+        except Exception:
+            logger.info("Failed to get response file url")
+            return None
 
     async def close_client(self):
         if self.s:
