@@ -1,3 +1,4 @@
+import asyncio
 import json
 import random
 import types
@@ -464,6 +465,22 @@ class ChatService:
                 logger.error("Failed to upload file")
         else:
             logger.error("Failed to get upload url")
+
+    async def check_upload(self, file_id):
+        url = f'{self.base_url}/files/{file_id}'
+        headers = self.base_headers.copy()
+        try:
+            for i in range(30):
+                r = await self.s.get(url, headers=headers, timeout=5)
+                if r.status_code == 200:
+                    res = r.json()
+                    retrieval_index_status = res.get('retrieval_index_status', '')
+                    if retrieval_index_status == "success":
+                        break
+                await asyncio.sleep(1)
+            return True
+        except HTTPException:
+            return False
 
     async def get_response_file_url(self, conversation_id, message_id, sandbox_path):
         try:
