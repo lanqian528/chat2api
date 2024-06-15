@@ -43,7 +43,7 @@ proxy_url_list = proxy_url.split(',') if proxy_url else []
 enable_refresh_rt = is_true(os.getenv('ENABLE_REFRESH_RT', False))
 
 logger.info("-" * 60)
-logger.info("Chat2Api v1.2.3 | https://github.com/lanqian528/chat2api")
+logger.info("Chat2Api v1.2.7 | https://github.com/lanqian528/chat2api")
 logger.info("-" * 60)
 logger.info("Environment variables:")
 logger.info("API_PREFIX:        " + str(api_prefix))

@@ -350,6 +350,7 @@ async def api_messages_to_chat(service, api_messages, upload_by_url=False):
                                 "height": height
                             })
                         else:
+                            await service.check_upload(file_id)
                             file_tokens += file_size // 1000
                             attachments.append({
                                 "id": file_id,

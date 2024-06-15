@@ -1,3 +1,4 @@
+import asyncio
 import json
 import random
 import types
@@ -22,7 +23,7 @@ from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url
 
 class ChatService:
     def __init__(self, origin_token=None):
-        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"
+        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0"
         self.req_token = get_req_token(origin_token)
         self.chat_token = "gAAAAAB"
         self.s = None
@@ -60,6 +61,7 @@ class ChatService:
             self.max_tokens = 2147483647
 
         self.proxy_url = random.choice(proxy_url_list) if proxy_url_list else None
+        logger.info(f"proxy_url: {self.proxy_url}")
         self.host_url = random.choice(chatgpt_base_url_list) if chatgpt_base_url_list else "https://chatgpt.com"
         self.arkose_token_url = random.choice(arkose_token_url_list) if arkose_token_url_list else None
 
@@ -179,22 +181,12 @@ class ChatService:
                                 "code": "model_not_found"
                             })
 
+                # turnstile = resp.get('turnstile', {})
+                # turnstile_required = turnstile.get('required')
+                # if turnstile_required:
+                #     raise HTTPException(status_code=403, detail="Turnstile required")
+
                 arkose = resp.get('arkose', {})
-                proofofwork = resp.get('proofofwork', {})
-                turnstile = resp.get('turnstile', {})
-
-                proofofwork_required = proofofwork.get('required')
-                if proofofwork_required:
-                    proofofwork_diff = proofofwork.get("difficulty")
-                    if proofofwork_diff <= pow_difficulty:
-                        raise HTTPException(status_code=403,
-                                            detail=f"Proof of work difficulty too high: {proofofwork_diff}")
-                    proofofwork_seed = proofofwork.get("seed")
-                    self.proof_token, solved = await run_in_threadpool(get_answer_token, proofofwork_seed,
-                                                                       proofofwork_diff, config)
-                    if not solved:
-                        raise HTTPException(status_code=403, detail="Failed to solve proof of work")
-
                 arkose_required = arkose.get('required')
                 if arkose_required:
                     if not self.arkose_token_url:
@@ -217,9 +209,18 @@ class ChatService:
                     finally:
                         await arkose_client.close()
 
-                turnstile_required = turnstile.get('required')
-                if turnstile_required:
-                    raise HTTPException(status_code=403, detail="Turnstile required")
+                proofofwork = resp.get('proofofwork', {})
+                proofofwork_required = proofofwork.get('required')
+                if proofofwork_required:
+                    proofofwork_diff = proofofwork.get("difficulty")
+                    if proofofwork_diff <= pow_difficulty:
+                        raise HTTPException(status_code=403,
+                                            detail=f"Proof of work difficulty too high: {proofofwork_diff}")
+                    proofofwork_seed = proofofwork.get("seed")
+                    self.proof_token, solved = await run_in_threadpool(get_answer_token, proofofwork_seed,
+                                                                       proofofwork_diff, config)
+                    if not solved:
+                        raise HTTPException(status_code=403, detail="Failed to solve proof of work")
 
                 self.chat_token = resp.get('token')
                 if not self.chat_token:
@@ -274,7 +275,7 @@ class ChatService:
             "force_paragen": False,
             "force_paragen_model_slug": "",
             "force_rate_limit": False,
-            "force_ues_sse": True,
+            "force_use_sse": True,
             "history_and_training_disabled": self.history_disabled,
             "messages": chat_messages,
             "model": self.req_model,
@@ -464,6 +465,22 @@ class ChatService:
                 logger.error("Failed to upload file")
         else:
             logger.error("Failed to get upload url")
+
+    async def check_upload(self, file_id):
+        url = f'{self.base_url}/files/{file_id}'
+        headers = self.base_headers.copy()
+        try:
+            for i in range(30):
+                r = await self.s.get(url, headers=headers, timeout=5)
+                if r.status_code == 200:
+                    res = r.json()
+                    retrieval_index_status = res.get('retrieval_index_status', '')
+                    if retrieval_index_status == "success":
+                        break
+                await asyncio.sleep(1)
+            return True
+        except HTTPException:
+            return False
 
     async def get_response_file_url(self, conversation_id, message_id, sandbox_path):
         try:
