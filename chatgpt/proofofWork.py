@@ -2,6 +2,7 @@ import hashlib
 import json
 import random
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 
@@ -19,8 +20,109 @@ cached_dpl = ""
 cached_time = 0
 cached_require_proof = ""
 
-navigator_key = ['hardwareConcurrency−16', 'login−[object NavigatorLogin]']
-document_key = ['_reactListeningpa877jnmig', 'location']
+navigator_key = [
+    "registerProtocolHandler−function registerProtocolHandler() { [native code] }",
+    "storage−[object StorageManager]",
+    "locks−[object LockManager]",
+    "appCodeName−Mozilla",
+    "permissions−[object Permissions]",
+    "appVersion−5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
+    "share−function share() { [native code] }",
+    "webdriver−false",
+    "managed−[object NavigatorManagedData]",
+    "canShare−function canShare() { [native code] }",
+    "vendor−Google Inc.",
+    "vendor−Google Inc.",
+    "mediaDevices−[object MediaDevices]",
+    "vibrate−function vibrate() { [native code] }",
+    "storageBuckets−[object StorageBucketManager]",
+    "mediaCapabilities−[object MediaCapabilities]",
+    "getGamepads−function getGamepads() { [native code] }",
+    "bluetooth−[object Bluetooth]",
+    "share−function share() { [native code] }",
+    "cookieEnabled−true",
+    "virtualKeyboard−[object VirtualKeyboard]",
+    "product−Gecko",
+    "mediaDevices−[object MediaDevices]",
+    "canShare−function canShare() { [native code] }",
+    "getGamepads−function getGamepads() { [native code] }",
+    "product−Gecko",
+    "xr−[object XRSystem]",
+    "clipboard−[object Clipboard]",
+    "storageBuckets−[object StorageBucketManager]",
+    "unregisterProtocolHandler−function unregisterProtocolHandler() { [native code] }",
+    "productSub−20030107",
+    "login−[object NavigatorLogin]",
+    "vendorSub−",
+    "login−[object NavigatorLogin]",
+    "userAgent−Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
+    "getInstalledRelatedApps−function getInstalledRelatedApps() { [native code] }",
+    "userAgent−Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
+    "mediaDevices−[object MediaDevices]",
+    "locks−[object LockManager]",
+    "webkitGetUserMedia−function webkitGetUserMedia() { [native code] }",
+    "vendor−Google Inc.",
+    "xr−[object XRSystem]",
+    "mediaDevices−[object MediaDevices]",
+    "virtualKeyboard−[object VirtualKeyboard]",
+    "userAgent−Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
+    "virtualKeyboard−[object VirtualKeyboard]",
+    "appName−Netscape",
+    "storageBuckets−[object StorageBucketManager]",
+    "presentation−[object Presentation]",
+    "onLine−true",
+    "mimeTypes−[object MimeTypeArray]",
+    "credentials−[object CredentialsContainer]",
+    "presentation−[object Presentation]",
+    "getGamepads−function getGamepads() { [native code] }",
+    "vendorSub−",
+    "virtualKeyboard−[object VirtualKeyboard]",
+    "serviceWorker−[object ServiceWorkerContainer]",
+    "xr−[object XRSystem]",
+    "product−Gecko",
+    "keyboard−[object Keyboard]",
+    "gpu−[object GPU]",
+    "getInstalledRelatedApps−function getInstalledRelatedApps() { [native code] }",
+    "webkitPersistentStorage−[object DeprecatedStorageQuota]",
+    "doNotTrack",
+    "clearAppBadge−function clearAppBadge() { [native code] }",
+    "presentation−[object Presentation]",
+    "serial−[object Serial]",
+    "locks−[object LockManager]",
+    "requestMIDIAccess−function requestMIDIAccess() { [native code] }",
+    "locks−[object LockManager]",
+    "requestMediaKeySystemAccess−function requestMediaKeySystemAccess() { [native code] }",
+    "vendor−Google Inc.",
+    "pdfViewerEnabled−true",
+    "language−zh-CN",
+    "setAppBadge−function setAppBadge() { [native code] }",
+    "geolocation−[object Geolocation]",
+    "userAgentData−[object NavigatorUAData]",
+    "mediaCapabilities−[object MediaCapabilities]",
+    "requestMIDIAccess−function requestMIDIAccess() { [native code] }",
+    "getUserMedia−function getUserMedia() { [native code] }",
+    "mediaDevices−[object MediaDevices]",
+    "webkitPersistentStorage−[object DeprecatedStorageQuota]",
+    "userAgent−Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
+    "sendBeacon−function sendBeacon() { [native code] }",
+    "hardwareConcurrency−32",
+    "appVersion−5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
+    "credentials−[object CredentialsContainer]",
+    "storage−[object StorageManager]",
+    "cookieEnabled−true",
+    "pdfViewerEnabled−true",
+    "windowControlsOverlay−[object WindowControlsOverlay]",
+    "scheduling−[object Scheduling]",
+    "pdfViewerEnabled−true",
+    "hardwareConcurrency−32",
+    "xr−[object XRSystem]",
+    "userAgent−Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
+    "webdriver−false",
+    "getInstalledRelatedApps−function getInstalledRelatedApps() { [native code] }",
+    "getInstalledRelatedApps−function getInstalledRelatedApps() { [native code] }",
+    "bluetooth−[object Bluetooth]"
+]
+document_key = ['_reactListeningo743lnnpvdg', 'location']
 window_key = [
     "0",
     "window",
@@ -284,8 +386,8 @@ class ScriptSrcParser(HTMLParser):
             attrs_dict = dict(attrs)
             if "src" in attrs_dict:
                 src = attrs_dict["src"]
-                cached_scripts.append(src)
                 if "dpl" in src:
+                    cached_scripts.append(src)
                     cached_dpl = src[src.index("dpl"):]
                     cached_time = int(time.time())
 
@@ -316,8 +418,8 @@ async def get_dpl(service):
 
 
 def get_parse_time():
-    now = datetime.now(timezone(timedelta(hours=+9)))
-    return now.strftime(timeLayout) + " GMT+0900 (Japan Standard Time)"
+    now = datetime.now(timezone(timedelta(hours=-5)))
+    return now.strftime(timeLayout) + " GMT-0500 (Eastern Standard Time)"
 
 
 def get_config(user_agent):
@@ -332,11 +434,13 @@ def get_config(user_agent):
         random.choice(cached_scripts),
         cached_dpl,
         "en-US",
-        "en-US,en",
+        "en-US,es-US,en,es",
         0,
         random.choice(navigator_key),
         random.choice(document_key),
-        random.choice(window_key)
+        random.choice(window_key),
+        time.perf_counter() + random.random(),
+        str(uuid.uuid4()),
     ]
     return config
 
@@ -353,9 +457,9 @@ def generate_answer(seed, diff, config):
     diff_len = len(diff)
     seed_encoded = seed.encode()
 
-    static_config_part1 = (json.dumps(config[:3], separators=(',', ':'))[:-1] + ',').encode()
-    static_config_part2 = (',' + json.dumps(config[4:9], separators=(',', ':'))[1:-1] + ',').encode()
-    static_config_part3 = (',' + json.dumps(config[10:], separators=(',', ':'))[1:]).encode()
+    static_config_part1 = (json.dumps(config[:3], separators=(',', ':'), ensure_ascii=False)[:-1] + ',').encode()
+    static_config_part2 = (',' + json.dumps(config[4:9], separators=(',', ':'), ensure_ascii=False)[1:-1] + ',').encode()
+    static_config_part3 = (',' + json.dumps(config[10:], separators=(',', ':'), ensure_ascii=False)[1:]).encode()
 
     target_diff = bytes.fromhex(diff)
 
@@ -376,12 +480,17 @@ def get_requirements_token(config):
 
 
 if __name__ == "__main__":
+    # cached_scripts.append(
+    #     "https://cdn.oaistatic.com/_next/static/cXh69klOLzS0Gy2joLDRS/_ssgManifest.js?dpl=453ebaec0d44c2decab71692e1bfe39be35a24b3")
+    # cached_dpl = "453ebaec0d44c2decab71692e1bfe39be35a24b3"
+    # cached_time = int(time.time())
+    # for i in range(10):
+    #     seed = format(random.random())
+    #     diff = "000032"
+    #     config = get_config("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome")
+    #     answer = get_answer_token(seed, diff, config)
     cached_scripts.append(
         "https://cdn.oaistatic.com/_next/static/cXh69klOLzS0Gy2joLDRS/_ssgManifest.js?dpl=453ebaec0d44c2decab71692e1bfe39be35a24b3")
-    cached_dpl = "453ebaec0d44c2decab71692e1bfe39be35a24b3"
-    cached_time = int(time.time())
-    for i in range(10):
-        seed = format(random.random())
-        diff = "000032"
-        config = get_config("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome")
-        answer = get_answer_token(seed, diff, config)
+    cached_dpl = "dpl=453ebaec0d44c2decab71692e1bfe39be35a24b3"
+    config = get_config("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome")
+    get_requirements_token(config)
