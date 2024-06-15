@@ -274,7 +274,7 @@ class ChatService:
             "force_paragen": False,
             "force_paragen_model_slug": "",
             "force_rate_limit": False,
-            "force_ues_sse": True,
+            "force_use_sse": True,
             "history_and_training_disabled": self.history_disabled,
             "messages": chat_messages,
             "model": self.req_model,
