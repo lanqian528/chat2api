@@ -439,9 +439,6 @@ class ChatService:
         file_extension = await get_file_extension(mime_type)
         file_name = f"{uuid.uuid4()}{file_extension}"
         use_case = await determine_file_use_case(mime_type)
-        if use_case == "ace_upload":
-            mime_type = ''
-            logger.error(f"Error file mime_type, change to None")
 
         file_id, upload_url = await self.get_upload_url(file_name, file_size, use_case)
         if file_id and upload_url:
@@ -454,7 +451,8 @@ class ChatService:
                         "size_bytes": file_size,
                         "mime_type": mime_type,
                         "width": width,
-                        "height": height
+                        "height": height,
+                        "use_case": use_case
                     }
                     logger.info(f"File_meta: {file_meta}")
                     return file_meta
