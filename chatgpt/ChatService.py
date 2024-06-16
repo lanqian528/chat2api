@@ -61,6 +61,7 @@ class ChatService:
             self.max_tokens = 2147483647
 
         self.proxy_url = random.choice(proxy_url_list) if proxy_url_list else None
+        logger.info(f"proxy_url: {self.proxy_url}")
         self.host_url = random.choice(chatgpt_base_url_list) if chatgpt_base_url_list else "https://chatgpt.com"
         self.arkose_token_url = random.choice(arkose_token_url_list) if arkose_token_url_list else None
 

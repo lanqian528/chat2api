@@ -6,6 +6,8 @@ from fastapi import HTTPException
 from chatgpt.refreshToken import rt2ac, save_refresh_map
 from utils.Logger import logger
 from utils.config import authorization_list
+from utils.config import enable_refresh_rt
+from utils.rt2at import start_refresh_sheduler
 
 count = 0
 token_list = []
@@ -13,6 +15,7 @@ error_token_list = []
 
 DATA_FOLDER = "data"
 TOKENS_FILE = os.path.join(DATA_FOLDER, "token.txt")
+RT_FILE = os.path.join(DATA_FOLDER, "refresh_token.txt")
 ERROR_TOKENS_FILE = os.path.join(DATA_FOLDER, "error_token.txt")
 
 if not os.path.exists(DATA_FOLDER):
@@ -39,6 +42,8 @@ else:
 if token_list:
     logger.info(f"Token list count: {len(token_list)}")
 
+if enable_refresh_rt:
+    start_refresh_sheduler(token_list,RT_FILE, TOKENS_FILE)
 
 def get_req_token(req_token):
     if req_token in authorization_list:

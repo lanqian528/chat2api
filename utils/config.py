@@ -40,6 +40,7 @@ authorization_list = authorization.split(',') if authorization else []
 chatgpt_base_url_list = chatgpt_base_url.split(',') if chatgpt_base_url else []
 arkose_token_url_list = arkose_token_url.split(',') if arkose_token_url else []
 proxy_url_list = proxy_url.split(',') if proxy_url else []
+enable_refresh_rt = is_true(os.getenv('ENABLE_REFRESH_RT', False))
 
 logger.info("-" * 60)
 logger.info("Chat2Api v1.2.8 | https://github.com/lanqian528/chat2api")
@@ -60,5 +61,6 @@ logger.info("CONVERSATION_ONLY: " + str(conversation_only))
 logger.info("ENABLE_LIMIT:      " + str(enable_limit))
 logger.info("UPLOAD_BY_URL:     " + str(upload_by_url))
 logger.info("CHECK_MODEL:       " + str(check_model))
+logger.info("ENABLE_REFRESH_RT: " + str(enable_refresh_rt))
 logger.info("SCHEDULED_REFRESH: " + str(scheduled_refresh))
 logger.info("-" * 60)
