@@ -331,6 +331,7 @@ async def api_messages_to_chat(service, api_messages, upload_by_url=False):
                         file_size = file_meta["size_bytes"]
                         file_name = file_meta["file_name"]
                         mime_type = file_meta["mime_type"]
+                        use_case = file_meta["use_case"]
                         if mime_type.startswith("image/"):
                             width, height = file_meta["width"], file_meta["height"]
                             file_tokens += await calculate_image_tokens(width, height, detail)
@@ -350,7 +351,8 @@ async def api_messages_to_chat(service, api_messages, upload_by_url=False):
                                 "height": height
                             })
                         else:
-                            await service.check_upload(file_id)
+                            if not use_case == "ace_upload":
+                                await service.check_upload(file_id)
                             file_tokens += file_size // 1000
                             attachments.append({
                                 "id": file_id,
