@@ -183,11 +183,13 @@ class ChatService:
                 # turnstile = resp.get('turnstile', {})
                 # turnstile_required = turnstile.get('required')
                 # if turnstile_required:
+                #     logger.info("Turnstile required: ignore")
                 #     raise HTTPException(status_code=403, detail="Turnstile required")
 
                 arkose = resp.get('arkose', {})
                 arkose_required = arkose.get('required')
-                if arkose_required:
+                if arkose_required and self.persona != "chatgpt-freeaccount":
+                    # logger.info("Arkose required: ignore")
                     if not self.arkose_token_url:
                         raise HTTPException(status_code=403, detail="Arkose service required")
                     arkose_dx = arkose.get("dx")
