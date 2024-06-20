@@ -8,6 +8,7 @@ import uuid
 
 import pybase64
 import websockets
+from fastapi import HTTPException
 
 from api.files import get_file_content
 from api.models import model_system_fingerprint
@@ -260,6 +261,11 @@ async def stream_response(service, response, model, max_tokens):
             else:
                 continue
         except Exception as e:
+            if chunk.startswith("data: "):
+                chunk_data = json.loads(chunk[6:])
+                if chunk_data.get("error"):
+                    logger.error(f"Error: {chunk_data.get('error')}")
+                    raise HTTPException(status_code=403, detail=chunk_data.get('error'))
             logger.error(f"Error: {chunk}, details: {str(e)}")
             continue
 
