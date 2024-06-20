@@ -439,7 +439,7 @@ def get_config(user_agent):
         random.choice(navigator_key),
         random.choice(document_key),
         random.choice(window_key),
-        time.perf_counter() + random.random(),
+        time.perf_counter(),
         str(uuid.uuid4()),
     ]
     return config
@@ -456,7 +456,6 @@ def get_answer_token(seed, diff, config):
 def generate_answer(seed, diff, config):
     diff_len = len(diff)
     seed_encoded = seed.encode()
-
     static_config_part1 = (json.dumps(config[:3], separators=(',', ':'), ensure_ascii=False)[:-1] + ',').encode()
     static_config_part2 = (',' + json.dumps(config[4:9], separators=(',', ':'), ensure_ascii=False)[1:-1] + ',').encode()
     static_config_part3 = (',' + json.dumps(config[10:], separators=(',', ':'), ensure_ascii=False)[1:]).encode()
@@ -465,7 +464,8 @@ def generate_answer(seed, diff, config):
 
     for i in range(500000):
         dynamic_json_i = str(i).encode()
-        final_json_bytes = static_config_part1 + dynamic_json_i + static_config_part2 + dynamic_json_i + static_config_part3
+        dynamic_json_j = str(i >> 1).encode()
+        final_json_bytes = static_config_part1 + dynamic_json_i + static_config_part2 + dynamic_json_j + static_config_part3
         base_encode = pybase64.b64encode(final_json_bytes)
         hash_value = hashlib.sha3_512(seed_encoded + base_encode).digest()
         if hash_value[:diff_len] <= target_diff:

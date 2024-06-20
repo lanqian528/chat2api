@@ -23,7 +23,7 @@ from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url
 
 class ChatService:
     def __init__(self, origin_token=None):
-        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0"
+        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0"
         self.req_token = get_req_token(origin_token)
         self.chat_token = "gAAAAAB"
         self.s = None
