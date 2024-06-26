@@ -34,7 +34,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: lanqian528/chat2api
+          images: yinqf7437/chat2api
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=v1.3.4
