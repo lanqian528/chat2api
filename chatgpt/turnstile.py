@@ -225,7 +225,7 @@ def get_func_map() -> FloatMap:
 
 def process_turnstile(dx: str, p: str) -> str:
     tokens = get_turnstile_token(dx, p)
-    print(tokens)
+    # print(tokens)
     token_list = json.loads(tokens)
     res = ""
     process_map = get_func_map()
