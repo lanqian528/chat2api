@@ -22,10 +22,13 @@ api_prefix = os.getenv('API_PREFIX', None)
 authorization = os.getenv('AUTHORIZATION', '').replace(' ', '')
 chatgpt_base_url = os.getenv('CHATGPT_BASE_URL', 'https://chatgpt.com').replace(' ', '')
 auth_key = os.getenv('AUTH_KEY', None)
+user_agents = os.getenv('USER_AGENTS', '').replace(', ', ',')
+
 arkose_token_url = os.getenv('ARKOSE_TOKEN_URL', '').replace(' ', '')
 proxy_url = os.getenv('PROXY_URL', '').replace(' ', '')
 export_proxy_url = os.getenv('EXPORT_PROXY_URL', None)
 cf_file_url = os.getenv('CF_FILE_URL', None)
+
 history_disabled = is_true(os.getenv('HISTORY_DISABLED', True))
 pow_difficulty = os.getenv('POW_DIFFICULTY', '000032')
 retry_times = int(os.getenv('RETRY_TIMES', 3))
@@ -40,9 +43,10 @@ authorization_list = authorization.split(',') if authorization else []
 chatgpt_base_url_list = chatgpt_base_url.split(',') if chatgpt_base_url else []
 arkose_token_url_list = arkose_token_url.split(',') if arkose_token_url else []
 proxy_url_list = proxy_url.split(',') if proxy_url else []
+user_agents_list = user_agents.split(',') if user_agents else []
 
 logger.info("-" * 60)
-logger.info("Chat2Api v1.3.5 | https://github.com/lanqian528/chat2api")
+logger.info("Chat2Api v1.3.6 | https://github.com/lanqian528/chat2api")
 logger.info("-" * 60)
 logger.info("Environment variables:")
 logger.info("API_PREFIX:        " + str(api_prefix))

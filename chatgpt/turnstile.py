@@ -1,6 +1,7 @@
 import json
 import random
 import time
+from collections import OrderedDict, defaultdict
 from typing import Any, Callable, Dict, List
 
 import pybase64
@@ -8,16 +9,13 @@ import pybase64
 
 class OrderedMap:
     def __init__(self):
-        self.keys = []
-        self.values = {}
+        self.map = OrderedDict()
 
     def add(self, key: str, value: Any):
-        if key not in self.values:
-            self.keys.append(key)
-        self.values[key] = value
+        self.map[key] = value
 
     def to_json(self):
-        return json.dumps({k: self.values[k] for k in self.keys})
+        return json.dumps(self.map)
 
     def __str__(self):
         return self.to_json()
@@ -86,13 +84,16 @@ def to_str(input_val: Any) -> str:
 
 
 def get_func_map() -> FloatMap:
-    process_map: FloatMap = {}
+    process_map: FloatMap = defaultdict(lambda: None)
 
     def func_1(e: float, t: float):
         e_str = to_str(process_map[e])
         t_str = to_str(process_map[t])
-        res = process_turnstile_token(e_str, t_str)
-        process_map[e] = res
+        if e_str is not None and t_str is not None:
+            res = process_turnstile_token(e_str, t_str)
+            process_map[e] = res
+        else:
+            print(f"Warning: Unable to process func_1 for e={e}, t={t}")
 
     def func_2(e: float, t: Any):
         process_map[e] = t
@@ -100,8 +101,10 @@ def get_func_map() -> FloatMap:
     def func_5(e: float, t: float):
         n = process_map[e]
         tres = process_map[t]
-        if is_slice(n):
-            nt = n + [tres]
+        if n is None:
+            process_map[e] = tres
+        elif is_slice(n):
+            nt = n + [tres] if tres is not None else n
             process_map[e] = nt
         else:
             if is_string(n) or is_string(tres):
@@ -172,10 +175,15 @@ def get_func_map() -> FloatMap:
     def func_14(e: float, t: float):
         tv = process_map[t]
         if is_string(tv):
-            token_list = json.loads(tv)
-            process_map[e] = token_list
+            try:
+                token_list = json.loads(tv)
+                process_map[e] = token_list
+            except json.JSONDecodeError:
+                print(f"Warning: Unable to parse JSON for key {t}")
+                process_map[e] = None
         else:
-            print("func type 14 error")
+            print(f"Warning: Value for key {t} is not a string")
+            process_map[e] = None
 
     def func_15(e: float, t: float):
         tv = process_map[t]
@@ -225,7 +233,6 @@ def get_func_map() -> FloatMap:
 
 def process_turnstile(dx: str, p: str) -> str:
     tokens = get_turnstile_token(dx, p)
-    # print(tokens)
     token_list = json.loads(tokens)
     res = ""
     process_map = get_func_map()
@@ -238,12 +245,17 @@ def process_turnstile(dx: str, p: str) -> str:
     process_map[9] = token_list
     process_map[16] = p
 
-    while process_map[9]:
-        token = process_map[9].pop(0)
-        e = token[0]
-        t = token[1:]
-        f = process_map[e]
-        f(*t)
+    for token in token_list:
+        try:
+            e = token[0]
+            t = token[1:]
+            f = process_map.get(e)
+            if callable(f):
+                f(*t)
+            else:
+                print(f"Warning: No function found for key {e}")
+        except Exception as exc:
+            print(f"Error processing token {token}: {exc}")
 
     return res
 
