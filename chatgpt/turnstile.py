@@ -1,24 +1,22 @@
+import pybase64
 import json
 import random
 import time
-from collections import OrderedDict, defaultdict
-from typing import Any, Callable, Dict, List
-
-import pybase64
+from typing import Any, Callable, Dict, List, Union
 
 
 class OrderedMap:
     def __init__(self):
-        self.map = OrderedDict()
+        self.keys = []
+        self.values = {}
 
     def add(self, key: str, value: Any):
-        self.map[key] = value
+        if key not in self.values:
+            self.keys.append(key)
+        self.values[key] = value
 
     def to_json(self):
-        return json.dumps(self.map)
-
-    def __str__(self):
-        return self.to_json()
+        return json.dumps({k: self.values[k] for k in self.keys})
 
 
 TurnTokenList = List[List[Any]]
@@ -26,12 +24,14 @@ FloatMap = Dict[float, Any]
 StringMap = Dict[str, Any]
 FuncType = Callable[..., Any]
 
-start_time = time.time()
 
-
-def get_turnstile_token(dx: str, p: str) -> str:
-    decoded_bytes = pybase64.b64decode(dx)
-    return process_turnstile_token(decoded_bytes.decode(), p)
+def get_turnstile_token(dx: str, p: str) -> Union[str, None]:
+    try:
+        decoded_bytes = pybase64.b64decode(dx)
+        return process_turnstile_token(decoded_bytes.decode(), p)
+    except Exception as e:
+        print(f"Error in get_turnstile_token: {e}")
+        return None
 
 
 def process_turnstile_token(dx: str, p: str) -> str:
@@ -61,7 +61,7 @@ def to_str(input_val: Any) -> str:
     if input_val is None:
         return "undefined"
     elif is_float(input_val):
-        return f"{input_val:.16g}"
+        return str(input_val)
     elif is_string(input_val):
         special_cases = {
             "window.Math": "[object Math]",
@@ -79,21 +79,17 @@ def to_str(input_val: Any) -> str:
     elif isinstance(input_val, list) and all(isinstance(item, str) for item in input_val):
         return ','.join(input_val)
     else:
-        print(f"Type of input is: {type(input_val)}")
         return str(input_val)
 
 
 def get_func_map() -> FloatMap:
-    process_map: FloatMap = defaultdict(lambda: None)
+    process_map: FloatMap = {}
 
     def func_1(e: float, t: float):
         e_str = to_str(process_map[e])
         t_str = to_str(process_map[t])
-        if e_str is not None and t_str is not None:
-            res = process_turnstile_token(e_str, t_str)
-            process_map[e] = res
-        else:
-            print(f"Warning: Unable to process func_1 for e={e}, t={t}")
+        res = process_turnstile_token(e_str, t_str)
+        process_map[e] = res
 
     def func_2(e: float, t: Any):
         process_map[e] = t
@@ -101,10 +97,8 @@ def get_func_map() -> FloatMap:
     def func_5(e: float, t: float):
         n = process_map[e]
         tres = process_map[t]
-        if n is None:
-            process_map[e] = tres
-        elif is_slice(n):
-            nt = n + [tres] if tres is not None else n
+        if is_slice(n):
+            nt = n + [tres]
             process_map[e] = nt
         else:
             if is_string(n) or is_string(tres):
@@ -175,15 +169,10 @@ def get_func_map() -> FloatMap:
     def func_14(e: float, t: float):
         tv = process_map[t]
         if is_string(tv):
-            try:
-                token_list = json.loads(tv)
-                process_map[e] = token_list
-            except json.JSONDecodeError:
-                print(f"Warning: Unable to parse JSON for key {t}")
-                process_map[e] = None
+            token_list = json.loads(tv)
+            process_map[e] = token_list
         else:
-            print(f"Warning: Value for key {t} is not a string")
-            process_map[e] = None
+            print("func type 14 error")
 
     def func_15(e: float, t: float):
         tv = process_map[t]
@@ -219,8 +208,9 @@ def get_func_map() -> FloatMap:
         i = list(args)
         ev = process_map[e]
         tv = process_map[t]
-        if ev is not None and callable(tv):
-            tv(*i)
+        if ev is not None:
+            if callable(tv):
+                tv(*i)
 
     process_map.update({
         1: func_1, 2: func_2, 5: func_5, 6: func_6, 24: func_24, 7: func_7,
@@ -230,10 +220,18 @@ def get_func_map() -> FloatMap:
 
     return process_map
 
+start_time = 0
+
 
 def process_turnstile(dx: str, p: str) -> str:
+    global start_time
+    start_time = time.time()
     tokens = get_turnstile_token(dx, p)
+    if tokens is None:
+        return ""
+
     token_list = json.loads(tokens)
+    # print(token_list)
     res = ""
     process_map = get_func_map()
 
@@ -253,16 +251,18 @@ def process_turnstile(dx: str, p: str) -> str:
             if callable(f):
                 f(*t)
             else:
-                print(f"Warning: No function found for key {e}")
+                pass
+                # print(f"Warning: No function found for key {e}")
         except Exception as exc:
-            print(f"Error processing token {token}: {exc}")
+            pass
+            # print(f"Error processing token {token}: {exc}")
 
     return res
 
 
 if __name__ == "__main__":
     result = process_turnstile(
-        "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BVAcbWEaeXJ5SGFXdE9nR35Abllcb2JyUXkAUBBGSzx1W29LYmN4QmNeWB1tdUMRdHZsfGN6cUt4alVEEG9hNAx6R0wCdlUAAF93fxl5VHMZUFweFmNQHn9kFC4=",
-        "gAAAAACWzMwMzIsIlNhdCBKdW4gMjkgMjAyNCAwMjo1MDo1MCBHTVQrMDgwMCAo5Lit5Zu95qCH5YeG5pe26Ze0KSIsNDI5NDcwNTE1MiwyLCJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvMTI2LjAuMC4wIFNhZmFyaS81MzcuMzYgRWRnLzEyNi4wLjAuMCIsImh0dHBzOi8vY2RuLm9haXN0YXRpYy5jb20vX25leHQvc3RhdGljL2NodW5rcy82NDQxLWY5M2YxM2ZkMTc1MTJkMDguanMiLG51bGwsInpoLUNOIiwiemgtQ04sZW4sZW4tR0IsZW4tVVMiLDE3Mywid2Via2l0R2V0VXNlck1lZGlh4oiSZnVuY3Rpb24gd2Via2l0R2V0VXNlck1lZGlhKCkgeyBbbmF0aXZlIGNvZGVdIH0iLCJfcmVhY3RMaXN0ZW5pbmc5ejQ0dHp5bzNmIiwib25jb250ZXh0bG9zdCIsODE4MiwiNTBkYWYzNTAtN2EyZS00ODMzLTk2MmQtMDQ4MjAzNmZlMDZiIl0="
+        "PBp5bWF1cHlLe1ttQhRfaTdmXEpidGdEYU5JdGJpR3xfHFVuGHVEY0tZVG18Vh54RWJ5CXpxKXl3SUZ7b2FZAWJaTBl6RGQZURh8BndUcRlQVgoYalAca2QUX24ffQZgdVVbbmBrAH9FV08Rb2oVVgBeQVRrWFp5VGZMYWNyMnoSN0FpaQgFT1l1f3h7c1RtcQUqY1kZbFJ5BQRiZEJXS3RvHGtieh9PaBlHaXhVWnVLRUlKdwsdbUtbKGFaAlN4a0V/emUJe2J2dl9BZkAxZWU/WGocRUBnc3VyT3F4WkJmYSthdBIGf0RwQ2FjAUBnd3ZEelgbVUEIDAJjS1VZbU9sSWFjfk55J2lZFV0HWX1cbVV5dWdAfkFIAVQVbloUXQtYaAR+VXhUF1BZdG4CBHRyK21AG1JaHhBFaBwCWUlocyQGVT4NBzNON2ASFVtXeQRET1kARndjUEBDT2RKeQN7RmJjeVtvZGpDeWJ1EHxafVd+Wk1AbzdLVTpafkd9dWZKeARecGJrS0xcenZIEEJQOmcFa01menFOeVRiSGFZC1JnWUA0SU08QGgeDFFgY34YWXAdZHYaHRhANFRMOV0CZmBfVExTWh9lZlVpSnx6eQURb2poa2RkQVJ0cmF0bwJbQgB6RlRbQHRQaQFKBHtENwVDSWpgHAlbTU1hXEpwdBh2eBlNY3l2UEhnblx7AmpaQ08JDDAzJUVAbn5IA2d8XX5ZFVlrYWhSXWlYQlEdZlQ/QUwuYwJgTG5GZghSRHdCYk1CWWBjclp0aWo3TWMSQmFaaAdge05FbmFhH3hxCFZuIX1BY01WVW5ABx5jfG1ZbjcZEiwwPFYQVm0sdHV8Xnl7alRuemgKZUwICklweW1heHR5Q3UqYVoSR3BCaldIc3Z8SmJOS212CAY5AmMkYmMaRn5UXEthZFsHYFx7ZHRnYV5tcFBZeHocQxUXXU0bYk0VFUZ0ZgFrSWcMRksCAwdJEBBncF12fGUVdnFNQnl4ZQB9WUclYGMRe04TQUZMf0FEbEthW357HEN2aVhAdHAMH0NPdWFicm1YbzNRBSkWMDUAOVdXbBlfRz51ah54YG5iVX9sR2t6RF1pR1RGU20MABBWQy55T3dQfmlUfmFrA35gY2AdDiBWMWVlP1hqHEVAZ3NzfE9/c1pCZWErYXQSB2BKcENjew1baXB9Rm1a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OT0jEFwMC1UPPyMwATQnO1oxHz8DNSIoAScYMBMtDi8iFgwgHwwKMAxnDjsXDQooCx4YHSY4JQYYPgQ0Cz0PVkQEEQYqKCIWPTELLBsxElgUMBcENhMKPQQRbyQVRhJdREdUW0tUYB4MX2BjeAU8bxEfZUVYW1VHTF5OSQV/f1xBMU5Jamd7QX9fbWd4H3p1ZhNuYmRFVHRyZHRnBltCCnxGV1YxeEQcDUp3ZlJAFFhafWEKFUlQQ25cOW9iHm90Yk5teXpaSGdhXHsBYStPTR1fdG5wHUIAZ0ZuZWVTeFQVWWliaFxSGFRQOARhQlRVQFVpBmBObEZmAUlKdU9gW0VFbHJkXW0Ffko6cmVTfEx3CXdvV1x+eWMDE2h1IXlJZ0J1VkNKe1cGBnZkcE1gdFJbbXdsWntMECo=",
+        "gAAAAACWzMwMzIsIlRodSBKdWwgMTEgMjAyNCAwMzoxMDo0NiBHTVQrMDgwMCAo5Lit5Zu95qCH5YeG5pe26Ze0KSIsNDI5NDcwNTE1MiwxLCJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvMTI2LjAuMC4wIFNhZmFyaS81MzcuMzYgRWRnLzEyNi4wLjAuMCIsImh0dHBzOi8vY2RuLm9haXN0YXRpYy5jb20vX25leHQvc3RhdGljL2NodW5rcy9wYWdlcy9fYXBwLWMwOWZmNWY0MjQwMjcwZjguanMiLCJjL1pGWGkxeTNpMnpaS0EzSVQwNzRzMy9fIiwiemgtQ04iLCJ6aC1DTixlbixlbi1HQixlbi1VUyIsMTM1LCJ3ZWJraXRUZW1wb3JhcnlTdG9yYWdl4oiSW29iamVjdCBEZXByZWNhdGVkU3RvcmFnZVF1b3RhXSIsIl9yZWFjdExpc3RlbmluZ3NxZjF0ejFzNmsiLCJmZXRjaCIsMzY1NCwiNWU1NDUzNzItMzcyNy00ZDAyLTkwMDYtMzMwMDRjMWJmYTQ2Il0="
     )
     print(result)

@@ -46,7 +46,7 @@ proxy_url_list = proxy_url.split(',') if proxy_url else []
 user_agents_list = user_agents.split(',') if user_agents else []
 
 logger.info("-" * 60)
-logger.info("Chat2Api v1.3.6 | https://github.com/lanqian528/chat2api")
+logger.info("Chat2Api v1.3.7 | https://github.com/lanqian528/chat2api")
 logger.info("-" * 60)
 logger.info("Environment variables:")
 logger.info("API_PREFIX:        " + str(api_prefix))
