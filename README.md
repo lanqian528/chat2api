@@ -4,9 +4,13 @@
 
 🌟 无需账号即可使用免费、无限的 `GPT-3.5`
 
-💥 支持 AccessToken 使用账号，支持 `GPT-4`、`GPT-4o`、 `GPTs`
+💥 支持 AccessToken 使用账号，支持 `GPT-4`、`GPT-4o/mini`、 `GPTs`
 
 🔍 回复格式与真实 API 完全一致，适配几乎所有客户端
+
+## 赞助商
+
+感谢 Capsolver 对本项目的赞助，对于市面上任何人机验证码，你可以使用 [https://capsolver.com](https://capsolver.com/?utm_source=github&utm_medium=github_banner&utm_campaign=chat2api) 来解决
 
 ## 交流群
 
@@ -206,10 +210,6 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 >   - PLUS 账号需要配置 `ArkoseToken`，请根据上文进行配置。
 > - ArkoseToken 是什么，怎么获取？
 >   - 请参考上文的说明，更多请参考 [https://www.arkoselabs.com/](https://www.arkoselabs.com/)
-
-## 赞助商
-
-[![Capsolver](docs/capsolver.jpg)](https://capsolver.com/?utm_source=github&utm_medium=github_banner&utm_campaign=chat2api)
 
 ## License
 
