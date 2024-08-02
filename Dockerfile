@@ -6,6 +6,7 @@ COPY . /app
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-EXPOSE 5005
+ENV PORT=5005
+EXPOSE $PORT
 
-CMD ["python", "app.py"]
+CMD uvicorn app:app --host 0.0.0.0 --port $PORT
