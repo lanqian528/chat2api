@@ -50,11 +50,11 @@
 
 ## Tokens 管理
 
-首先配置环境变量 `AUTHORIZATION`，然后运行程序。
+1. 配置环境变量 `AUTHORIZATION` 作为 `授权码` ，然后运行程序。
 
-访问 `/tokens` 或者 `/api_prefix/tokens` 可以查看现有 Tokens 数量，也可以上传新的 Tokens ，或者清空 Tokens。
+2. 访问 `/tokens` 或者 `/{api_prefix}/tokens` 可以查看现有 Tokens 数量，也可以上传新的 Tokens ，或者清空 Tokens。
 
-请求时传入 `AUTHORIZATION` 中你配置的值即可多账号轮询， `AUTHORIZATION` 可以配置多个值，用英文逗号分隔。
+3. 请求时传入 `AUTHORIZATION` 中配置的 `授权码` 即可使用轮询的Tokens进行对话， `AUTHORIZATION` 可以配置多个值，用英文逗号分隔。
 
 ![tokens.png](docs/tokens.png)
 
@@ -65,7 +65,7 @@
 | 分类   | 变量名               | 示例值                                                         | 默认值                   | 描述                                                           |
 |------|-------------------|-------------------------------------------------------------|-----------------------|--------------------------------------------------------------|
 | 安全相关 | API_PREFIX        | `your_prefix`                                               | `None`                | API 前缀密码，不设置容易被人访问，设置后需请求 `/your_prefix/v1/chat/completions` |
-|      | AUTHORIZATION     | `your_first_authorization`,<br/>`your_second_authorization` | `[]`                  | 你自己为使用多账号轮询 Tokens 设置的授权，英文逗号分隔                              |
+|      | AUTHORIZATION     | `your_first_authorization`,<br/>`your_second_authorization` | `[]`                  | 你自己为使用多账号轮询 Tokens 设置的授权码，英文逗号分隔                             |
 |      | AUTH_KEY          | `your_auth_key`                                             | `None`                | 私人网关需要加`auth_key`请求头才设置该项                                    |
 | 请求相关 | CHATGPT_BASE_URL  | `https://chatgpt.com`                                       | `https://chatgpt.com` | ChatGPT 网关地址，设置后会改变请求的网站，多个网关用逗号分隔                           |
 |      | PROXY_URL         | `http://ip:port`,<br/>`http://username:password@ip:port`    | `[]`                  | 全局代理 URL，出 403 时启用，多个代理用逗号分隔                                 |
