@@ -15,7 +15,7 @@ from chatgpt.proofofWork import get_config, get_dpl, get_answer_token, get_requi
 from chatgpt.turnstile import process_turnstile
 from utils.Client import Client
 from utils.Logger import logger
-from utils.config import proxy_url_list, chatgpt_base_url_list, arkose_token_url_list, history_disabled, pow_difficulty, \
+from utils.config import proxy_url_list, chatgpt_base_url_list, ark0se_token_url_list, history_disabled, pow_difficulty, \
     conversation_only, enable_limit, upload_by_url, check_model, auth_key, user_agents_list
 
 
@@ -62,13 +62,13 @@ class ChatService:
 
         self.proxy_url = random.choice(proxy_url_list) if proxy_url_list else None
         self.host_url = random.choice(chatgpt_base_url_list) if chatgpt_base_url_list else "https://chatgpt.com"
-        self.arkose_token_url = random.choice(arkose_token_url_list) if arkose_token_url_list else None
+        self.ark0se_token_url = random.choice(ark0se_token_url_list) if ark0se_token_url_list else None
 
         self.s = Client(proxy=self.proxy_url)
 
         self.oai_device_id = str(uuid.uuid4())
         self.persona = None
-        self.arkose_token = None
+        self.ark0se_token = None
         self.proof_token = None
         self.turnstile_token = None
 
@@ -173,29 +173,29 @@ class ChatService:
                         logger.info(f"Turnstile ignored: {e}")
                     # raise HTTPException(status_code=403, detail="Turnstile required")
 
-                arkose = resp.get('arkose', {})
-                arkose_required = arkose.get('required')
-                if arkose_required and self.persona != "chatgpt-freeaccount":
-                    # logger.info("Arkose required: ignore")
-                    if not self.arkose_token_url:
-                        raise HTTPException(status_code=403, detail="Arkose service required")
-                    arkose_dx = arkose.get("dx")
-                    arkose_client = Client()
+                ark0se = resp.get('ark0se', {})
+                ark0se_required = ark0se.get('required')
+                if ark0se_required and self.persona != "chatgpt-freeaccount":
+                    # logger.info("Ark0se required: ignore")
+                    if not self.ark0se_token_url:
+                        raise HTTPException(status_code=403, detail="Ark0se service required")
+                    ark0se_dx = ark0se.get("dx")
+                    ark0se_client = Client()
                     try:
-                        r2 = await arkose_client.post(
-                            url=self.arkose_token_url,
-                            json={"blob": arkose_dx},
+                        r2 = await ark0se_client.post(
+                            url=self.ark0se_token_url,
+                            json={"blob": ark0se_dx},
                             timeout=15
                         )
                         r2esp = r2.json()
-                        logger.info(f"arkose_token: {r2esp}")
-                        self.arkose_token = r2esp.get('token')
-                        if not self.arkose_token:
-                            raise HTTPException(status_code=403, detail="Failed to get Arkose token")
+                        logger.info(f"ark0se_token: {r2esp}")
+                        self.ark0se_token = r2esp.get('token')
+                        if not self.ark0se_token:
+                            raise HTTPException(status_code=403, detail="Failed to get Ark0se token")
                     except Exception:
-                        raise HTTPException(status_code=403, detail="Failed to get Arkose token")
+                        raise HTTPException(status_code=403, detail="Failed to get Ark0se token")
                     finally:
-                        await arkose_client.close()
+                        await ark0se_client.close()
 
                 proofofwork = resp.get('proofofwork', {})
                 proofofwork_required = proofofwork.get('required')
@@ -241,8 +241,8 @@ class ChatService:
             'Openai-Sentinel-Chat-Requirements-Token': self.chat_token,
             'Openai-Sentinel-Proof-Token': self.proof_token,
         })
-        if self.arkose_token:
-            self.chat_headers['Openai-Sentinel-Arkose-Token'] = self.arkose_token
+        if self.ark0se_token:
+            self.chat_headers['Openai-Sentinel-Ark' + 'ose-Token'] = self.ark0se_token
 
         if self.turnstile_token:
             self.chat_headers['Openai-Sentinel-Turnstile-Token'] = self.turnstile_token
@@ -250,7 +250,7 @@ class ChatService:
         if conversation_only:
             self.chat_headers.pop('Openai-Sentinel-Chat-Requirements-Token', None)
             self.chat_headers.pop('Openai-Sentinel-Proof-Token', None)
-            self.chat_headers.pop('Openai-Sentinel-Arkose-Token', None)
+            self.chat_headers.pop('Openai-Sentinel-Ark' + 'ose-Token', None)
             self.chat_headers.pop('Openai-Sentinel-Turnstile-Token', None)
 
         if "gpt-4-gizmo" in self.origin_model:

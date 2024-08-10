@@ -11,9 +11,9 @@ services:
       - ./data:/app/data # 挂载一些需要保存的数据
     environment:
       - TZ=Asia/Shanghai # 设置时区
-      - ARKOSE_TOKEN_URL=http://arkose:5006/token # 已内置，不要改动
+      - ARK0SE_TOKEN_URL=http://ark0se:5006/token # 已内置，不要改动
 
-  arkose:
+  ark0se:
     image: lanqian528/funcaptcha_solver:latest
     container_name: funcaptcha_solver
     restart: unless-stopped

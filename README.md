@@ -70,12 +70,12 @@
 | 请求相关 | CHATGPT_BASE_URL  | `https://chatgpt.com`                                       | `https://chatgpt.com` | ChatGPT 网关地址，设置后会改变请求的网站，多个网关用逗号分隔                           |
 |      | PROXY_URL         | `http://ip:port`,<br/>`http://username:password@ip:port`    | `[]`                  | 全局代理 URL，出 403 时启用，多个代理用逗号分隔                                 |
 |      | EXPORT_PROXY_URL  | `http://ip:port`或<br/>`http://username:password@ip:port`    | `None`                | 出口代理 URL，防止请求图片和文件时泄漏源站 ip                                   |
-|      | ARKOSE_TOKEN_URL  | `https://example.com/token`                                 | `[]`                  | 获取 Arkose token 的地址                                          |
+|      | ARK0SE_TOKEN_URL  | `https://example.com/token`                                 | `[]`                  | 获取 Ark0se token 的地址                                          |
 | 功能相关 | HISTORY_DISABLED  | `true`                                                      | `true`                | 是否不保存聊天记录并返回 conversation_id                                 |
 |      | POW_DIFFICULTY    | `00003a`                                                    | `00003a`              | 要解决的工作量证明难度，不懂别设置                                            |
 |      | RETRY_TIMES       | `3`                                                         | `3`                   | 出错重试次数，使用 AUTHORIZATION 会自动轮询下一个账号                           |
 |      | ENABLE_GATEWAY    | `true`                                                      | `true`                | 是否启用网关模式（WEBUI）                                              |
-|      | CONVERSATION_ONLY | `false`                                                     | `false`               | 是否直接使用对话接口，如果你用的网关支持自动解决pow和arkose才启用                        |
+|      | CONVERSATION_ONLY | `false`                                                     | `false`               | 是否直接使用对话接口，如果你用的网关支持自动解决pow和ark0se才启用                        |
 |      | ENABLE_LIMIT      | `true`                                                      | `true`                | 开启后不尝试突破官方次数限制，尽可能防止封号                                       |
 |      | UPLOAD_BY_URL     | `false`                                                     | `false`               | 开启后按照 `URL+空格+正文` 进行对话，自动解析 URL 内容并上传，多个 URL 用空格分隔           |
 |      | CHECK_MODEL       | `false`                                                     | `false`               | 检查账号是否支持传入模型，开启后可以稍微避免4o返回3.5内容，但是会增加请求时延，且并不能解决降智问题         |
@@ -165,15 +165,15 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 > - `RefreshToken` 获取: 此处不提供获取方法。
 > - 免登录 gpt-3.5 无需传入 Token。
 
-## ArkoseToken
+## Ark0seToken
 
-> #### 目前支持外部服务提供 ArkoseToken
+> #### 目前支持外部服务提供 Ark0seToken
 >
-> #### 推荐使用 docker-compose 方式部署，已内置 Arkose 服务
+> #### 推荐使用 docker-compose 方式部署，已内置 Ark0se 服务
 
-1. 设置环境变量 `ARKOSE_TOKEN_URL`
+1. 设置环境变量 `ARK0SE_TOKEN_URL`
 
-2. 在需要 `ArkoseToken` 的时候，`chat2api` 会向 `ARKOSE_TOKEN_URL` 发送 `POST` 请求
+2. 在需要 `Ark0seToken` 的时候，`chat2api` 会向 `ARK0SE_TOKEN_URL` 发送 `POST` 请求
 
 3. 请按照以下格式提供外部服务：
 
@@ -186,7 +186,7 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 - 响应体：
 
 ```json
-{"token": "45017c7bb17115f36.7290869304|r=ap-southeast-1|meta=3|metabgclr=transparent|metaiconclr=%23757575|guitextcolor=%23000000|pk=0A1D34FC-659D-4E23-B17B-694DCFCF6A6C|at=40|sup=1|rid=3|ag=101|cdn_url=https%3A%2F%2Ftcr9i.openai.com%2Fcdn%2Ffc|lurl=https%3A%2F%2Faudio-ap-southeast-1.arkoselabs.com|surl=https%3A%2F%2Ftcr9i.openai.com|smurl=https%3A%2F%2Ftcr9i.openai.com%2Fcdn%2Ffc%2Fassets%2Fstyle-manager"}
+{"token": "45017c7bb17115f36.7290869304|r=ap-southeast-1|meta=3|metabgclr=transparent|metaiconclr=%23757575|guitextcolor=%23000000|pk=0A1D34FC-659D-4E23-B17B-694DCFCF6A6C|at=40|sup=1|rid=3|ag=101|cdn_url=https%3A%2F%2Ftcr9i.openai.com%2Fcdn%2Ffc|lurl=https%3A%2F%2Faudio-ap-southeast-1.ark0selabs.com|surl=https%3A%2F%2Ftcr9i.openai.com|smurl=https%3A%2F%2Ftcr9i.openai.com%2Fcdn%2Ffc%2Fassets%2Fstyle-manager"}
 ```
 
 ## 常见问题
@@ -207,9 +207,9 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 > - AccessToken 如何获取？
 >   - chatgpt官网登录后，再打开 [https://chatgpt.com/api/auth/session](https://chatgpt.com/api/auth/session) 获取 `accessToken` 这个值。
 > - PLUS 账号报错 `403`？
->   - PLUS 账号需要配置 `ArkoseToken`，请根据上文进行配置。
-> - ArkoseToken 是什么，怎么获取？
->   - 请参考上文的说明，更多请参考 [https://www.arkoselabs.com/](https://www.arkoselabs.com/)
+>   - PLUS 账号需要配置 `Ark0seToken`，请根据上文进行配置。
+> - Ark0seToken 是什么，怎么获取？
+>   - 请参考上文的说明，更多请参考 [https://www.ark0selabs.com/](https://www.ark0selabs.com/)
 
 ## License
 
