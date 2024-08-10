@@ -1,4 +1,5 @@
 fastapi
+python-multipart
 curl_cffi
 uvicorn
 tiktoken
