@@ -50,7 +50,8 @@ async def format_not_stream_response(response, prompt_tokens, max_tokens, model)
     }
     if not message.get("content"):
         raise HTTPException(status_code=403, detail="No content in the message.")
-    return {
+
+    data = {
         "id": chat_id,
         "object": "chat.completion",
         "created": created_time,
@@ -59,13 +60,16 @@ async def format_not_stream_response(response, prompt_tokens, max_tokens, model)
             {
                 "index": 0,
                 "message": message,
+                "refusal": None,
                 "logprobs": None,
                 "finish_reason": finish_reason
             }
         ],
-        "usage": usage,
-        "system_fingerprint": system_fingerprint
+        "usage": usage
     }
+    if system_fingerprint:
+        data["system_fingerprint"] = system_fingerprint
+    return data
 
 
 async def wss_stream_response(websocket, conversation_id):
@@ -135,7 +139,6 @@ async def stream_response(service, response, model, max_tokens):
     last_message_id = None
     last_content_type = None
     last_recipient = None
-    start = True
     end = False
 
     chunk_new_data = {
@@ -147,6 +150,7 @@ async def stream_response(service, response, model, max_tokens):
             {
                 "index": 0,
                 "delta": {"role": "assistant", "content": ""},
+                "refusal": None,
                 "logprobs": None,
                 "finish_reason": None
             }
@@ -155,10 +159,10 @@ async def stream_response(service, response, model, max_tokens):
     if system_fingerprint:
         chunk_new_data["system_fingerprint"] = system_fingerprint
     yield f"data: {json.dumps(chunk_new_data)}\n\n"
+    chunk_new_data["choices"][0].pop("refusal")
 
     async for chunk in response:
         chunk = chunk.decode("utf-8")
-        # chunk = 'data: {"message": null, "conversation_id": "38b8bfcf-9912-45db-a48e-b62fb585c855", "error": "Our systems have detected unusual activity coming from your system. Please try again later."}'
         if end:
             yield "data: [DONE]\n\n"
             break
@@ -167,19 +171,12 @@ async def stream_response(service, response, model, max_tokens):
                 chunk_old_data = json.loads(chunk[6:])
                 finish_reason = None
                 message = chunk_old_data.get("message", {})
+                conversation_id = chunk_old_data.get("conversation_id")
                 role = message.get('author', {}).get('role')
                 if role == 'user' or role == 'system':
                     continue
 
                 status = message.get("status")
-                if start:
-                    pass
-                elif status == "in_progress":
-                    start = True
-                else:
-                    continue
-
-                conversation_id = chunk_old_data.get("conversation_id")
                 message_id = message.get("id")
                 content = message.get("content", {})
                 recipient = message.get("recipient", "")
