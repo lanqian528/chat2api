@@ -64,6 +64,7 @@ async def process(request_data, req_token):
     res = await chat_service.send_conversation()
     return chat_service, res
 
+
 @app.post(f"/{api_prefix}/v1/chat/completions" if api_prefix else "/v1/chat/completions")
 async def send_conversation(request: Request, req_token: str = Depends(oauth2_scheme)):
     try:

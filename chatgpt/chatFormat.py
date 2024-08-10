@@ -133,7 +133,7 @@ async def stream_response(service, response, model, max_tokens):
     system_fingerprint_list = model_system_fingerprint.get(model, None)
     system_fingerprint = random.choice(system_fingerprint_list) if system_fingerprint_list else None
     created_time = int(time.time())
-    completion_tokens = -1
+    completion_tokens = 0
     len_last_content = 0
     len_last_citation = 0
     last_message_id = None
