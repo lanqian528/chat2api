@@ -58,17 +58,20 @@ async def to_send_conversation(request_data, req_token):
         raise HTTPException(status_code=500, detail="Server error")
 
 
+async def process(request_data, req_token):
+    chat_service = await to_send_conversation(request_data, req_token)
+    await chat_service.prepare_send_conversation()
+    res = await chat_service.send_conversation()
+    return chat_service, res
+
 @app.post(f"/{api_prefix}/v1/chat/completions" if api_prefix else "/v1/chat/completions")
 async def send_conversation(request: Request, req_token: str = Depends(oauth2_scheme)):
     try:
         request_data = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail={"error": "Invalid JSON body"})
-
-    chat_service = await async_retry(to_send_conversation, request_data, req_token)
+    chat_service, res = await async_retry(process, request_data, req_token)
     try:
-        await chat_service.prepare_send_conversation()
-        res = await chat_service.send_conversation()
         if isinstance(res, types.AsyncGeneratorType):
             background = BackgroundTask(chat_service.close_client)
             return StreamingResponse(res, media_type="text/event-stream", background=background)

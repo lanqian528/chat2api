@@ -105,6 +105,25 @@ async def wss_stream_response(websocket, conversation_id):
             continue
 
 
+async def head_process_response(response):
+    async for chunk in response:
+        chunk = chunk.decode("utf-8")
+        if chunk.startswith("data: {"):
+            chunk_old_data = json.loads(chunk[6:])
+            message = chunk_old_data.get("message", {})
+            if not message and "error" in chunk_old_data:
+                return response, False
+            role = message.get('author', {}).get('role')
+            if role == 'user' or role == 'system':
+                continue
+
+            status = message.get("status")
+            if status == "in_progress":
+                return response, True
+    return response, False
+
+
+
 async def stream_response(service, response, model, max_tokens):
     chat_id = f"chatcmpl-{''.join(random.choice(string.ascii_letters + string.digits) for _ in range(29))}"
     system_fingerprint_list = model_system_fingerprint.get(model, None)
@@ -116,8 +135,26 @@ async def stream_response(service, response, model, max_tokens):
     last_message_id = None
     last_content_type = None
     last_recipient = None
-    start = False
+    start = True
     end = False
+
+    chunk_new_data = {
+        "id": chat_id,
+        "object": "chat.completion.chunk",
+        "created": created_time,
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "delta": {"role": "assistant", "content": ""},
+                "logprobs": None,
+                "finish_reason": None
+            }
+        ]
+    }
+    if system_fingerprint:
+        chunk_new_data["system_fingerprint"] = system_fingerprint
+    yield f"data: {json.dumps(chunk_new_data)}\n\n"
 
     async for chunk in response:
         chunk = chunk.decode("utf-8")
@@ -237,21 +274,8 @@ async def stream_response(service, response, model, max_tokens):
                 last_message_id = message_id
                 if not end and not delta.get("content"):
                     delta = {"role": "assistant", "content": ""}
-                chunk_new_data = {
-                    "id": chat_id,
-                    "object": "chat.completion.chunk",
-                    "created": created_time,
-                    "model": model,
-                    "choices": [
-                        {
-                            "index": 0,
-                            "delta": delta,
-                            "logprobs": None,
-                            "finish_reason": finish_reason
-                        }
-                    ],
-                    "system_fingerprint": system_fingerprint
-                }
+                chunk_new_data["choices"][0]["delta"] = delta
+                chunk_new_data["choices"][0]["finish_reason"] = finish_reason
                 if not service.history_disabled:
                     chunk_new_data.update({
                         "message_id": message_id,
