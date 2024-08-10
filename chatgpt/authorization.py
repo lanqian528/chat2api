@@ -10,7 +10,7 @@ import chatgpt.globals as globals
 
 def get_req_token(req_token):
     if req_token in authorization_list:
-        if globals.token_list:
+        if len(globals.token_list) - len(globals.error_token_list) > 0:
             globals.count += 1
             globals.count %= len(globals.token_list)
             while globals.token_list[globals.count] in globals.error_token_list:
