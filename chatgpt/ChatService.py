@@ -121,8 +121,12 @@ class ChatService:
             self.req_model = "gpt-4o"
         elif "gpt-4" in self.origin_model:
             self.req_model = "gpt-4"
-        else:
+        elif "gpt-3.5" in self.origin_model:
             self.req_model = "text-davinci-002-render-sha"
+        elif "auto" in self.origin_model:
+            self.req_model = "auto"
+        else:
+            self.req_model = "auto"
 
     async def get_chat_requirements(self):
         if conversation_only:
@@ -329,7 +333,7 @@ class ChatService:
             raise HTTPException(status_code=500, detail=str(e))
 
     async def get_download_url(self, file_id):
-        url = f"{self.base_url}/files/{file_id}/download"
+        url = f"https://new.oaifree.com/backend-api/files/{file_id}/download"
         headers = self.base_headers.copy()
         try:
             r = await self.s.get(url, headers=headers, timeout=5)
@@ -449,17 +453,17 @@ class ChatService:
 
     async def get_response_file_url(self, conversation_id, message_id, sandbox_path):
         try:
-            url = f"{self.base_url}/conversation/{conversation_id}/interpreter/download"
+            url = f"https://new.oaifree.com/backend-api/conversation/{conversation_id}/interpreter/download"
             params = {
                 "message_id": message_id,
                 "sandbox_path": sandbox_path
             }
             headers = self.base_headers.copy()
             r = await self.s.get(url, headers=headers, params=params, timeout=10)
-            if r.status_code != 200:
-                return None
-            else:
+            if r.status_code == 200:
                 return r.json().get("download_url")
+            else:
+                return None
         except Exception:
             logger.info("Failed to get response file url")
             return None

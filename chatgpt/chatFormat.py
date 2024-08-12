@@ -60,7 +60,6 @@ async def format_not_stream_response(response, prompt_tokens, max_tokens, model)
             {
                 "index": 0,
                 "message": message,
-                "refusal": None,
                 "logprobs": None,
                 "finish_reason": finish_reason
             }
@@ -127,7 +126,6 @@ async def head_process_response(response):
     return response, False
 
 
-
 async def stream_response(service, response, model, max_tokens):
     chat_id = f"chatcmpl-{''.join(random.choice(string.ascii_letters + string.digits) for _ in range(29))}"
     system_fingerprint_list = model_system_fingerprint.get(model, None)
@@ -150,7 +148,6 @@ async def stream_response(service, response, model, max_tokens):
             {
                 "index": 0,
                 "delta": {"role": "assistant", "content": ""},
-                "refusal": None,
                 "logprobs": None,
                 "finish_reason": None
             }
@@ -159,7 +156,6 @@ async def stream_response(service, response, model, max_tokens):
     if system_fingerprint:
         chunk_new_data["system_fingerprint"] = system_fingerprint
     yield f"data: {json.dumps(chunk_new_data)}\n\n"
-    chunk_new_data["choices"][0].pop("refusal")
 
     async for chunk in response:
         chunk = chunk.decode("utf-8")
