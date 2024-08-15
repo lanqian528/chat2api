@@ -333,7 +333,7 @@ class ChatService:
             raise HTTPException(status_code=500, detail=str(e))
 
     async def get_download_url(self, file_id):
-        url = f"https://new.oaifree.com/backend-api/files/{file_id}/download"
+        url = f"{self.base_url}/files/{file_id}/download"
         headers = self.base_headers.copy()
         try:
             r = await self.s.get(url, headers=headers, timeout=5)
@@ -453,7 +453,7 @@ class ChatService:
 
     async def get_response_file_url(self, conversation_id, message_id, sandbox_path):
         try:
-            url = f"https://new.oaifree.com/backend-api/conversation/{conversation_id}/interpreter/download"
+            url = f"{self.base_url}/conversation/{conversation_id}/interpreter/download"
             params = {
                 "message_id": message_id,
                 "sandbox_path": sandbox_path
