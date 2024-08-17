@@ -26,7 +26,7 @@
 
 ## 功能
 
-### 最新版 v1.4.3
+### 最新版 v1.4.4
 
 > 已完成
 > - [x] 流式、非流式传输
@@ -80,7 +80,7 @@
 |      | UPLOAD_BY_URL     | `false`                                                     | `false`               | 开启后按照 `URL+空格+正文` 进行对话，自动解析 URL 内容并上传，多个 URL 用空格分隔           |
 |      | CHECK_MODEL       | `false`                                                     | `false`               | 检查账号是否支持传入模型，开启后可以稍微避免4o返回3.5内容，但是会增加请求时延，且并不能解决降智问题         |
 |      | SCHEDULED_REFRESH | `false`                                                     | `false`               | 是否定时刷新 AccessToken ，开启后每次启动程序将会全部非强制刷新一次，每4天晚上3点全部强制刷新一次。    |
-
+|      | USER_AGENTS       | `["ua1", "ua2"]`                                            | `[]`                  | 随机使用的 UserAgent 列表，不设置则使用默认的 Edge 浏览器对应UA                    |
 ## 部署
 
 ### Zeabur 部署

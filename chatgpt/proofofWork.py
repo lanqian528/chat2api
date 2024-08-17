@@ -1,6 +1,7 @@
 import hashlib
 import json
 import random
+import re
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -386,10 +387,11 @@ class ScriptSrcParser(HTMLParser):
             attrs_dict = dict(attrs)
             if "src" in attrs_dict:
                 src = attrs_dict["src"]
-                if "dpl" in src:
-                    cached_scripts.append(src)
-                    cached_dpl = src[src.index("dpl"):]
-                    cached_time = int(time.time())
+                cached_scripts.append(src)
+                # if "dpl" in src:
+                #     cached_dpl = src[src.index("dpl"):]
+                #     logger.info(f"Found dpl: {cached_dpl}")
+                #     cached_time = int(time.time())
 
 
 async def get_dpl(service):
@@ -408,11 +410,18 @@ async def get_dpl(service):
         if len(cached_scripts) == 0:
             raise Exception("No scripts found")
         else:
+            pattern = re.compile(r"c/[^/]*/_")
+            for url in cached_scripts:
+                match = pattern.search(url)
+                if match:
+                    cached_dpl = match.group(0)
+                    cached_time = int(time.time())
+                    break
             return True
     except Exception:
         cached_scripts.append(
-            "https://cdn.oaistatic.com/_next/static/cXh69klOLzS0Gy2joLDRS/_ssgManifest.js?dpl=453ebaec0d44c2decab71692e1bfe39be35a24b3")
-        cached_dpl = "453ebaec0d44c2decab71692e1bfe39be35a24b3"
+            "https://cdn.oaistatic.com/_next/static/chunks/5592-9b41e2c3446199fd.js")
+        cached_dpl = "c/evFLS4pFqOh20V7PULt_e/_"
         cached_time = int(time.time())
         return False
 
