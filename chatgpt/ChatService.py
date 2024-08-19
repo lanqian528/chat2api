@@ -196,8 +196,9 @@ class ChatService:
                         )
                         r2esp = r2.json()
                         logger.info(f"ark0se_token: {r2esp}")
-                        self.ark0se_token = r2esp.get('token')
-                        if not self.ark0se_token:
+                        if r2esp.get('solved', True):
+                            self.ark0se_token = r2esp.get('token')
+                        else:
                             raise HTTPException(status_code=403, detail="Failed to get Ark0se token")
                     except Exception:
                         raise HTTPException(status_code=403, detail="Failed to get Ark0se token")
