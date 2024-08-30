@@ -6,4 +6,4 @@ access_format = r'%(asctime)s | %(levelname)s | %(client_addr)s: %(request_line)
 log_config["formatters"]["default"]["fmt"] = default_format
 log_config["formatters"]["access"]["fmt"] = access_format
 
-uvicorn.run("chat2api:app", host="0.0.0.0", port=5005)
+uvicorn.run("chat2api:app", host="0.0.0.0", port=53318)
