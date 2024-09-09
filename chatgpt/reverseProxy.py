@@ -72,6 +72,9 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
             base_url = "https://ab.chatgpt.com"
         else:
             base_url = random.choice(chatgpt_base_url_list) if chatgpt_base_url_list else "https://chatgpt.com"
+        if "/assets" in path:
+            base_url = "https://cdn.oaistatic.com"
+
         params = dict(request.query_params)
         headers = {
             key: value for key, value in request.headers.items()
@@ -85,13 +88,13 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
             "host": base_url.replace("https://", "").replace("http://", ""),
             "origin": base_url,
             "referer": f"{base_url}/",
-            "sec-ch-ua": '"Chromium";v="124", "Microsoft Edge";v="124", "Not-A.Brand";v="99"',
+            "sec-ch-ua": '"Chromium";v="128", "Not;A=Brand";v="24", "Microsoft Edge";v="128"',
             "sec-ch-ua-mobile": "?0",
             "sec-ch-ua-platform": "\"Windows\"",
             "sec-fetch-dest": "empty",
             "sec-fetch-mode": "cors",
             "sec-fetch-site": "same-origin",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 Edg/128.0.0.0"
         })
 
         if request.headers.get('Authorization'):
@@ -114,7 +117,7 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
                     return Response(status_code=307, headers={
                         "Location": r.headers.get("Location").replace("chat.openai.com", origin_host)
                                     .replace("chatgpt.com", origin_host)
-                                    .replace("https", petrol) + "?oai-dm=1"}, background=background)
+                                    .replace("https", petrol)}, background=background)
                 else:
                     return Response(status_code=307, headers={"Location": r.headers.get("Location")},
                                     background=background)
@@ -138,7 +141,14 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
                                .replace("ab.chatgpt.com", origin_host)
                                .replace("cdn.oaistatic.com", origin_host)
                                .replace("https", petrol))
-                    response = Response(content=content, media_type=r.headers.get("content-type"),
+                    rheaders = dict(r.headers)
+                    cache_control = rheaders.get("cache-control", "")
+                    content_type = rheaders.get("content-type", "")
+                    rheaders = {
+                        "cache-control": cache_control,
+                        "content-type": content_type
+                    }
+                    response = Response(content=content, headers=rheaders,
                                         status_code=r.status_code, background=background)
                 for cookie_name in r.cookies:
                     if cookie_name in request_cookies:
