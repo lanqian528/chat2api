@@ -111,7 +111,13 @@ class ChatService:
     async def set_model(self):
         self.origin_model = self.data.get("model", "gpt-3.5-turbo-0125")
         self.resp_model = model_proxy.get(self.origin_model, self.origin_model)
-        if "gpt-4o-mini" in self.origin_model:
+        if "o1-preview" in self.origin_model:
+            self.req_model = "o1-preview"
+        elif "o1-mini" in self.origin_model:
+            self.req_model = "o1-mini"
+        elif "o1" in self.origin_model:
+            self.req_model = "o1"
+        elif "gpt-4o-mini" in self.origin_model:
             self.req_model = "gpt-4o-mini"
         elif "gpt-4o" in self.origin_model:
             self.req_model = "gpt-4o"
