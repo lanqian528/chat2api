@@ -135,6 +135,7 @@ async def stream_response(service, response, model, max_tokens):
     len_last_content = 0
     len_last_citation = 0
     last_message_id = None
+    last_role = None
     last_content_type = None
     last_recipient = None
     end = False
@@ -186,7 +187,10 @@ async def stream_response(service, response, model, max_tokens):
                     if outer_content_type == "text":
                         part = content.get("parts", [])[0]
                         if not part:
-                            new_text = ""
+                            if last_role == 'tool' and role == 'assistant':
+                                new_text = "\n\n"
+                            else:
+                                new_text = ""
                         else:
                             if last_message_id and last_message_id != message_id:
                                 continue
@@ -198,6 +202,8 @@ async def stream_response(service, response, model, max_tokens):
                                 new_text = f' **[[""]]({citation_url} "{citation_title}")** '
                                 len_last_citation = len(citation)
                             else:
+                                if role == 'tool':
+                                    part = ">" + part.replace("\n\n", "\n>\n>")
                                 new_text = part[len_last_content:]
                             len_last_content = len(part)
                     else:
@@ -259,12 +265,14 @@ async def stream_response(service, response, model, max_tokens):
                         finish_reason = "stop"
                         end = True
                     else:
+                        last_role = role
                         last_message_id = None
                         len_last_content = 0
                         continue
                 else:
                     continue
                 last_message_id = message_id
+                last_role = role
                 if not end and not delta.get("content"):
                     delta = {"role": "assistant", "content": ""}
                 chunk_new_data["choices"][0]["delta"] = delta

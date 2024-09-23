@@ -11,7 +11,13 @@ class Client:
         }
         self.timeout = timeout
         self.verify = verify
-        self.impersonate = random.choice(["safari15_3"])
+
+        self.impersonate = random.choice(['safari15_3'])
+        # impersonate=self.impersonate
+
+        # self.ja3 = ""
+        # self.akamai = ""
+        # ja3=self.ja3, akamai=self.akamai
         self.session = AsyncSession(proxies=self.proxies, timeout=self.timeout, verify=self.verify)
         self.session2 = AsyncSession(proxies=self.proxies, timeout=self.timeout, verify=self.verify)
 
