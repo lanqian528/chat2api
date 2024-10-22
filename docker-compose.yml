@@ -8,16 +8,14 @@ services:
     ports:
       - '5005:5005'
     volumes:
-      - ./data:/app/data # 挂载一些需要保存的数据
+      - ./data:/app/data
     environment:
-      - TZ=Asia/Shanghai # 设置时区
-      - ARK0SE_TOKEN_URL=http://ark0se:5006/token # 已内置，不要改动
+      - TZ=Asia/Shanghai
 
-  ark0se:
-    image: lanqian528/funcaptcha_solver:latest
-    container_name: funcaptcha_solver
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
     restart: unless-stopped
-    ports:
-      - '5006:5006'
-    environment:
-      - TZ=Asia/Shanghai # 设置时区
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --cleanup --interval 300 chat2api
