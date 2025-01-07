@@ -136,7 +136,9 @@ class ChatService:
         else:
             self.gizmo_id = None
 
-        if "o1-preview" in self.origin_model:
+        if self.gizmo_id:
+            self.req_model = "gpt-4o"
+        elif "o1-preview" in self.origin_model:
             self.req_model = "o1-preview"
         elif "o1-pro" in self.origin_model:
             self.req_model = "o1-pro"
