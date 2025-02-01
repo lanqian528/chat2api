@@ -37,6 +37,7 @@ security_scheme = HTTPBearer()
 from app import app
 
 import api.chat2api
+import api.cloudflare_5s
 
 if enable_gateway:
     import gateway.share
