@@ -5,8 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>登录</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/layui/2.9.18/layui.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/layui/2.9.18/css/layui.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         #popup {
+            display: none;
+        }
+        #site_password {
             display: none;
         }
     </style>
@@ -14,6 +19,8 @@
 <body class="bg-gradient-to-br from-blue-300 via-indigo-300 to-purple-400 min-h-screen flex items-center justify-center">
     <div class="bg-white p-8 rounded-xl shadow-2xl w-96 max-w-md">
         <h2 class="text-3xl font-bold text-center text-gray-800 mb-4">登录</h2>
+        <!-- 新增密码输入框 -->
+        <input type="password" id="site_password" class="w-full p-2 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400" placeholder="请输入密码">
         <button
             type="button"
             onclick="openPopup()"
@@ -64,7 +71,17 @@
     </div>
 
     <script>
+        const site_password = "{{ site_password }}";
+        if (!!site_password) {
+            document.getElementById('site_password').style.display = 'block';
+        }
+        
         function openPopup() {
+            const inputPwd = document.getElementById('site_password').value;
+            if (!!site_password && inputPwd !== site_password) {
+                window.layer.msg("啊噢...密码错误！", {icon: 2, time: 1500, offset: '20px'});
+                return;
+            }
             document.getElementById('popup').style.display = 'flex';
         }
 
