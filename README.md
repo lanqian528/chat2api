@@ -32,9 +32,9 @@
 > - [x] 免登录 GPT-3.5 对话
 > - [x] GPT-3.5 模型对话（传入模型名不包含 gpt-4，则默认使用 gpt-3.5，也就是 text-davinci-002-render-sha）
 > - [x] GPT-4 系列模型对话（传入模型名包含: gpt-4，gpt-4o，gpt-4o-mini，gpt-4-moblie 即可使用对应模型，需传入 AccessToken）
-> - [x] O1 系列模型对话（传入模型名包含 o1-preview，o1-mini 即可使用对应模型，需传入 AccessToken）
+> - [x] O1/O3/O4 系列模型对话（传入模型名包含 o3，o4-mini等 即可使用对应模型，需传入 AccessToken）
 > - [x] GPT-4 模型画图、代码、联网
-> - [x] 支持 GPTs（传入模型名：gpt-4-gizmo-g-*）
+> - [x] 支持 GPTs（传入模型名：gpt-4-gizmo-g-*，前面模型可改，Team工作区项目需要使用这个）
 > - [x] 支持 Team Plus 账号（需传入 team account id）
 > - [x] 上传图片、文件（格式为 API 对应格式，支持 URL 和 base64）
 > - [x] 可作为网关使用，可多机分布部署
@@ -92,6 +92,13 @@ curl --location 'http://127.0.0.1:5005/v1/chat/completions' \
 
 > - `AccessToken` 获取: chatgpt官网登录后，再打开 [https://chatgpt.com/api/auth/session](https://chatgpt.com/api/auth/session) 获取 `accessToken` 这个值。
 > - `RefreshToken` 获取: 此处不提供获取方法。
+> - `ChatGPT-Account-ID` 获取:
+>   - 方法①，访问 <https://chatgpt.com/admin> 使用F12找到请求 <https://chatgpt.com/backend-api/accounts/UUID/users>，这个ID就是。
+>   - 方法②，还是上一步的地方读取响应中的`account_user_id`，后面的那个UUID。
+>   - 方法③，访问 <https://chatgpt.com/api/auth/session> 找到 account 下面的 id（不是 organizationId），或者在网页发起工作区对话请求时F12请求头就有这个。
+> - `gizmo` ID 获取:
+>   - 方法①，打开项目包，URL中的g-p开头，去掉后面的项目名称英文版的部分就是。
+>   - 方法②，在工作区项目进行对话，在请求体中找到 `gizmo_id`。
 > - 免登录 gpt-3.5 无需传入 Token。
 
 ## Tokens 管理

@@ -143,7 +143,15 @@ class ChatService:
         else:
             self.gizmo_id = None
 
-        if "o3-mini-high" in self.origin_model:
+        if "o4-mini-high" in self.origin_model:
+            self.req_model = "o4-mini-high"
+        elif "o4-mini-medium" in self.origin_model:
+            self.req_model = "o4-mini-medium"
+        elif "o4-mini-low" in self.origin_model:
+            self.req_model = "o4-mini-low"
+        elif "o4-mini" in self.origin_model:
+            self.req_model = "o4-mini"
+        elif "o3-mini-high" in self.origin_model:
             self.req_model = "o3-mini-high"
         elif "o3-mini-medium" in self.origin_model:
             self.req_model = "o3-mini-medium"
@@ -163,6 +171,8 @@ class ChatService:
             self.req_model = "o1"
         elif "gpt-4.5o" in self.origin_model:
             self.req_model = "gpt-4.5o"
+        elif "gpt-4-5" in self.origin_model:
+            self.req_model = "gpt-4-5"
         elif "gpt-4o-canmore" in self.origin_model:
             self.req_model = "gpt-4o-canmore"
         elif "gpt-4o-mini" in self.origin_model:
