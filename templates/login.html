@@ -5,23 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>登录</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
+     <style>
         #popup {
             display: none;
         }
+        .language-buttons {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10; /* Ensure buttons are above other elements */
+        }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-300 via-indigo-300 to-purple-400 min-h-screen flex items-center justify-center">
+<body onload="setLanguage('zh')" class="bg-gradient-to-br from-blue-300 via-indigo-300 to-purple-400 min-h-screen flex items-center justify-center relative">
+    <div class="language-buttons flex justify-center mb-4">
+        <button onclick="setLanguage('en')" class="mr-2 bg-indigo-500 text-white py-2 px-4 rounded">English</button>
+        <button onclick="setLanguage('zh')" class="bg-indigo-500 text-white py-2 px-4 rounded">中文</button>
+    </div>
     <div class="bg-white p-8 rounded-xl shadow-2xl w-96 max-w-md">
-        <h2 class="text-3xl font-bold text-center text-gray-800 mb-4">登录</h2>
+        <h2 id="login-title" class="text-3xl font-bold text-center text-gray-800 mb-4">登录</h2>
         <button
             type="button"
+            id="login-button"
             onclick="openPopup()"
             class="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition duration-200 ease-in-out"
         >
             RefreshToken / AccessToken
         </button>
-        <p class="text-xs text-gray-500 text-center mt-4">
+        <p id="instruction" class="text-xs text-gray-500 text-center mt-4">
             <span class="font-semibold text-gray-800">非
                 <span class="font-bold text-indigo-600">RT</span>
                 与
@@ -34,7 +45,6 @@
 
     <div id="popup" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
         <div class="bg-white p-8 rounded-xl shadow-lg max-w-lg w-full h-auto">
-<!--            <h3 class="text-xl font-bold text-gray-800 mb-4 text-center">请输入您的 Token</h3>-->
             <p class="font-semibold text-gray-800 text-center mb-1">直接点击
                 <span class="font-bold text-indigo-600">开始</span>
                 进入最近用过的账号</p>
@@ -64,6 +74,25 @@
     </div>
 
     <script>
+        const translations = {
+            en: {
+                title: "Login",
+                button: "RefreshToken / AccessToken",
+                instruction: "Non-<span class='font-bold text-indigo-600'>RT</span> and <span class='font-bold text-indigo-600'>AT</span> inputs will be treated as <span class='font-bold text-indigo-600'>Seed</span> for random selection of backend accounts."
+            },
+            zh: {
+                title: "登录",
+                button: "RefreshToken / AccessToken",
+                instruction: "非<span class='font-bold text-indigo-600'>RT</span>与<span class='font-bold text-indigo-600'>AT</span>的输入，将作为<span class='font-bold text-indigo-600'>Seed</span>随机抽取后台账号."
+            }
+        };
+        
+        function setLanguage(language) {
+            document.querySelector('#login-title').innerText = translations[language].title;
+            document.querySelector('#login-button').innerText = translations[language].button;
+            document.querySelector('#instruction').innerHTML = translations[language].instruction;
+        }
+
         function openPopup() {
             document.getElementById('popup').style.display = 'flex';
         }

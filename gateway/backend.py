@@ -117,7 +117,7 @@ async def get_gizmos_snorlax_upsert(request: Request):
 async def post_subscriptions(request: Request):
     return {
         "id": str(uuid.uuid4()),
-        "plan_type": "free",
+        "plan_type": "pro",
         "seats_in_use": 1,
         "seats_entitled": 1,
         "active_until": "2050-01-01T00:00:00Z",

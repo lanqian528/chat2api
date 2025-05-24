@@ -5,12 +5,94 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title>Tokens 管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-r from-blue-200 via-purple-200 to-pink-200 flex justify-center items-center min-h-screen relative">
+    <div class="bg-white p-10 rounded-lg shadow-2xl w-128 text-center">
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-6" id="titleText">Tokens 管理</h1>
+        <p class="text-gray-600 mb-4" id="tokenCountText">当前可用 Tokens 数量：<span class="text-blue-600">{{ tokens_count }}</span></p>
+        <form class="mb-2" id="uploadForm" method="post">
+            <textarea id="uploadTextarea" class="w-full p-4 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" name="text" placeholder="一行一个Token，可以是 AccessToken 或 RefreshToken" rows="10"></textarea>
+            <p class="text-gray-600 mb-2" id="dockerNote">注：使用docker时如果挂载了data文件夹则重启后不需要再次上传</p>
+            <button id="uploadButton" class="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition duration-300 mb-2" type="submit">上传</button>
+        </form>
+        <button id="errorButton" class="w-full bg-yellow-600 text-white py-3 rounded-md hover:bg-yellow-700 transition duration-200 mt-2">查看错误Tokens</button>
+        <p id="clearNote" class="text-gray-600 mt-2">点击清空，将会清空上传和错误的 Tokens</p>
+        <form id="clearForm" method="post">
+            <button id="clearButton" class="w-full bg-red-600 text-white py-3 rounded-md hover:bg-red-700 transition duration-300" type="submit">清空Tokens</button>
+        </form>
+    </div>
+    
+    <div id="errorModal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex justify-center items-center hidden">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-150">
+            <h2 class="text-2xl font-bold mb-4" id="errorModalTitle">错误 Tokens</h2>
+            <div id="errorModalContent" class="list-disc list-inside text-left mb-4"></div>
+            <div class="flex justify-end space-x-4">
+                <button id="errorModalCopy" class="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition duration-300">复制</button>
+                <button id="errorModalClose" class="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition duration-300">关闭</button>
+            </div>
+        </div>
+    </div>
     <script>
+        // Define the translations object globally
+        const translations = {
+            en: {
+                title: "Tokens Management",
+                tokenCount: "Current available Tokens count: ",
+                uploadPlaceholder: "One Token per line, could be AccessToken or RefreshToken",
+                dockerNote: "Note: If you have mounted the data folder when using docker, you do not need to upload again after restart",
+                uploadButton: "Upload",
+                viewErrors: "View Error Tokens",
+                clearNote: "Click clear, it will clear uploaded and error tokens",
+                clearButton: "Clear Tokens",
+                errorTokens: "Error Tokens",
+                copy: "Copy",
+                close: "Close",
+            },
+            zh: {
+                title: "Tokens 管理",
+                tokenCount: "当前可用 Tokens 数量：",
+                uploadPlaceholder: "一行一个Token，可以是 AccessToken 或 RefreshToken",
+                dockerNote: "注：使用docker时如果挂载了data文件夹则重启后不需要再次上传",
+                uploadButton: "上传",
+                viewErrors: "查看错误Tokens",
+                clearNote: "点击清空，将会清空上传和错误的 Tokens",
+                clearButton: "清空Tokens",
+                errorTokens: "错误 Tokens",
+                copy: "复制",
+                close: "关闭",
+            }
+        };
+
+        // Define the setLanguage function globally
+        function setLanguage(language) {
+            document.title = translations[language].title;
+            document.getElementById('titleText').innerText =translations[language].title;
+            document.getElementById('tokenCountText').innerText = translations[language].tokenCount + "{{ tokens_count }}";
+            document.getElementById('uploadTextarea').placeholder = translations[language].uploadPlaceholder;
+            document.getElementById('dockerNote').innerText = translations[language].dockerNote;
+            document.getElementById('uploadButton').innerText = translations[language].uploadButton;
+            document.getElementById('errorButton').innerText = translations[language].viewErrors;
+            document.getElementById('clearNote').innerText = translations[language].clearNote;
+            document.getElementById('clearButton').innerText = translations[language].clearButton;
+            document.getElementById('errorModalTitle').innerText = translations[language].errorTokens;
+            document.getElementById('errorModalCopy').innerText = translations[language].copy;
+            document.getElementById('errorModalClose').innerText = translations[language].close;
+        }
+
+        // Add event listener for DOMContentLoaded
         document.addEventListener('DOMContentLoaded', () => {
             const apiPrefix = "{{ api_prefix }}";
             const uploadForm = document.getElementById('uploadForm');
             const clearForm = document.getElementById('clearForm');
             const errorButton = document.getElementById('errorButton');
+
+            const languageButtonsDiv = document.createElement("div");
+            languageButtonsDiv.classList.add("absolute", "top-4", "right-4", "z-10");
+            languageButtonsDiv.innerHTML = `
+                <button onclick="setLanguage('en')" class="mr-2 bg-indigo-500 text-white py-2 px-4 rounded">English</button>
+                <button onclick="setLanguage('zh')" class="bg-indigo-500 text-white py-2 px-4 rounded">中文</button>
+            `;
+            document.body.appendChild(languageButtonsDiv);
 
             if (apiPrefix === "None") {
                 uploadForm.action = "/tokens/upload";
@@ -49,34 +131,10 @@
                     alert('复制失败，请手动复制');
                 });
             });
+
+            // Set default language on page load
+            setLanguage('zh');
         });
-    </script>
-</head>
-<body class="bg-gradient-to-r from-blue-200 via-purple-200 to-pink-200 flex justify-center items-center min-h-screen">
-    <div class="bg-white p-10 rounded-lg shadow-2xl w-128 text-center">
-        <h1 class="text-4xl font-extrabold text-gray-900 mb-6">Tokens 管理</h1>
-        <p class="text-gray-600 mb-4">当前可用 Tokens 数量：<span class="text-blue-600">{{ tokens_count }}</span></p>
-        <form class="mb-2" id="uploadForm" method="post">
-            <textarea class="w-full p-4 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" name="text" placeholder="一行一个Token，可以是 AccessToken 或 RefreshToken" rows="10"></textarea>
-            <p class="text-gray-600 mb-2">注：使用docker时如果挂载了data文件夹则重启后不需要再次上传</p>
-            <button class="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition duration-300 mb-2" type="submit">上传</button>
-        </form>
-        <button id="errorButton" class="w-full bg-yellow-600 text-white py-3 rounded-md hover:bg-yellow-700 transition duration-200 mt-2">查看错误Tokens</button>
-        <p class="text-gray-600 mt-2">点击清空，将会清空上传和错误的 Tokens</p>
-        <form id="clearForm" method="post">
-            <button class="w-full bg-red-600 text-white py-3 rounded-md hover:bg-red-700 transition duration-300" type="submit">清空Tokens</button>
-        </form>
-    </div>
-    
-    <div id="errorModal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex justify-center items-center hidden">
-        <div class="bg-white p-6 rounded-lg shadow-lg w-150">
-            <h2 class="text-2xl font-bold mb-4">错误 Tokens</h2>
-            <div id="errorModalContent" class="list-disc list-inside text-left mb-4"></div>
-            <div class="flex justify-end space-x-4">
-                <button id="errorModalCopy" class="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition duration-300">复制</button>
-                <button id="errorModalClose" class="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition duration-300">关闭</button>
-            </div>
-        </div>
-    </div>
+    </script>    
 </body>
 </html>

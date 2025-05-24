@@ -1,6 +1,6 @@
 fastapi==0.115.3
-python-multipart==0.0.13
-curl_cffi==0.7.3
+python-multipart==0.0.19
+curl_cffi==0.10.0
 uvicorn
 tiktoken
 python-dotenv
@@ -12,3 +12,4 @@ APScheduler
 ua-generator
 pyjwt
 diskcache
+jsonpatch

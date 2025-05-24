@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse
 
 from app import app, templates
 from gateway.login import login_html
+from utils import configs
 from utils.kv_utils import set_value_for_key_list
 
 with open("templates/chatgpt_context_1.json", "r", encoding="utf-8") as f:
@@ -25,7 +26,9 @@ async def chatgpt_html(request: Request):
 
     if len(token) != 45 and not token.startswith("eyJhbGciOi"):
         token = quote(token)
-
+        if configs.auto_seed == False and token not in globals.seed_map.keys():
+            return await login_html(request)
+        
     user_chatgpt_context_1 = chatgpt_context_1.copy()
     user_chatgpt_context_2 = chatgpt_context_2.copy()
 

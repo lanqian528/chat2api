@@ -269,14 +269,17 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
                                 .replace("cdn.oaistatic.com", origin_host)
                                 .replace("https", petrol)}, background=background)
             elif 'stream' in r.headers.get("content-type", ""):
-                logger.info(f"Request token: {req_token}")
-                logger.info(f"Request proxy: {proxy_url}")
-                logger.info(f"Request UA: {user_agent}")
-                logger.info(f"Request impersonate: {impersonate}")
-                conv_key = r.cookies.get("conv_key", "")
+                if path.endswith("backend-api/conversation") or path.endswith("backend-alt/conversation"):
+                    logger.info(f"Request token: {req_token}")
+                    logger.info(f"Request proxy: {proxy_url}")
+                    logger.info(f"Request UA: {user_agent}")
+                    logger.info(f"Request impersonate: {impersonate}")
+
                 response = StreamingResponse(content_generator(r, token, history), media_type=r.headers.get("content-type", ""),
                                   background=background)
-                response.set_cookie("conv_key", value=conv_key)
+                conv_key = r.cookies.get("conv_key", "")
+                if conv_key:
+                    response.set_cookie("conv_key", value=conv_key)
                 return response
             elif 'image' in r.headers.get("content-type", "") or "audio" in r.headers.get("content-type", "") or "video" in r.headers.get("content-type", ""):
                 rheaders = dict(r.headers)

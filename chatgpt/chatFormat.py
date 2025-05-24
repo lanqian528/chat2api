@@ -110,7 +110,8 @@ async def wss_stream_response(websocket, conversation_id):
 
 async def head_process_response(response):
     async for chunk in response:
-        chunk = chunk.decode("utf-8")
+        # print(chunk)
+        # chunk = chunk.decode("utf-8")
         if chunk.startswith("data: {"):
             chunk_old_data = json.loads(chunk[6:])
             message = chunk_old_data.get("message", {})
@@ -138,6 +139,7 @@ async def stream_response(service, response, model, max_tokens):
     last_role = None
     last_content_type = None
     last_status = None
+    last_completed_rate = None
     model_slug = None
     end = False
 
@@ -160,7 +162,8 @@ async def stream_response(service, response, model, max_tokens):
     yield f"data: {json.dumps(chunk_new_data)}\n\n"
 
     async for chunk in response:
-        chunk = chunk.decode("utf-8")
+        # print(chunk)
+        # chunk = chunk.decode("utf-8")
         if end:
             logger.info(f"Response Model: {model_slug}")
             yield "data: [DONE]\n\n"
@@ -237,12 +240,15 @@ async def stream_response(service, response, model, max_tokens):
                             current_height = part.get('metadata', {}).get("generation", {}).get("height", 0)
                             if full_height > current_height:
                                 completed_rate = current_height / full_height
-                                new_text = f"\n> {completed_rate:.2%}\n"
+                                if last_completed_rate and last_completed_rate >= completed_rate:
+                                    completed_rate = min(last_completed_rate + random.uniform(0.01, 0.05), 0.9999)
+                                new_text = f"\n> 🏃🏻‍♂️{completed_rate:.2%}..."
+                                last_completed_rate = completed_rate
                                 if last_role != role:
                                     new_text = f"\n```{new_text}"
                             else:
                                 image_download_url = await service.get_attachment_url(file_id, conversation_id)
-                                new_text = f"\n```\n![image]({image_download_url})\n"
+                                new_text = f"\n```\n> ✅100.00%\n![image]({image_download_url})\n"
                     else:
                         text = content.get("text", "")
                         if outer_content_type == "code" and last_content_type != "code":
@@ -291,7 +297,10 @@ async def stream_response(service, response, model, max_tokens):
                                 else:
                                     file_id = part.get('asset_pointer').replace('sediment://', '')
                                     image_download_url = await service.get_attachment_url(file_id, conversation_id)
-                                    delta = {"content": f"\n![image]({image_download_url})\n"}
+                                    if last_role != role:
+                                        delta = {"content": f"\n```\n> ✅100.00%\n\n![image]({image_download_url})\n"}
+                                    else:
+                                        delta = {"content": f"\n> ✅100.00%\n\n![image]({image_download_url})\n"}
                     elif message.get("end_turn"):
                         part = content.get("parts", [])[0]
                         new_text = part[len_last_content:]
@@ -458,6 +467,9 @@ async def api_messages_to_chat(service, api_messages, upload_by_url=False):
             "metadata": metadata
         }
         chat_messages.append(chat_message)
+    if "image" in service.origin_model or "image" in service.req_model:
+        chat_messages[-1]["metadata"]["system_hints"] = ["picture_v2"]
+
     text_tokens = await num_tokens_from_messages(api_messages, service.resp_model)
     prompt_tokens = text_tokens + file_tokens
     return chat_messages, prompt_tokens
