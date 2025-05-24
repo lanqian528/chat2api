@@ -1,4 +1,6 @@
 import asyncio
+import datetime
+import json
 import types
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -46,6 +48,17 @@ async def process(request_data, req_token):
     chat_service = await to_send_conversation(request_data, req_token)
     await chat_service.prepare_send_conversation()
     res = await chat_service.send_conversation()
+    
+    # 添加对话统计
+    today = datetime.now().strftime("%Y-%m-%d")
+    if today not in globals.conversation_stats:
+        globals.conversation_stats[today] = 0
+    globals.conversation_stats[today] += 1
+    
+    # 保存统计数据
+    with open(globals.CONVERSATION_STATS_FILE, "w", encoding="utf-8") as f:
+        json.dump(globals.conversation_stats, f, ensure_ascii=False, indent=2)
+    
     return chat_service, res
 
 
@@ -134,3 +147,65 @@ async def clear_seed_tokens():
         f.write("{}")
     logger.info(f"Seed token count: {len(globals.seed_map)}")
     return {"status": "success", "seed_tokens_count": len(globals.seed_map)}
+
+
+@app.get(f"/{api_prefix}/cishu" if api_prefix else "/cishu")
+async def cishu(start_date: str = None, end_date: str = None):
+    """
+    获取对话统计信息，支持日期范围过滤
+    :param start_date: 开始日期，格式：YYYY-MM-DD
+    :param end_date: 结束日期，格式：YYYY-MM-DD
+    :return: 过滤后的对话统计信息
+    """
+    try:
+        # 从全局变量读取统计数据，如果文件不存在则初始化
+        if not hasattr(globals, 'conversation_stats'):
+            globals.conversation_stats = {}
+            
+        # 如果统计文件存在，则读取文件
+        try:
+            with open(globals.CONVERSATION_STATS_FILE, "r", encoding="utf-8") as f:
+                globals.conversation_stats = json.load(f)
+        except FileNotFoundError:
+            # 如果文件不存在，创建空文件
+            with open(globals.CONVERSATION_STATS_FILE, "w", encoding="utf-8") as f:
+                json.dump({}, f, ensure_ascii=False, indent=2)
+        
+        # 日期过滤
+        filtered_stats = {}
+        for date_str, count in globals.conversation_stats.items():
+            try:
+                current_date = datetime.strptime(date_str, "%Y-%m-%d")
+                
+                # 检查是否在日期范围内
+                if start_date:
+                    start = datetime.strptime(start_date, "%Y-%m-%d")
+                    if current_date < start:
+                        continue
+                        
+                if end_date:
+                    end = datetime.strptime(end_date, "%Y-%m-%d")
+                    if current_date > end:
+                        continue
+                
+                filtered_stats[date_str] = count
+                
+            except ValueError as e:
+                logger.error(f"日期格式错误 {date_str}: {str(e)}")
+                continue
+        
+        # 计算总对话次数
+        total_conversations = sum(filtered_stats.values())
+        
+        return {
+            "status": "success",
+            "total": total_conversations,
+            "conversation_stats": filtered_stats
+        }
+        
+    except Exception as e:
+        logger.error(f"获取对话统计信息时出错: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail={"status": "error", "message": "获取对话统计信息时出错"}
+        )
