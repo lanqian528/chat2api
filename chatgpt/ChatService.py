@@ -156,6 +156,8 @@ class ChatService:
             self.req_model = "o1-pro"
         elif "o1-mini" in self.origin_model:
             self.req_model = "o1-mini"
+        elif "gpt-5" in self.origin_model:
+            self.req_model = "gpt-5"
         elif "o1" in self.origin_model:
             self.req_model = "o1"
         elif "gpt-4.5o" in self.origin_model:
