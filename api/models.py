@@ -13,9 +13,15 @@ model_proxy = {
     "o1": "o1-2024-12-18",
     "o3-mini": "o3-mini-2025-01-31",
     "o3-mini-high": "o3-mini-high-2025-01-31",
+    "o3": "o3-2025-04-16",
+    "o3-pro": "o3-pro-2025-06-10",
+    "gpt-5": "gpt-5-001",
+    "gpt-5.1": "gpt-5.1-001",
+    "gpt-5.2": "gpt-5.2-001",
     "claude-3-opus": "claude-3-opus-20240229",
     "claude-3-sonnet": "claude-3-sonnet-20240229",
     "claude-3-haiku": "claude-3-haiku-20240307",
+    "gpt-image-1.5": "gpt-image-1.5", 
 }
 
 model_system_fingerprint = {
