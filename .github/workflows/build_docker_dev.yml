@@ -9,9 +9,11 @@ on:
       - 'docker-compose.yml'
       - 'docker-compose-warp.yml'
       - 'docs/**'
-      - '.github/workflows/build_docker_main.yml'
-      - '.github/workflows/build_docker_dev.yml'
   workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   main:
@@ -19,52 +21,98 @@ jobs:
 
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Read the version from version.txt
         id: get_version
         run: |
           version=$(cat version.txt)
           echo "Current version: v$version-dev"
-          echo "::set-output name=version::v$version-dev"
+          echo "version=v$version-dev" >> "$GITHUB_OUTPUT"
 
       - name: Commit and push version tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version=${{ steps.get_version.outputs.version }}
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git tag "$version"
-          git push https://x-access-token:${GHCR_PAT}@github.com/lanqian528/chat2api.git "$version"
+          if git rev-parse "$version" >/dev/null 2>&1; then
+            echo "Tag $version already exists"
+          else
+            git tag "$version"
+            git push origin "$version"
+          fi
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker meta
-        id: meta
+      - name: Docker meta for GHCR
+        id: meta_ghcr
         uses: docker/metadata-action@v5
         with:
-          images: lanqian528/chat2api
+          images: ghcr.io/${{ github.repository_owner }}/chat2api
           tags: |
             type=raw,value=latest-dev
             type=raw,value=${{ steps.get_version.outputs.version }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v5
+      - name: Build and push GHCR image
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           file: Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta_ghcr.outputs.tags }}
+          labels: ${{ steps.meta_ghcr.outputs.labels }}
+
+      - name: Detect Docker Hub credentials
+        id: dockerhub_creds
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          if [ -n "$DOCKER_USERNAME" ] && [ -n "$DOCKER_PASSWORD" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "Docker Hub credentials not configured; skipping Docker Hub publish."
+          fi
+
+      - name: Log in to Docker Hub
+        if: ${{ steps.dockerhub_creds.outputs.present == 'true' }}
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Docker meta for Docker Hub
+        if: ${{ steps.dockerhub_creds.outputs.present == 'true' }}
+        id: meta_dockerhub
+        uses: docker/metadata-action@v5
+        with:
+          images: nanashiwang/chat2api
+          tags: |
+            type=raw,value=latest-dev
+            type=raw,value=${{ steps.get_version.outputs.version }}
+
+      - name: Build and push Docker Hub image
+        if: ${{ steps.dockerhub_creds.outputs.present == 'true' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.meta_dockerhub.outputs.tags }}
+          labels: ${{ steps.meta_dockerhub.outputs.labels }}

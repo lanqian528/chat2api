@@ -1,0 +1,2156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Chat2API Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --panel: rgba(255, 255, 255, 0.88);
+            --line: #e6edf7;
+            --ink: #0f172a;
+            --muted: #64748b;
+            --brand: #2563eb;
+            --ok: #16a34a;
+            --warn: #f97316;
+            --danger: #ef4444;
+        }
+        body {
+            background:
+                radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 34rem),
+                linear-gradient(135deg, #f8fbff 0%, #eef4fb 48%, #f8fafc 100%);
+            font-family: ui-rounded, "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        }
+        .glass-panel {
+            background: var(--panel);
+            border: 1px solid rgba(226, 232, 240, 0.88);
+            box-shadow: 0 18px 55px rgba(15, 23, 42, 0.07);
+            backdrop-filter: blur(18px);
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            width: 100%;
+            border-radius: 1rem;
+            padding: 0.78rem 0.9rem;
+            color: #526179;
+            transition: 160ms ease;
+        }
+        .nav-item:hover {
+            background: #f1f5f9;
+            color: var(--brand);
+        }
+        .nav-item-active {
+            background: linear-gradient(90deg, #eaf2ff, #f8fbff);
+            color: var(--brand);
+            box-shadow: inset 3px 0 0 var(--brand);
+            font-weight: 700;
+        }
+        .metric-card {
+            background: linear-gradient(145deg, #ffffff, #f8fbff);
+            border: 1px solid var(--line);
+            border-radius: 1.25rem;
+            box-shadow: 0 12px 36px rgba(15, 23, 42, 0.06);
+        }
+        .admin-table th {
+            color: #64748b;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .admin-table tbody tr {
+            transition: 140ms ease;
+        }
+        .admin-table tbody tr:hover {
+            background: #f8fbff;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 999px;
+        }
+        @media (max-width: 1023px) {
+            .admin-shell {
+                display: block;
+            }
+            .sidebar {
+                position: sticky;
+                top: 0;
+                z-index: 40;
+                width: 100%;
+                min-height: 0;
+                border-right: 0;
+                border-bottom: 1px solid var(--line);
+            }
+            .side-nav {
+                display: grid;
+                grid-auto-flow: column;
+                grid-auto-columns: max-content;
+                overflow-x: auto;
+                padding-bottom: 0.25rem;
+            }
+            .nav-item {
+                white-space: nowrap;
+            }
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const apiPrefix = "{{ api_prefix }}";
+            const basePath = apiPrefix === "None" ? "" : `/${apiPrefix}`;
+            const dataApi = `${basePath}/admin/routing/data`;
+            const saveApi = `${basePath}/admin/routing/save`;
+            const logoutApi = `${basePath}/admin/logout`;
+            const bindApi = `${basePath}/admin/routing/account-bind`;
+            const importAccountsApi = `${basePath}/admin/routing/accounts/import`;
+            const deleteAccountApi = `${basePath}/admin/routing/accounts/delete`;
+            const refreshAccountApi = `${basePath}/admin/routing/accounts/refresh`;
+            const refreshAllAccountsApi = `${basePath}/admin/routing/accounts/refresh-all`;
+            const testProxyApi = `${basePath}/admin/routing/test-proxy`;
+            const parseFileApi = `${basePath}/admin/routing/accounts/parse-file`;
+            const logsTailApi = `${basePath}/admin/logs/tail`;
+            const logsDownloadApi = `${basePath}/admin/logs/download`;
+            const harvAccountsApi = `${basePath}/admin/harvester/accounts`;
+            const harvDeleteApi = `${basePath}/admin/harvester/accounts/delete`;
+            const harvBulkApi = `${basePath}/admin/harvester/accounts/bulk-import`;
+            const harvAuthStartApi = `${basePath}/admin/harvester/authorize/start`;
+            const harvAuthExchangeApi = `${basePath}/admin/harvester/authorize/exchange`;
+            const harvImportCookieApi = `${basePath}/admin/harvester/import-cookie`;
+
+            const summaryGrid = document.getElementById('summaryGrid');
+            const ipGrid = document.getElementById('ipGrid');
+            const accountsTable = document.getElementById('accountsTable');
+            const rulesTable = document.getElementById('rulesTable');
+            const alertsList = document.getElementById('alertsList');
+            const updatedAt = document.getElementById('updatedAt');
+            const serverClock = document.getElementById('serverClock');
+            const globalSearchInput = document.getElementById('globalSearchInput');
+            const topRefreshButton = document.getElementById('topRefreshButton');
+            const accountDetailPanel = document.getElementById('accountDetailPanel');
+            const accountDetailBody = document.getElementById('accountDetailBody');
+            const accountDetailEmpty = document.getElementById('accountDetailEmpty');
+            const accountDetailClose = document.getElementById('accountDetailClose');
+            const accountTableCount = document.getElementById('accountTableCount');
+            const proxyInput = document.getElementById('proxyInput');
+            const groupSizeInput = document.getElementById('groupSizeInput');
+            const saveButton = document.getElementById('saveButton');
+            const logoutButton = document.getElementById('logoutButton');
+            const importAccountsButton = document.getElementById('importAccountsButton');
+            const importModal = document.getElementById('importAccountsModal');
+            const importModalClose = document.getElementById('importModalClose');
+            const importSubmitButton = document.getElementById('importSubmitButton');
+            const importModalTitle = document.getElementById('importModalTitle');
+            const importModalDesc = document.getElementById('importModalDesc');
+            const importTextarea = document.getElementById('importAccountsTextarea');
+            const accountNoteInput = document.getElementById('accountNoteInput');
+            const accountGroupInput = document.getElementById('accountGroupInput');
+            const accountProxySelect = document.getElementById('accountProxySelect');
+            const refreshAllButton = document.getElementById('refreshAllButton');
+            const statusText = document.getElementById('statusText');
+            const testProxyButton = document.getElementById('testProxyButton');
+            const proxyTestResult = document.getElementById('proxyTestResult');
+            const apiTestCommand = document.getElementById('apiTestCommand');
+            const modelsTestCommand = document.getElementById('modelsTestCommand');
+            const copyModelsButton = document.getElementById('copyModelsButton');
+            const copyChatButton = document.getElementById('copyChatButton');
+            // 文件导入 UI
+            const importTabText = document.getElementById('importTabText');
+            const importTabFile = document.getElementById('importTabFile');
+            const importTextSection = document.getElementById('importTextSection');
+            const importFileSection = document.getElementById('importFileSection');
+            const importFileInput = document.getElementById('importFileInput');
+            const importFileDropzone = document.getElementById('importFileDropzone');
+            const importFileName = document.getElementById('importFileName');
+            const importFilePreview = document.getElementById('importFilePreview');
+            const importPreviewSource = document.getElementById('importPreviewSource');
+            const statsRefresh = document.getElementById('statsRefresh');
+            const statsAccess = document.getElementById('statsAccess');
+            const statsUnknown = document.getElementById('statsUnknown');
+            const previewPickRefresh = document.getElementById('previewPickRefresh');
+            const previewPickAccess = document.getElementById('previewPickAccess');
+            const previewPickUnknown = document.getElementById('previewPickUnknown');
+            const previewTokenList = document.getElementById('previewTokenList');
+            const previewWarnings = document.getElementById('previewWarnings');
+            // 系统日志 UI
+            const logsLevelSelect = document.getElementById('logsLevelSelect');
+            const logsKeywordInput = document.getElementById('logsKeywordInput');
+            const logsAutoScroll = document.getElementById('logsAutoScroll');
+            const logsAutoRefresh = document.getElementById('logsAutoRefresh');
+            const logsRefreshButton = document.getElementById('logsRefreshButton');
+            const logsClearButton = document.getElementById('logsClearButton');
+            const logsDownloadFilteredButton = document.getElementById('logsDownloadFilteredButton');
+            const logsDownloadAllButton = document.getElementById('logsDownloadAllButton');
+            const logsViewer = document.getElementById('logsViewer');
+            const logsStatus = document.getElementById('logsStatus');
+            const logsCapacityHint = document.getElementById('logsCapacityHint');
+            // Harvester UI
+            const harvAccountsTable = document.getElementById('harvAccountsTable');
+            const harvStats = document.getElementById('harvStats');
+            const harvStatusText = document.getElementById('harvStatusText');
+            const harvRefreshButton = document.getElementById('harvRefreshButton');
+            const harvAddButton = document.getElementById('harvAddButton');
+            const harvBulkImportButton = document.getElementById('harvBulkImportButton');
+            const harvEditModal = document.getElementById('harvEditModal');
+            const harvEditTitle = document.getElementById('harvEditTitle');
+            const harvEditClose = document.getElementById('harvEditClose');
+            const harvEditSubmit = document.getElementById('harvEditSubmit');
+            const harvEmailInput = document.getElementById('harvEmailInput');
+            const harvNoteInput = document.getElementById('harvNoteInput');
+            const harvProxyInput = document.getElementById('harvProxyInput');
+            const harvBulkModal = document.getElementById('harvBulkModal');
+            const harvBulkClose = document.getElementById('harvBulkClose');
+            const harvBulkSubmit = document.getElementById('harvBulkSubmit');
+            const harvBulkFile = document.getElementById('harvBulkFile');
+            const harvBulkJson = document.getElementById('harvBulkJson');
+            // Harvester 浏览器登录
+            const harvAuthModal = document.getElementById('harvAuthModal');
+            const harvAuthTitle = document.getElementById('harvAuthTitle');
+            const harvAuthClose = document.getElementById('harvAuthClose');
+            const harvAuthCancel = document.getElementById('harvAuthCancel');
+            const harvAuthUrlInput = document.getElementById('harvAuthUrlInput');
+            const harvAuthCopyUrlButton = document.getElementById('harvAuthCopyUrlButton');
+            const harvAuthCallbackInput = document.getElementById('harvAuthCallbackInput');
+            const harvAuthSubmitButton = document.getElementById('harvAuthSubmitButton');
+            const harvAuthSessionInfo = document.getElementById('harvAuthSessionInfo');
+            const harvAuthErrorBox = document.getElementById('harvAuthErrorBox');
+            // Cookie 导入弹窗（主流程）
+            const harvCookieModal = document.getElementById('harvCookieModal');
+            const harvCookieTitle = document.getElementById('harvCookieTitle');
+            const harvCookieClose = document.getElementById('harvCookieClose');
+            const harvCookieCancel = document.getElementById('harvCookieCancel');
+            const harvCookieInput = document.getElementById('harvCookieInput');
+            const harvCookieInfo = document.getElementById('harvCookieInfo');
+            const harvCookieErrorBox = document.getElementById('harvCookieErrorBox');
+            const harvCookieSubmit = document.getElementById('harvCookieSubmit');
+            let proxyOptions = [];
+            let accountsCache = [];
+            let selectedAccountToken = '';
+            let accountSearchQuery = '';
+            let editingToken = '';
+            let importMode = 'text';           // 'text' | 'file'
+            let parsedFileResult = null;       // 文件解析结果缓存
+            const pageLinks = Array.from(document.querySelectorAll('[data-page-target]'));
+            const adminPages = Array.from(document.querySelectorAll('[data-admin-page]'));
+            const routingSubLinks = Array.from(document.querySelectorAll('[data-routing-tab-target]'));
+            const routingPanels = Array.from(document.querySelectorAll('[data-routing-panel]'));
+
+            function parseProxyLines(raw) {
+                return raw
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(Boolean)
+                    .map((line, index) => {
+                        const parts = line.split('|');
+                        if (parts.length >= 2) {
+                            return { name: parts[0].trim(), proxy_url: parts.slice(1).join('|').trim() };
+                        }
+                        return { name: `IP-${index + 1}`, proxy_url: line };
+                    })
+                    .filter(item => item.proxy_url);
+            }
+
+            function renderSummary(summary, accounts = accountsCache) {
+                summary = summary || {};
+                const total = Number(summary.accounts_total || 0);
+                const bound = Number(summary.bound_total || 0);
+                const refreshTotal = accounts.filter((item) => item.token_type === 'RefreshToken').length;
+                const refreshReady = accounts.filter((item) =>
+                    item.token_type === 'RefreshToken' && item.refresh_status === '已刷新'
+                ).length;
+                const cards = [
+                    ['账号总数', total, '较昨日 0', '▣', 'bg-blue-50 text-blue-600'],
+                    ['可用账号', Number(summary.accounts_ok || 0), '健康运行', '✓', 'bg-emerald-50 text-emerald-600'],
+                    ['异常账号', Number(summary.accounts_bad || 0), summary.accounts_bad ? '需要处理' : '无异常', '!', 'bg-orange-50 text-orange-600'],
+                    ['代理数', Number(summary.proxy_total || 0), '出口配置', '↗', 'bg-indigo-50 text-indigo-600'],
+                    ['已绑定', bound, `覆盖 ${total ? Math.round((bound / total) * 100) : 0}%`, '∞', 'bg-cyan-50 text-cyan-600'],
+                    ['RefreshToken', `${refreshReady}/${refreshTotal}`, refreshTotal ? '已刷新 / 总数' : '暂无 RT', '⟳', 'bg-slate-100 text-slate-600'],
+                ];
+                summaryGrid.innerHTML = cards.map(([label, value, hint, icon, tone]) => `
+                    <div class="metric-card p-4 min-h-28">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="text-sm font-medium text-slate-500">${label}</div>
+                                <div class="mt-2 text-2xl font-black tracking-tight text-slate-950">${value}</div>
+                                <div class="mt-2 text-xs text-slate-500">${hint}</div>
+                            </div>
+                            <div class="grid h-11 w-11 place-items-center rounded-2xl ${tone} text-lg font-bold">${icon}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            function renderIpCards(cards) {
+                if (!cards.length) {
+                    ipGrid.innerHTML = `<div class="rounded-3xl border border-dashed border-slate-300 bg-white/70 p-8 text-center text-sm text-slate-500">暂无代理，前往“代理与路由”配置当前实例出口。</div>`;
+                    return;
+                }
+                ipGrid.innerHTML = cards.map((ip) => `
+                    <div class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div class="mb-3 flex items-center justify-between gap-3">
+                            <div class="font-semibold text-slate-950">${escapeHtml(ip.name)}</div>
+                            <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ${ip.bad ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}">
+                                <span class="status-dot ${ip.bad ? 'bg-amber-500' : 'bg-emerald-500'}"></span>${ip.bad ? '需关注' : '在线'}
+                            </span>
+                        </div>
+                        <div class="break-all rounded-2xl bg-slate-50 p-3 font-mono text-xs text-slate-500">${escapeHtml(ip.proxy_url)}</div>
+                        <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                            <div class="rounded-2xl bg-slate-50 p-3">绑定账号<br><span class="text-xl font-bold text-slate-950">${ip.accounts}</span></div>
+                            <div class="rounded-2xl bg-slate-50 p-3">所属分组<br><span class="text-xl font-bold text-slate-950">${escapeHtml(ip.group)}</span></div>
+                            <div class="rounded-2xl bg-emerald-50 p-3 text-emerald-700">正常账号<br><span class="text-xl font-bold">${ip.ok}</span></div>
+                            <div class="rounded-2xl bg-orange-50 p-3 text-orange-700">异常账号<br><span class="text-xl font-bold">${ip.bad}</span></div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            function maskTokenDisplay(token) {
+                const value = String(token || '');
+                if (value.length <= 18) return value || '-';
+                return `${value.slice(0, 8)}...${value.slice(-6)}`;
+            }
+
+            function accountInitial(row) {
+                const source = (row.note || row.id || row.token || 'A').trim();
+                return source.slice(0, 1).toUpperCase();
+            }
+
+            function tokenTypeChip(type) {
+                const cls = type === 'RefreshToken'
+                    ? 'bg-blue-50 text-blue-700 border-blue-100'
+                    : type === 'AccessToken'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                        : 'bg-slate-50 text-slate-600 border-slate-200';
+                return `<span class="inline-flex items-center rounded-lg border px-2 py-1 text-xs font-semibold ${cls}">${escapeHtml(type || '-')}</span>`;
+            }
+
+            function statusChip(status) {
+                const ok = status === '正常';
+                return `
+                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${ok ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'}">
+                        <span class="status-dot ${ok ? 'bg-emerald-500' : 'bg-orange-500'}"></span>${ok ? 'Healthy' : 'Degraded'}
+                    </span>
+                `;
+            }
+
+            function getFilteredAccounts() {
+                const q = accountSearchQuery.trim().toLowerCase();
+                if (!q) return accountsCache;
+                return accountsCache.filter((row) => [
+                    row.id,
+                    row.token,
+                    row.token_masked,
+                    row.note,
+                    row.proxy_name,
+                    row.proxy_url,
+                    row.status,
+                    row.token_type,
+                    row.group,
+                    row.refresh_status,
+                ].some((value) => String(value || '').toLowerCase().includes(q)));
+            }
+
+            function renderAccounts(accounts) {
+                accountsCache = accounts;
+                if (selectedAccountToken && !accountsCache.some((row) => row.token === selectedAccountToken)) {
+                    selectedAccountToken = '';
+                }
+                if (!selectedAccountToken && accountsCache.length) {
+                    selectedAccountToken = accountsCache[0].token;
+                }
+                renderAccountsTable(getFilteredAccounts());
+                renderAccountDetail(accountsCache.find((row) => row.token === selectedAccountToken));
+            }
+
+            function renderAccountsTable(accounts) {
+                if (accountTableCount) {
+                    accountTableCount.textContent = `${accounts.length} / ${accountsCache.length} 个账号`;
+                }
+                if (!accounts.length) {
+                    accountsTable.innerHTML = `<tr><td colspan="6" class="py-14 text-center text-slate-400">暂无匹配账号，清空搜索或新增账号。</td></tr>`;
+                    return;
+                }
+                accountsTable.innerHTML = accounts.map((row) => {
+                    const selected = row.token === selectedAccountToken;
+                    return `
+                        <tr class="account-row cursor-pointer border-b border-slate-100 ${selected ? 'bg-blue-50/70' : 'bg-white'}" data-token="${escapeHtml(row.token)}">
+                            <td class="py-4 pl-4 pr-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 text-sm font-black text-white shadow-sm">${escapeHtml(accountInitial(row))}</div>
+                                    <div class="min-w-0">
+                                        <div class="truncate font-semibold text-slate-950">${escapeHtml(row.note || row.id)}</div>
+                                        <div class="mt-1 font-mono text-xs text-slate-400">${escapeHtml(maskTokenDisplay(row.token_masked || row.token))}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-3 py-4">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    ${tokenTypeChip(row.token_type)}
+                                    <span class="rounded-lg bg-slate-50 px-2 py-1 text-xs text-slate-500">${escapeHtml(row.group || '-')}</span>
+                                </div>
+                            </td>
+                            <td class="px-3 py-4">
+                                <select class="account-proxy-select max-w-56 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm" data-token="${escapeHtml(row.token)}">
+                                    <option value="" ${!row.proxy_url ? 'selected' : ''}>未绑定</option>
+                                    ${proxyOptions.map((proxy) => `
+                                        <option value="${escapeHtml(proxy.proxy_url)}" ${proxy.proxy_url === row.proxy_url ? 'selected' : ''}>${escapeHtml(proxy.name)}</option>
+                                    `).join('')}
+                                </select>
+                                <div class="mt-1 max-w-56 truncate text-xs text-slate-400">${escapeHtml(row.proxy_name || '-')}</div>
+                            </td>
+                            <td class="px-3 py-4">${statusChip(row.status)}</td>
+                            <td class="px-3 py-4">
+                                <div class="text-sm font-medium text-slate-700">${escapeHtml(row.refresh_status || '-')}</div>
+                                <div class="mt-1 text-xs text-slate-400">${escapeHtml(row.refresh_updated_at || row.updated_at || '-')}</div>
+                            </td>
+                            <td class="py-4 pl-3 pr-4">
+                                <div class="flex flex-wrap justify-end gap-2">
+                                    <button class="bind-account-button rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white shadow-sm" data-token="${escapeHtml(row.token)}">保存</button>
+                                    <button class="edit-account-button rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700" data-token="${escapeHtml(row.token)}">编辑</button>
+                                    ${row.can_refresh ? `<button class="refresh-account-button rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700" data-token="${escapeHtml(row.token)}">刷新</button>` : ''}
+                                    <button class="delete-account-button rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600" data-token="${escapeHtml(row.token)}">删除</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            function renderAccountDetail(account) {
+                if (!accountDetailPanel || !accountDetailBody || !accountDetailEmpty) return;
+                if (!account) {
+                    accountDetailEmpty.classList.remove('hidden');
+                    accountDetailBody.classList.add('hidden');
+                    accountDetailBody.innerHTML = '';
+                    return;
+                }
+                accountDetailEmpty.classList.add('hidden');
+                accountDetailBody.classList.remove('hidden');
+                const errorBlock = account.refresh_error
+                    ? `<div class="rounded-2xl border border-red-100 bg-red-50 p-3 text-xs text-red-700">${escapeHtml(account.refresh_error)}</div>`
+                    : `<div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-xs text-emerald-700">最近 1 小时暂无错误记录</div>`;
+                accountDetailBody.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-blue-500 text-lg font-black text-white">${escapeHtml(accountInitial(account))}</div>
+                        <div class="min-w-0">
+                            <div class="truncate text-base font-black text-slate-950">${escapeHtml(account.note || account.id)}</div>
+                            <div class="mt-1 font-mono text-xs text-slate-400">${escapeHtml(maskTokenDisplay(account.token_masked || account.token))}</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 flex flex-wrap gap-2">
+                        ${statusChip(account.status)}
+                        ${tokenTypeChip(account.token_type)}
+                    </div>
+
+                    <div class="mt-5 space-y-3 text-sm">
+                        <div class="rounded-2xl bg-slate-50 p-3">
+                            <div class="text-xs font-semibold text-slate-400">代理</div>
+                            <div class="mt-1 font-medium text-slate-800">${escapeHtml(account.proxy_name || '-')}</div>
+                            <div class="mt-1 break-all font-mono text-xs text-slate-400">${escapeHtml(account.proxy_url || '未绑定')}</div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="rounded-2xl bg-slate-50 p-3">
+                                <div class="text-xs font-semibold text-slate-400">刷新状态</div>
+                                <div class="mt-1 font-bold text-slate-800">${escapeHtml(account.refresh_status || '-')}</div>
+                            </div>
+                            <div class="rounded-2xl bg-slate-50 p-3">
+                                <div class="text-xs font-semibold text-slate-400">最近刷新</div>
+                                <div class="mt-1 font-bold text-slate-800">${escapeHtml(account.refresh_updated_at || '-')}</div>
+                            </div>
+                        </div>
+                        <div class="rounded-2xl bg-slate-50 p-3">
+                            <div class="text-xs font-semibold text-slate-400">完整 Token</div>
+                            <div class="mt-1 break-all font-mono text-xs text-slate-500 select-all">${escapeHtml(account.token)}</div>
+                        </div>
+                        ${errorBlock}
+                    </div>
+
+                    <div class="mt-5 grid grid-cols-2 gap-2">
+                        <button class="edit-account-button rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700" data-token="${escapeHtml(account.token)}">编辑</button>
+                        ${account.can_refresh ? `<button class="refresh-account-button rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white" data-token="${escapeHtml(account.token)}">立即刷新</button>` : '<span></span>'}
+                        <button class="delete-account-button col-span-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600" data-token="${escapeHtml(account.token)}">删除账号</button>
+                    </div>
+                `;
+            }
+
+            function selectAccount(token) {
+                selectedAccountToken = token || '';
+                renderAccountsTable(getFilteredAccounts());
+                renderAccountDetail(accountsCache.find((row) => row.token === selectedAccountToken));
+            }
+
+            function renderRules(rules) {
+                rulesTable.innerHTML = rules.map((rule) => `
+                    <tr class="border-b border-slate-100">
+                        <td class="py-4 font-medium">${rule.name}</td>
+                        <td class="py-4">${rule.proxy_name}</td>
+                        <td class="py-4">${rule.size}</td>
+                        <td class="py-4">固定绑定</td>
+                        <td class="py-4">${rule.status === 'enabled' ? '启用' : '停用'}</td>
+                    </tr>
+                `).join('');
+            }
+
+            function renderAlerts(alerts) {
+                alertsList.innerHTML = alerts.map((item) => {
+                    const ok = String(item).includes('未发现异常');
+                    return `
+                    <div class="rounded-2xl border ${ok ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-orange-100 bg-orange-50 text-orange-700'} p-4 text-sm">
+                        ${escapeHtml(item)}
+                    </div>
+                `;
+                }).join('');
+            }
+
+            function buildTestCommands(payload) {
+                const origin = window.location.origin;
+                // 安全：不再把 admin 凭证写入前端。样例里使用占位符，由使用者手工替换为 AUTHORIZATION
+                const authToken = '<YOUR_AUTHORIZATION>';
+                const model = (payload && payload.accounts && payload.accounts.length) ? 'gpt-5' : 'gpt-5';
+                modelsTestCommand.textContent = `curl --location '${origin}${basePath}/v1/models' \\\n  --header 'Authorization: Bearer ${authToken}'`;
+                apiTestCommand.textContent = `curl --location '${origin}${basePath}/v1/chat/completions' \\\n  --header 'Content-Type: application/json' \\\n  --header 'Authorization: Bearer ${authToken}' \\\n  --data '{\n  "model": "${model}",\n  "messages": [\n    {"role": "user", "content": "你好，请回复 test ok"}\n  ],\n  "stream": false\n}'`;
+            }
+
+            function getFirstConfiguredProxy() {
+                const proxies = parseProxyLines(proxyInput.value);
+                return proxies.length ? proxies[0].proxy_url : '';
+            }
+
+            async function copyText(content, button = null) {
+                try {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        await navigator.clipboard.writeText(content);
+                    } else {
+                        const textarea = document.createElement('textarea');
+                        textarea.value = content;
+                        textarea.setAttribute('readonly', '');
+                        textarea.style.position = 'fixed';
+                        textarea.style.top = '0';
+                        textarea.style.left = '0';
+                        textarea.style.opacity = '0';
+                        document.body.appendChild(textarea);
+                        textarea.focus();
+                        textarea.select();
+                        const copied = document.execCommand('copy');
+                        document.body.removeChild(textarea);
+                        if (!copied) {
+                            throw new Error('浏览器不支持自动复制');
+                        }
+                    }
+                    if (button) {
+                        const originalText = button.dataset.originalText || button.textContent;
+                        button.dataset.originalText = originalText;
+                        button.textContent = '已复制';
+                        button.classList.add('bg-emerald-600', 'text-white', 'border-emerald-600');
+                        button.classList.remove('bg-white', 'text-slate-700');
+                        window.setTimeout(() => {
+                            button.textContent = originalText;
+                            button.classList.remove('bg-emerald-600', 'text-white', 'border-emerald-600');
+                            button.classList.add('bg-white', 'text-slate-700');
+                        }, 1600);
+                    }
+                    const copyToast = document.getElementById('copyToast');
+                    if (copyToast) {
+                        copyToast.textContent = '测试命令已复制到剪贴板';
+                        copyToast.classList.remove('hidden');
+                        window.clearTimeout(copyToast._timer);
+                        copyToast._timer = window.setTimeout(() => {
+                            copyToast.classList.add('hidden');
+                        }, 1800);
+                    }
+                } catch (error) {
+                    const fallback = window.prompt('自动复制失败，请手动复制下面内容：', content);
+                    const copyToast = document.getElementById('copyToast');
+                    if (copyToast) {
+                        copyToast.textContent = fallback === null ? `复制失败: ${error.message}` : '已弹出手动复制窗口';
+                        copyToast.classList.remove('hidden');
+                        window.clearTimeout(copyToast._timer);
+                        copyToast._timer = window.setTimeout(() => {
+                            copyToast.classList.add('hidden');
+                        }, 2400);
+                    }
+                }
+            }
+
+            function fillProxyInput(config) {
+                const proxies = config.proxies || [];
+                if (!proxies.length) return;
+                proxyInput.value = proxies.map(proxy => `${proxy.name} | ${proxy.proxy_url}`).join('\n');
+            }
+
+            function fillAccountProxySelect() {
+                accountProxySelect.innerHTML = `<option value="">不绑定固定代理</option>` + proxyOptions.map((proxy) => `
+                    <option value="${proxy.proxy_url}">${proxy.name} | ${proxy.proxy_url}</option>
+                `).join('');
+            }
+
+            function openAccountModal(mode, account = null) {
+                editingToken = account ? account.token : '';
+                importModalTitle.textContent = mode === 'edit' ? '编辑账号' : '新增账号';
+                importModalDesc.textContent = mode === 'edit'
+                    ? '可直接修改备注、分组和固定代理；保存后立即生效。'
+                    : '支持单个新增、多行粘贴，也可直接上传 .txt / .json 文件自动解析。';
+                importTextarea.value = account ? account.token : '';
+                importTextarea.readOnly = mode === 'edit';
+                accountNoteInput.value = account ? (account.note || '') : '';
+                accountGroupInput.value = account ? (account.group && account.group !== '-' ? account.group : '') : '';
+                accountProxySelect.value = account ? (account.proxy_url || '') : '';
+
+                // 编辑模式锁定为文本 tab（不可上传覆盖 token）
+                setImportMode('text');
+                if (mode === 'edit') {
+                    importTabFile.disabled = true;
+                    importTabFile.classList.add('opacity-40', 'cursor-not-allowed');
+                } else {
+                    importTabFile.disabled = false;
+                    importTabFile.classList.remove('opacity-40', 'cursor-not-allowed');
+                }
+
+                importModal.classList.remove('hidden');
+                importModal.classList.add('flex');
+            }
+
+            function closeAccountModal() {
+                editingToken = '';
+                importTextarea.value = '';
+                importTextarea.readOnly = false;
+                accountNoteInput.value = '';
+                accountGroupInput.value = '';
+                accountProxySelect.value = '';
+                resetFilePreview();
+                setImportMode('text');
+                importModal.classList.add('hidden');
+                importModal.classList.remove('flex');
+            }
+
+            function setImportMode(mode) {
+                importMode = mode;
+                if (mode === 'file') {
+                    importTabText.classList.replace('border-slate-900', 'border-transparent');
+                    importTabText.classList.add('text-slate-500');
+                    importTabFile.classList.replace('border-transparent', 'border-slate-900');
+                    importTabFile.classList.remove('text-slate-500');
+                    importTextSection.classList.add('hidden');
+                    importFileSection.classList.remove('hidden');
+                } else {
+                    importTabFile.classList.replace('border-slate-900', 'border-transparent');
+                    importTabFile.classList.add('text-slate-500');
+                    importTabText.classList.replace('border-transparent', 'border-slate-900');
+                    importTabText.classList.remove('text-slate-500');
+                    importFileSection.classList.add('hidden');
+                    importTextSection.classList.remove('hidden');
+                }
+            }
+
+            function resetFilePreview() {
+                parsedFileResult = null;
+                importFileInput.value = '';
+                importFileName.textContent = '';
+                importFilePreview.classList.add('hidden');
+                previewTokenList.innerHTML = '';
+                previewWarnings.classList.add('hidden');
+                previewWarnings.textContent = '';
+                previewPickRefresh.checked = true;
+                previewPickAccess.checked = false;
+                previewPickUnknown.checked = false;
+            }
+
+            function renderFilePreview(data) {
+                parsedFileResult = data;
+                // 打印到控制台便于排查：F12 → Console 可见实际解析结果
+                console.log('[parse-file]', data.filename, 'stats:', data.stats,
+                    'warnings:', data.warnings || []);
+
+                importPreviewSource.textContent = `${data.filename || ''} · source=${data.stats.source}`;
+                statsRefresh.textContent = data.stats.refresh_count;
+                statsAccess.textContent = data.stats.access_count;
+                statsUnknown.textContent = data.stats.unknown_count;
+
+                // 根据每类数量决定勾选与禁用：空类目必须 disabled，避免用户误以为勾了就有效
+                applyCheckboxState(previewPickRefresh, data.stats.refresh_count, true);
+                applyCheckboxState(previewPickAccess,  data.stats.access_count,  false);
+                applyCheckboxState(previewPickUnknown, data.stats.unknown_count, false);
+
+                const sections = [
+                    ['RefreshToken', data.masked.refresh_tokens, 'emerald'],
+                    ['AccessToken',  data.masked.access_tokens,  'amber'],
+                    ['Unknown',      data.masked.unknown,        'slate'],
+                ];
+                previewTokenList.innerHTML = sections.map(([label, list, color]) => {
+                    if (!list.length) return '';
+                    const items = list.map(t => `<li class="truncate">${escapeHtml(t)}</li>`).join('');
+                    return `<div><div class="text-${color}-700 font-semibold mb-1">${label} (${list.length})</div><ul class="list-disc ml-5 space-y-0.5">${items}</ul></div>`;
+                }).join('');
+
+                const warns = Array.isArray(data.warnings) ? data.warnings : [];
+                const stats = data.stats || {};
+                const totalFound = (stats.refresh_count || 0) + (stats.access_count || 0) + (stats.unknown_count || 0);
+                if (totalFound === 0) {
+                    // 三类全为 0：最明显的警告
+                    previewWarnings.textContent = '文件中未识别到任何 token。请检查：(1) 纯文本请一行一个 token；(2) JSON 字段名建议为 refresh_token / access_token；(3) RefreshToken 长度必须恰好 45 字符。';
+                    previewWarnings.classList.remove('hidden');
+                } else if (warns.length) {
+                    previewWarnings.textContent = warns.join(' · ');
+                    previewWarnings.classList.remove('hidden');
+                } else {
+                    previewWarnings.classList.add('hidden');
+                }
+                importFilePreview.classList.remove('hidden');
+            }
+
+            function applyCheckboxState(checkbox, count, defaultChecked) {
+                const label = checkbox.closest('label');
+                if (count > 0) {
+                    checkbox.disabled = false;
+                    checkbox.checked = defaultChecked;
+                    if (label) label.classList.remove('opacity-40', 'cursor-not-allowed');
+                } else {
+                    checkbox.disabled = true;
+                    checkbox.checked = false;
+                    if (label) label.classList.add('opacity-40', 'cursor-not-allowed');
+                }
+            }
+
+            function escapeHtml(s) {
+                return String(s).replace(/[&<>"']/g, c => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+                })[c]);
+            }
+
+            async function handleFileUpload(file) {
+                if (!file) return;
+                const ext = (file.name.split('.').pop() || '').toLowerCase();
+                if (!['txt', 'json'].includes(ext)) {
+                    alert('仅支持 .txt / .json 文件');
+                    return;
+                }
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('文件过大，最大 2 MB');
+                    return;
+                }
+                importFileName.textContent = `已选择：${file.name}（${(file.size / 1024).toFixed(1)} KB）`;
+                const formData = new FormData();
+                formData.append('file', file);
+                try {
+                    const resp = await fetch(parseFileApi, { method: 'POST', body: formData });
+                    const data = await resp.json();
+                    if (!resp.ok) {
+                        alert(data.detail || '文件解析失败');
+                        return;
+                    }
+                    renderFilePreview(data);
+                } catch (e) {
+                    alert('网络错误：' + e.message);
+                }
+            }
+
+            async function loadDashboard() {
+                const response = await fetch(dataApi);
+                const payload = await response.json();
+                proxyOptions = payload.proxy_options || [];
+                const accounts = payload.accounts || [];
+                renderSummary(payload.summary, accounts);
+                renderIpCards(payload.ip_cards || []);
+                renderAccounts(accounts);
+                renderRules(payload.rules || []);
+                renderAlerts(payload.alerts || []);
+                fillProxyInput(payload.routing_config || {});
+                fillAccountProxySelect();
+                buildTestCommands(payload);
+                updatedAt.textContent = payload.updated_at || '尚未发布';
+            }
+
+            function updateServerClock() {
+                if (!serverClock) return;
+                serverClock.textContent = new Date().toLocaleString('zh-CN', { hour12: false });
+            }
+
+            updateServerClock();
+            window.setInterval(updateServerClock, 1000);
+
+            if (globalSearchInput) {
+                globalSearchInput.addEventListener('input', () => {
+                    accountSearchQuery = globalSearchInput.value || '';
+                    renderAccountsTable(getFilteredAccounts());
+                    if (accountSearchQuery.trim()) {
+                        activatePage('accounts-page');
+                    }
+                });
+            }
+
+            if (topRefreshButton) {
+                topRefreshButton.addEventListener('click', async () => {
+                    topRefreshButton.disabled = true;
+                    setStatus('正在刷新数据...');
+                    try {
+                        await loadDashboard();
+                        setStatus('数据已刷新');
+                    } catch (error) {
+                        setStatus(`刷新失败: ${error.message}`);
+                    } finally {
+                        topRefreshButton.disabled = false;
+                    }
+                });
+            }
+
+            saveButton.addEventListener('click', async () => {
+                const proxies = parseProxyLines(proxyInput.value);
+                if (!proxies.length) {
+                    alert('请先填写当前账号要使用的代理');
+                    return;
+                }
+                const multipleProxyHint = proxies.length > 1 ? '检测到多条代理，已使用第一条绑定当前账号。' : '';
+                statusText.textContent = '保存中...';
+                const response = await fetch(saveApi, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        proxies,
+                        group_size: parseInt(groupSizeInput.value || '25', 10),
+                    }),
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    statusText.textContent = result.detail || '保存失败';
+                    return;
+                }
+                statusText.textContent = multipleProxyHint || '当前代理已保存并发布';
+                await loadDashboard();
+            });
+
+            function setStatus(message) {
+                if (statusText) {
+                    statusText.textContent = message || '就绪';
+                }
+            }
+
+            function findAccountProxySelect(token) {
+                return Array.from(accountsTable.querySelectorAll('.account-proxy-select'))
+                    .find((select) => select.dataset.token === token);
+            }
+
+            async function bindAccountToken(token) {
+                const select = findAccountProxySelect(token);
+                if (!select) {
+                    setStatus('未找到当前行的代理选择器');
+                    return;
+                }
+                const proxyUrl = select.value;
+                if (!proxyUrl) {
+                    setStatus('如需解除绑定或修改备注，请点“编辑”后保存');
+                    return;
+                }
+                const proxy = proxyOptions.find((item) => item.proxy_url === proxyUrl);
+                const response = await fetch(bindApi, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token,
+                        proxy_url: proxyUrl,
+                        proxy_name: proxy ? proxy.name : 'Custom Proxy',
+                    }),
+                });
+                const result = await response.json();
+                setStatus(response.ok ? '账号绑定已更新' : (result.detail || '更新失败'));
+                if (response.ok) {
+                    selectedAccountToken = token;
+                    await loadDashboard();
+                }
+            }
+
+            async function refreshAccountToken(token, trigger = null) {
+                if (trigger) trigger.disabled = true;
+                setStatus('正在刷新账号...');
+                const response = await fetch(refreshAccountApi, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token }),
+                });
+                const result = await response.json();
+                if (trigger) trigger.disabled = false;
+                setStatus(response.ok ? result.message : (result.detail || '刷新失败'));
+                if (response.ok) {
+                    selectedAccountToken = token;
+                    await loadDashboard();
+                }
+            }
+
+            async function deleteAccountToken(token) {
+                if (!window.confirm('确认删除该账号吗？这会同时移除固定绑定配置。')) {
+                    return;
+                }
+                const response = await fetch(deleteAccountApi, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token }),
+                });
+                const result = await response.json();
+                setStatus(response.ok ? result.message : (result.detail || '删除失败'));
+                if (response.ok) {
+                    selectedAccountToken = '';
+                    await loadDashboard();
+                }
+            }
+
+            function editAccountToken(token) {
+                const account = accountsCache.find((item) => item.token === token);
+                openAccountModal('edit', account || null);
+            }
+
+            accountsTable.addEventListener('click', async (event) => {
+                const button = event.target.closest('.bind-account-button');
+                const editButton = event.target.closest('.edit-account-button');
+                const refreshButton = event.target.closest('.refresh-account-button');
+                const deleteButton = event.target.closest('.delete-account-button');
+
+                if (button) return bindAccountToken(button.dataset.token);
+                if (editButton) return editAccountToken(editButton.dataset.token);
+                if (refreshButton) return refreshAccountToken(refreshButton.dataset.token, refreshButton);
+                if (deleteButton) return deleteAccountToken(deleteButton.dataset.token);
+
+                const row = event.target.closest('.account-row');
+                if (row && !event.target.closest('select, input, button, a')) {
+                    selectAccount(row.dataset.token);
+                }
+            });
+
+            if (accountDetailPanel) {
+                accountDetailPanel.addEventListener('click', async (event) => {
+                    const editButton = event.target.closest('.edit-account-button');
+                    const refreshButton = event.target.closest('.refresh-account-button');
+                    const deleteButton = event.target.closest('.delete-account-button');
+                    if (editButton) return editAccountToken(editButton.dataset.token);
+                    if (refreshButton) return refreshAccountToken(refreshButton.dataset.token, refreshButton);
+                    if (deleteButton) return deleteAccountToken(deleteButton.dataset.token);
+                });
+            }
+
+            if (accountDetailClose) {
+                accountDetailClose.addEventListener('click', () => selectAccount(''));
+            }
+
+            logoutButton.addEventListener('click', async () => {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = logoutApi;
+                document.body.appendChild(form);
+                form.submit();
+            });
+
+            importAccountsButton.addEventListener('click', () => {
+                openAccountModal('create');
+            });
+
+            importModalClose.addEventListener('click', () => {
+                closeAccountModal();
+            });
+
+            importSubmitButton.addEventListener('click', async () => {
+                let text = '';
+                if (importMode === 'file') {
+                    if (!parsedFileResult) {
+                        alert('请先上传并解析文件');
+                        return;
+                    }
+                    // 分类目收集 + 精确报错
+                    const picked = [];
+                    const emptyPicked = [];  // 勾选了但类目为空
+                    const checks = [
+                        ['RefreshToken', previewPickRefresh, parsedFileResult.refresh_tokens || []],
+                        ['AccessToken',  previewPickAccess,  parsedFileResult.access_tokens  || []],
+                        ['Unknown',      previewPickUnknown, parsedFileResult.unknown        || []],
+                    ];
+                    let anyChecked = false;
+                    for (const [label, cb, list] of checks) {
+                        if (!cb.checked) continue;
+                        anyChecked = true;
+                        if (list.length === 0) {
+                            emptyPicked.push(label);
+                        } else {
+                            picked.push(...list);
+                        }
+                    }
+                    if (!anyChecked) {
+                        alert('请至少勾选一类 token 后再确认导入');
+                        return;
+                    }
+                    if (picked.length === 0) {
+                        alert(
+                            `你勾选的类目【${emptyPicked.join('、')}】在文件中没有识别到任何 token。\n` +
+                            `请查看预览卡片上方的统计：RefreshToken=${parsedFileResult.stats.refresh_count}、AccessToken=${parsedFileResult.stats.access_count}、Unknown=${parsedFileResult.stats.unknown_count}。\n` +
+                            `改为勾选数量 > 0 的类目，或重新选择另一份文件。`
+                        );
+                        return;
+                    }
+                    console.log('[import] picked', picked.length, 'tokens, from categories:',
+                        checks.filter(([_, cb]) => cb.checked).map(([l]) => l).join(','));
+                    text = picked.join('\n');
+                } else {
+                    text = importTextarea.value.trim();
+                    if (!text) {
+                        alert('请输入账号 token，一行一个');
+                        return;
+                    }
+                    if (editingToken && text !== editingToken) {
+                        alert('编辑账号时不允许修改 token 本身');
+                        return;
+                    }
+                }
+
+                const proxyUrl = accountProxySelect.value;
+                const proxy = proxyOptions.find((item) => item.proxy_url === proxyUrl);
+                const response = await fetch(importAccountsApi, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text,
+                        note: accountNoteInput.value.trim(),
+                        group_name: accountGroupInput.value.trim(),
+                        proxy_url: proxyUrl,
+                        proxy_name: proxy ? proxy.name : '',
+                        overwrite_existing: Boolean(editingToken),
+                    }),
+                });
+                const result = await response.json();
+                statusText.textContent = response.ok ? result.message : (result.detail || '保存失败');
+                if (response.ok) {
+                    closeAccountModal();
+                    await loadDashboard();
+                }
+            });
+
+            // Tab 切换
+            importTabText.addEventListener('click', () => setImportMode('text'));
+            importTabFile.addEventListener('click', () => {
+                if (!importTabFile.disabled) setImportMode('file');
+            });
+
+            // 文件选择：点击 / 拖拽
+            importFileDropzone.addEventListener('click', () => importFileInput.click());
+            importFileInput.addEventListener('change', () => handleFileUpload(importFileInput.files[0]));
+            importFileDropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                importFileDropzone.classList.add('bg-slate-100');
+            });
+            importFileDropzone.addEventListener('dragleave', () => {
+                importFileDropzone.classList.remove('bg-slate-100');
+            });
+            importFileDropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                importFileDropzone.classList.remove('bg-slate-100');
+                if (e.dataTransfer.files.length) {
+                    handleFileUpload(e.dataTransfer.files[0]);
+                }
+            });
+
+            refreshAllButton.addEventListener('click', async () => {
+                refreshAllButton.disabled = true;
+                statusText.textContent = '正在批量刷新所有 RefreshToken...';
+                const response = await fetch(refreshAllAccountsApi, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                const result = await response.json();
+                refreshAllButton.disabled = false;
+                statusText.textContent = response.ok ? result.message : (result.detail || '批量刷新失败');
+                if (response.ok) {
+                    await loadDashboard();
+                }
+            });
+
+            copyModelsButton.addEventListener('click', async () => {
+                await copyText(modelsTestCommand.textContent, copyModelsButton);
+            });
+
+            copyChatButton.addEventListener('click', async () => {
+                await copyText(apiTestCommand.textContent, copyChatButton);
+            });
+
+            testProxyButton.addEventListener('click', async () => {
+                const proxyUrl = getFirstConfiguredProxy();
+                if (!proxyUrl) {
+                    proxyTestResult.textContent = '请先填写当前账号要使用的代理';
+                    return;
+                }
+                proxyTestResult.textContent = '测试中...';
+                const response = await fetch(testProxyApi, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ proxy_url: proxyUrl }),
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    proxyTestResult.textContent = result.detail || '代理测试失败';
+                    return;
+                }
+                proxyTestResult.textContent = (result.results || []).map((item) => {
+                    if (item.ok) {
+                        return `${item.target} -> OK (${item.status_code})`;
+                    }
+                    return `${item.target} -> FAIL (${item.error || item.status_code || 'unknown'})`;
+                }).join(' | ');
+            });
+
+            // ========== 系统日志面板 ==========
+            const LOGS_POLL_INTERVAL_MS = 3000;
+            let logsLatestId = 0;
+            let logsTimer = null;
+            let logsFetching = false;
+
+            function formatLogTimestamp(ts) {
+                const d = new Date(ts * 1000);
+                const pad = (n) => String(n).padStart(2, '0');
+                return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            }
+
+            function levelColor(level) {
+                return ({
+                    DEBUG: 'text-slate-400',
+                    INFO: 'text-slate-100',
+                    WARNING: 'text-amber-300',
+                    ERROR: 'text-red-400',
+                    CRITICAL: 'text-red-500',
+                })[level] || 'text-slate-100';
+            }
+
+            function appendLogLines(items) {
+                if (!items || !items.length) return;
+                const fragment = document.createDocumentFragment();
+                for (const item of items) {
+                    const line = document.createElement('div');
+                    line.className = levelColor(item.level);
+                    const ts = formatLogTimestamp(item.ts);
+                    line.textContent = `${ts} | ${item.level.padEnd(8)} | ${item.msg}`;
+                    fragment.appendChild(line);
+                }
+                logsViewer.appendChild(fragment);
+                while (logsViewer.childNodes.length > 5000) {
+                    logsViewer.removeChild(logsViewer.firstChild);
+                }
+                if (logsAutoScroll.checked) {
+                    logsViewer.scrollTop = logsViewer.scrollHeight;
+                }
+            }
+
+            async function fetchLogsTail(reset = false) {
+                if (logsFetching) return;
+                logsFetching = true;
+                try {
+                    const params = new URLSearchParams();
+                    if (!reset && logsLatestId > 0) params.set('since_id', String(logsLatestId));
+                    const level = logsLevelSelect.value;
+                    if (level && level !== 'ALL') params.set('level', level);
+                    const kw = logsKeywordInput.value.trim();
+                    if (kw) params.set('keyword', kw);
+                    params.set('limit', '500');
+
+                    const resp = await fetch(`${logsTailApi}?${params.toString()}`);
+                    if (!resp.ok) {
+                        logsStatus.textContent = `刷新失败：${resp.status}`;
+                        return;
+                    }
+                    const data = await resp.json();
+                    if (reset) {
+                        logsViewer.innerHTML = '';
+                        logsLatestId = 0;
+                    }
+                    if (data.items && data.items.length) {
+                        appendLogLines(data.items);
+                        logsLatestId = Math.max(logsLatestId, data.latest_id || 0);
+                    } else if (reset) {
+                        logsLatestId = data.latest_id || 0;
+                    }
+                    logsStatus.textContent =
+                        `已加载 ${logsViewer.childNodes.length} 行 · 缓冲区 ${data.total}/${data.capacity} · 最近 id=${data.latest_id} · ${new Date().toLocaleTimeString()}`;
+                    if (logsCapacityHint) {
+                        logsCapacityHint.textContent = `缓冲容量 ${data.capacity} 条。`;
+                    }
+                } catch (e) {
+                    logsStatus.textContent = `网络错误：${e.message}`;
+                } finally {
+                    logsFetching = false;
+                }
+            }
+
+            function startLogsPolling() {
+                if (logsTimer) return;
+                logsTimer = setInterval(() => {
+                    if (logsAutoRefresh.checked) fetchLogsTail(false);
+                }, LOGS_POLL_INTERVAL_MS);
+            }
+
+            logsLevelSelect.addEventListener('change', () => fetchLogsTail(true));
+            logsKeywordInput.addEventListener('input', () => {
+                clearTimeout(logsKeywordInput._debounce);
+                logsKeywordInput._debounce = setTimeout(() => fetchLogsTail(true), 400);
+            });
+            logsRefreshButton.addEventListener('click', () => fetchLogsTail(true));
+            logsClearButton.addEventListener('click', () => {
+                logsViewer.innerHTML = '';
+                logsStatus.textContent = '已清屏（仅清理当前视图，缓冲区数据仍在）';
+            });
+            logsDownloadFilteredButton.addEventListener('click', () => {
+                const params = new URLSearchParams({ scope: 'filtered' });
+                const level = logsLevelSelect.value;
+                if (level && level !== 'ALL') params.set('level', level);
+                const kw = logsKeywordInput.value.trim();
+                if (kw) params.set('keyword', kw);
+                window.location.href = `${logsDownloadApi}?${params.toString()}`;
+            });
+            logsDownloadAllButton.addEventListener('click', () => {
+                window.location.href = `${logsDownloadApi}?scope=all`;
+            });
+            logsAutoRefresh.addEventListener('change', () => {
+                logsStatus.textContent = logsAutoRefresh.checked ? '自动刷新已开启' : '已暂停自动刷新';
+            });
+
+            // ========== Harvester 看板 ==========
+            let harvAccountsCache = [];
+            let harvEditingEmail = '';
+
+            function harvStatusChip(status) {
+                const map = {
+                    fresh:   ['bg-emerald-100 text-emerald-700', '新鲜'],
+                    stale:   ['bg-amber-100 text-amber-700',     '即将过期'],
+                    failed:  ['bg-red-100 text-red-700',         '失败/过期'],
+                    pending: ['bg-slate-100 text-slate-700',     '待采集'],
+                };
+                const [cls, label] = map[status] || ['bg-slate-100 text-slate-700', status];
+                return `<span class="px-2 py-1 rounded-full text-xs ${cls}">${label}</span>`;
+            }
+
+            function harvFormatTs(ts) {
+                if (!ts) return '—';
+                const d = new Date(ts * 1000);
+                const pad = (n) => String(n).padStart(2, '0');
+                return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            }
+
+            function harvBuildCmd(email) {
+                // 历史兼容：保留给将来可能的 CLI 模式；当前 UI 不使用
+                const target = email ? `--only ${email}` : '';
+                return `# 已废弃的 Harvester CLI 模式\ncd /Users/nanashiwang/Documents/Projects/chat2api/harvester && source .venv/bin/activate && python -m src.harvest ${target}`.trim();
+            }
+
+            // ========= 浏览器登录流程 =========
+            let harvAuthCurrent = null;  // {session_id, authorize_url, email, expires_in, started_at}
+
+            async function harvStartAuth(email) {
+                const acc = harvAccountsCache.find((x) => x.email.toLowerCase() === email.toLowerCase());
+                if (!acc) {
+                    alert('账号不存在，请先"新增账号"');
+                    return;
+                }
+                const payload = {
+                    email: acc.email,
+                    note: acc.note || '',
+                    proxy_name: acc.proxy_name || '',
+                };
+                const resp = await fetch(harvAuthStartApi, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload),
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    alert(data.detail || '启动授权失败');
+                    return;
+                }
+                harvAuthCurrent = {
+                    session_id: data.session_id,
+                    authorize_url: data.authorize_url,
+                    email: acc.email,
+                    expires_in: data.expires_in || 900,
+                    started_at: Date.now(),
+                };
+                harvAuthTitle.textContent = `浏览器登录 - ${acc.email}`;
+                harvAuthUrlInput.value = data.authorize_url;
+                harvAuthCallbackInput.value = '';
+                harvAuthSessionInfo.textContent = `会话 ID: ${data.session_id.slice(0,8)}... · TTL ${Math.round(data.expires_in/60)} 分钟`;
+                harvAuthErrorBox.classList.add('hidden');
+                harvAuthModal.classList.remove('hidden');
+                harvAuthModal.classList.add('flex');
+            }
+
+            async function harvCopyAuthUrl() {
+                if (!harvAuthCurrent) return;
+                try {
+                    await navigator.clipboard.writeText(harvAuthCurrent.authorize_url);
+                    harvAuthSessionInfo.textContent = '已复制授权 URL，请到本地浏览器粘贴登录 ↗';
+                } catch (e) {
+                    harvAuthUrlInput.select();
+                    document.execCommand('copy');
+                    harvAuthSessionInfo.textContent = '已选中 URL（请手动 Ctrl/Cmd+C）';
+                }
+            }
+
+            async function harvSubmitCallback() {
+                if (!harvAuthCurrent) return;
+                const callback = harvAuthCallbackInput.value.trim();
+                if (!callback) {
+                    alert('请粘贴浏览器登录完成后地址栏的 URL（以 com.openai.chat:// 开头）');
+                    return;
+                }
+                harvAuthSubmitButton.disabled = true;
+                harvAuthSubmitButton.textContent = '交换中...';
+                harvAuthErrorBox.classList.add('hidden');
+                try {
+                    const resp = await fetch(harvAuthExchangeApi, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            session_id: harvAuthCurrent.session_id,
+                            callback_url: callback,
+                        }),
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok) {
+                        harvAuthErrorBox.textContent = data.detail || '换取 token 失败';
+                        harvAuthErrorBox.classList.remove('hidden');
+                        return;
+                    }
+                    alert(`✅ 成功导入 ${data.email} (rt=${(data.rt_prefix || '').slice(0,8)}...)`);
+                    harvCloseAuth();
+                    await harvLoad();
+                } catch (e) {
+                    harvAuthErrorBox.textContent = '网络错误：' + e.message;
+                    harvAuthErrorBox.classList.remove('hidden');
+                } finally {
+                    harvAuthSubmitButton.disabled = false;
+                    harvAuthSubmitButton.textContent = '完成';
+                }
+            }
+
+            function harvCloseAuth() {
+                harvAuthCurrent = null;
+                harvAuthModal.classList.add('hidden');
+                harvAuthModal.classList.remove('flex');
+                harvAuthCallbackInput.value = '';
+            }
+
+            function harvRenderStats(stats) {
+                const cards = [
+                    ['总数', stats.total || 0, 'text-slate-900'],
+                    ['新鲜', stats.fresh || 0, 'text-emerald-600'],
+                    ['即将过期', stats.stale || 0, 'text-amber-600'],
+                    ['失败/过期', stats.failed || 0, 'text-red-600'],
+                    ['待采集', stats.pending || 0, 'text-slate-500'],
+                ];
+                harvStats.innerHTML = cards.map(([l, v, c]) => `
+                    <div class="bg-slate-50 rounded-2xl p-3 text-center">
+                        <div class="text-2xl font-bold ${c}">${v}</div>
+                        <div class="text-xs text-slate-500">${l}</div>
+                    </div>
+                `).join('');
+            }
+
+            function harvRenderTable(accounts) {
+                if (!accounts.length) {
+                    harvAccountsTable.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-400">暂无账号，点"新增账号"或"批量导入"</td></tr>`;
+                    return;
+                }
+                harvAccountsTable.innerHTML = accounts.map((a) => `
+                    <tr class="border-b border-slate-100 hover:bg-slate-50">
+                        <td class="py-2 pr-3 font-mono text-xs">${escapeHtml(a.email)}</td>
+                        <td class="py-2 pr-3">${escapeHtml(a.note || '-')}</td>
+                        <td class="py-2 pr-3">${escapeHtml(a.proxy_name || '-')}</td>
+                        <td class="py-2 pr-3 font-mono text-xs">${a.last_rt_prefix ? escapeHtml(a.last_rt_prefix) + '...' : '—'}</td>
+                        <td class="py-2 pr-3 text-xs">${harvFormatTs(a.last_harvest_at)}</td>
+                        <td class="py-2 pr-3">${harvStatusChip(a.status)}</td>
+                        <td class="py-2 pr-3 whitespace-nowrap">
+                            <button data-harv-cookie="${escapeHtml(a.email)}" class="px-2 py-1 rounded-lg bg-emerald-600 text-white text-xs">🍪 粘贴 Cookie</button>
+                            <button data-harv-auth="${escapeHtml(a.email)}" class="px-2 py-1 rounded-lg bg-indigo-600 text-white text-xs ml-1">🌐 浏览器登录</button>
+                            <button data-harv-edit="${escapeHtml(a.email)}" class="px-2 py-1 rounded-lg bg-slate-200 text-xs ml-1">编辑</button>
+                            <button data-harv-del="${escapeHtml(a.email)}" class="px-2 py-1 rounded-lg bg-red-100 text-red-700 text-xs ml-1">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            async function harvLoad() {
+                try {
+                    const resp = await fetch(harvAccountsApi);
+                    if (!resp.ok) {
+                        harvStatusText.textContent = `加载失败：${resp.status}`;
+                        return;
+                    }
+                    const data = await resp.json();
+                    harvAccountsCache = data.accounts || [];
+                    harvRenderStats(data.stats || {});
+                    harvRenderTable(harvAccountsCache);
+                    harvStatusText.textContent = `已加载 ${harvAccountsCache.length} 个账号 · ${new Date().toLocaleTimeString()}`;
+                } catch (e) {
+                    harvStatusText.textContent = `网络错误：${e.message}`;
+                }
+            }
+
+            function harvOpenEdit(email) {
+                const acc = harvAccountsCache.find((x) => x.email.toLowerCase() === (email || '').toLowerCase());
+                harvEditingEmail = email || '';
+                harvEditTitle.textContent = email ? '编辑账号' : '新增账号';
+                harvEmailInput.value = acc ? acc.email : '';
+                harvEmailInput.readOnly = Boolean(email);
+                harvNoteInput.value = acc ? (acc.note || '') : '';
+                harvProxyInput.value = acc ? (acc.proxy_name || '') : '';
+                harvEditModal.classList.remove('hidden');
+                harvEditModal.classList.add('flex');
+            }
+
+            function harvCloseEdit() {
+                harvEditingEmail = '';
+                harvEditModal.classList.add('hidden');
+                harvEditModal.classList.remove('flex');
+            }
+
+            async function harvSaveEdit() {
+                const email = harvEmailInput.value.trim();
+                if (!email || !email.includes('@')) {
+                    alert('请输入合法的 email');
+                    return;
+                }
+                const payload = {
+                    email,
+                    note: harvNoteInput.value.trim(),
+                    proxy_name: harvProxyInput.value.trim(),
+                };
+                const resp = await fetch(harvAccountsApi, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload),
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    alert(data.detail || '保存失败');
+                    return;
+                }
+                harvCloseEdit();
+                await harvLoad();
+            }
+
+            async function harvDelete(email) {
+                if (!confirm(`确认删除 ${email} 的 Harvester 记录？\n（只删元数据，不动已导入的 token）`)) return;
+                const resp = await fetch(harvDeleteApi, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email}),
+                });
+                if (!resp.ok) {
+                    const data = await resp.json().catch(() => ({}));
+                    alert(data.detail || '删除失败');
+                    return;
+                }
+                await harvLoad();
+            }
+
+            async function harvBulkSubmitHandler() {
+                let body;
+                let headers = {};
+                if (harvBulkFile.files && harvBulkFile.files[0]) {
+                    const fd = new FormData();
+                    fd.append('file', harvBulkFile.files[0]);
+                    body = fd;
+                } else {
+                    const text = harvBulkJson.value.trim();
+                    if (!text) {
+                        alert('请上传 CSV 文件或粘贴 JSON');
+                        return;
+                    }
+                    let rows;
+                    try {
+                        rows = JSON.parse(text);
+                        if (!Array.isArray(rows)) throw new Error('需要数组');
+                    } catch (e) {
+                        alert('JSON 无效：' + e.message);
+                        return;
+                    }
+                    body = JSON.stringify({rows});
+                    headers = {'Content-Type': 'application/json'};
+                }
+                const resp = await fetch(harvBulkApi, {method: 'POST', headers, body});
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok) {
+                    alert(data.detail || '导入失败');
+                    return;
+                }
+                alert(`导入完成：新增 ${data.added}，更新 ${data.updated}，总计 ${data.total}`);
+                harvBulkModal.classList.add('hidden');
+                harvBulkModal.classList.remove('flex');
+                harvBulkFile.value = '';
+                harvBulkJson.value = '';
+                await harvLoad();
+            }
+
+            // 事件绑定
+            harvRefreshButton.addEventListener('click', harvLoad);
+            harvAddButton.addEventListener('click', () => harvOpenEdit(''));
+            harvEditClose.addEventListener('click', harvCloseEdit);
+            harvEditSubmit.addEventListener('click', harvSaveEdit);
+            harvBulkImportButton.addEventListener('click', () => {
+                harvBulkModal.classList.remove('hidden');
+                harvBulkModal.classList.add('flex');
+            });
+            harvBulkClose.addEventListener('click', () => {
+                harvBulkModal.classList.add('hidden');
+                harvBulkModal.classList.remove('flex');
+            });
+            harvBulkSubmit.addEventListener('click', harvBulkSubmitHandler);
+
+            // ===== Cookie 粘贴流程（主流程）=====
+            let harvCookieCurrent = null;  // {email}
+
+            function harvOpenCookie(email) {
+                const acc = harvAccountsCache.find((x) => x.email.toLowerCase() === email.toLowerCase());
+                if (!acc) {
+                    alert('账号不存在，请先"新增账号"');
+                    return;
+                }
+                harvCookieCurrent = {email: acc.email, note: acc.note || '', proxy_name: acc.proxy_name || ''};
+                harvCookieTitle.textContent = `🍪 粘贴 ChatGPT Session Cookie - ${acc.email}`;
+                harvCookieInput.value = '';
+                harvCookieInfo.textContent = '提示：cookie 值通常 500+ 字符，长段 base64；只复制 Value 列，不要带 name=';
+                harvCookieErrorBox.classList.add('hidden');
+                harvCookieModal.classList.remove('hidden');
+                harvCookieModal.classList.add('flex');
+                setTimeout(() => harvCookieInput.focus(), 50);
+            }
+
+            function harvCloseCookie() {
+                harvCookieCurrent = null;
+                harvCookieInput.value = '';
+                harvCookieModal.classList.add('hidden');
+                harvCookieModal.classList.remove('flex');
+            }
+
+            async function harvSubmitCookie() {
+                if (!harvCookieCurrent) return;
+                const val = harvCookieInput.value.trim();
+                if (!val) {
+                    alert('请粘贴 cookie 值');
+                    return;
+                }
+                if (val.length < 20) {
+                    alert('cookie 看起来过短，请确认复制的是完整 Value');
+                    return;
+                }
+                harvCookieSubmit.disabled = true;
+                harvCookieSubmit.textContent = '验证中...';
+                harvCookieErrorBox.classList.add('hidden');
+                try {
+                    const resp = await fetch(harvImportCookieApi, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            email: harvCookieCurrent.email,
+                            session_token: val,
+                            note: harvCookieCurrent.note,
+                            proxy_name: harvCookieCurrent.proxy_name,
+                        }),
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok) {
+                        harvCookieErrorBox.textContent = data.detail || '导入失败';
+                        harvCookieErrorBox.classList.remove('hidden');
+                        return;
+                    }
+                    alert(`✅ 成功导入 ${data.email}\naccess_token 预览: ${data.access_token_preview || ''}`);
+                    harvCloseCookie();
+                    await harvLoad();
+                } catch (e) {
+                    harvCookieErrorBox.textContent = '网络错误：' + e.message;
+                    harvCookieErrorBox.classList.remove('hidden');
+                } finally {
+                    harvCookieSubmit.disabled = false;
+                    harvCookieSubmit.textContent = '验证并导入';
+                }
+            }
+
+            // 授权弹窗（OAuth 路线，保留但不是主推）
+            harvAuthCopyUrlButton.addEventListener('click', harvCopyAuthUrl);
+            harvAuthClose.addEventListener('click', harvCloseAuth);
+            harvAuthCancel.addEventListener('click', harvCloseAuth);
+            harvAuthSubmitButton.addEventListener('click', harvSubmitCallback);
+
+            // Cookie 弹窗事件
+            harvCookieClose.addEventListener('click', harvCloseCookie);
+            harvCookieCancel.addEventListener('click', harvCloseCookie);
+            harvCookieSubmit.addEventListener('click', harvSubmitCookie);
+
+            // 表格行操作委托
+            harvAccountsTable.addEventListener('click', (e) => {
+                const target = e.target;
+                if (!(target instanceof HTMLElement)) return;
+                const cookieEmail = target.getAttribute('data-harv-cookie');
+                const authEmail = target.getAttribute('data-harv-auth');
+                const editEmail = target.getAttribute('data-harv-edit');
+                const delEmail = target.getAttribute('data-harv-del');
+                if (cookieEmail) return harvOpenCookie(cookieEmail);
+                if (authEmail) return harvStartAuth(authEmail);
+                if (editEmail) return harvOpenEdit(editEmail);
+                if (delEmail) return harvDelete(delEmail);
+            });
+
+            // 初始加载
+            harvLoad();
+
+            // 初始拉取 + 启动轮询
+            fetchLogsTail(true);
+            startLogsPolling();
+
+            function activatePage(pageId) {
+                adminPages.forEach((page) => {
+                    const active = page.id === pageId;
+                    page.classList.toggle('hidden', !active);
+                    page.classList.toggle('space-y-8', active);
+                });
+                pageLinks.forEach((link) => {
+                    const active = link.dataset.pageTarget === pageId;
+                    link.classList.toggle('nav-item-active', active);
+                    link.setAttribute('aria-current', active ? 'page' : 'false');
+                });
+                if (window.location.hash !== `#${pageId}`) {
+                    history.replaceState(null, '', `#${pageId}`);
+                }
+            }
+
+            function activateRoutingTab(panelId) {
+                routingPanels.forEach((panel) => {
+                    panel.classList.toggle('hidden', panel.id !== panelId);
+                });
+                routingSubLinks.forEach((link) => {
+                    const active = link.dataset.routingTabTarget === panelId;
+                    link.classList.toggle('bg-slate-900', active);
+                    link.classList.toggle('text-white', active);
+                    link.classList.toggle('bg-white', !active);
+                    link.classList.toggle('text-slate-600', !active);
+                    link.classList.toggle('border-slate-200', !active);
+                });
+            }
+
+            pageLinks.forEach((link) => {
+                link.addEventListener('click', () => {
+                    activatePage(link.dataset.pageTarget);
+                });
+            });
+
+            routingSubLinks.forEach((link) => {
+                link.addEventListener('click', () => {
+                    activateRoutingTab(link.dataset.routingTabTarget);
+                });
+            });
+
+            const initialPage = adminPages.find((page) => `#${page.id}` === window.location.hash)?.id || 'accounts-page';
+            activatePage(initialPage);
+            activateRoutingTab('proxy-panel');
+
+            loadDashboard().catch((error) => {
+                statusText.textContent = `加载失败: ${error.message}`;
+            });
+        });
+    </script>
+</head>
+<body class="min-h-screen text-slate-900">
+    <div class="admin-shell flex min-h-screen">
+        <aside class="sidebar w-64 shrink-0 border-r border-slate-200 bg-white/85 p-4 lg:min-h-screen">
+            <div class="mb-6 flex items-center gap-3 px-2">
+                <div class="grid h-10 w-10 place-items-center rounded-2xl bg-blue-600 text-lg font-black text-white shadow-lg shadow-blue-600/20">C</div>
+                <div>
+                    <div class="text-lg font-black tracking-tight text-slate-950">chat2api</div>
+                    <div class="text-xs font-medium text-slate-400">Orchestrator</div>
+                </div>
+            </div>
+            <nav class="side-nav space-y-1 text-sm font-semibold">
+                <button type="button" data-page-target="overview-page" class="nav-item"><span>⌂</span><span>仪表盘</span></button>
+                <button type="button" data-page-target="accounts-page" class="nav-item nav-item-active"><span>▣</span><span>账号实例</span></button>
+                <button type="button" data-page-target="routing-page" class="nav-item"><span>⇄</span><span>代理与路由</span></button>
+                <button type="button" data-page-target="harvester-page" class="nav-item"><span>◎</span><span>账号采集</span></button>
+                <button type="button" data-page-target="logs-page" class="nav-item"><span>☷</span><span>运行日志</span></button>
+            </nav>
+            <div class="mt-8 hidden rounded-3xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500 lg:block">
+                <div class="mb-2 font-bold text-slate-700">系统状态</div>
+                <div class="flex items-center gap-2 text-emerald-600"><span class="status-dot bg-emerald-500"></span>运行正常</div>
+                <div class="mt-3">服务已稳定运行</div>
+                <div class="mt-4 flex items-center justify-between border-t border-slate-200 pt-3">
+                    <span>版本</span><span class="font-semibold text-slate-700">v1.4.3</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="min-w-0 flex-1 p-4 lg:p-6">
+            <header class="glass-panel sticky top-0 z-30 mb-6 rounded-3xl px-4 py-3">
+                <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                    <div class="flex flex-wrap items-center gap-3 text-sm">
+                        <span class="inline-flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 font-semibold text-emerald-700"><span class="status-dot bg-emerald-500"></span>生产环境</span>
+                        <span class="text-slate-500">服务器时间 <span id="serverClock" class="font-semibold text-slate-700">--</span></span>
+                        <span id="statusText" class="rounded-xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-500">就绪</span>
+                    </div>
+                    <div class="flex flex-1 flex-col gap-2 sm:flex-row xl:max-w-3xl">
+                        <label class="relative flex-1">
+                            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
+                            <input id="globalSearchInput" type="search" placeholder="搜索账号、别名、代理、状态..." class="w-full rounded-2xl border border-slate-200 bg-white/90 py-2.5 pl-9 pr-4 text-sm shadow-sm outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100">
+                        </label>
+                        <button id="topRefreshButton" class="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">刷新</button>
+                        <button id="logoutButton" class="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">退出</button>
+                    </div>
+                </div>
+            </header>
+
+            <div id="accounts-page" data-admin-page class="space-y-6">
+                <section id="accounts-section" data-admin-section>
+                    <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                        <div>
+                            <p class="text-sm font-semibold text-blue-600">Account Instances</p>
+                            <h1 class="mt-1 text-3xl font-black tracking-tight text-slate-950">账号实例</h1>
+                            <p class="mt-1 text-sm text-slate-500">集中查看账号健康、代理绑定和刷新状态。</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-sm text-slate-500">最后发布：<span id="updatedAt" class="font-semibold text-slate-700">尚未发布</span></span>
+                            <button id="refreshAllButton" class="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">批量刷新 RT</button>
+                            <button id="importAccountsButton" class="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-600/20">+ 新增账号</button>
+                        </div>
+                    </div>
+
+                    <div id="summaryGrid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6"></div>
+
+                    <div class="mt-5 grid gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
+                        <div class="glass-panel overflow-hidden rounded-3xl">
+                            <div class="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+                                <div>
+                                    <h2 class="text-lg font-black text-slate-950">实例列表</h2>
+                                    <p id="accountTableCount" class="mt-1 text-xs text-slate-500">--</p>
+                                </div>
+                                <div class="flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
+                                    <span class="rounded-xl bg-blue-50 px-3 py-2 text-blue-700">全部</span>
+                                    <span class="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-700">Healthy</span>
+                                    <span class="rounded-xl bg-orange-50 px-3 py-2 text-orange-700">Degraded</span>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="admin-table w-full min-w-[980px] text-sm">
+                                    <thead class="bg-slate-50/80">
+                                        <tr class="text-left">
+                                            <th class="py-3 pl-4 pr-3">账号</th>
+                                            <th class="px-3 py-3">标签/分组</th>
+                                            <th class="px-3 py-3">代理</th>
+                                            <th class="px-3 py-3">状态</th>
+                                            <th class="px-3 py-3">最近刷新</th>
+                                            <th class="py-3 pl-3 pr-4 text-right">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="accountsTable"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <aside id="accountDetailPanel" class="glass-panel rounded-3xl p-4 2xl:sticky 2xl:top-28 2xl:self-start">
+                            <div class="mb-4 flex items-center justify-between">
+                                <h2 class="text-base font-black text-slate-950">实例详情</h2>
+                                <button id="accountDetailClose" class="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500">清空</button>
+                            </div>
+                            <div id="accountDetailEmpty" class="rounded-3xl border border-dashed border-slate-300 bg-white/70 p-8 text-center text-sm text-slate-500">
+                                点击左侧账号行查看详情。
+                            </div>
+                            <div id="accountDetailBody" class="hidden"></div>
+                        </aside>
+                    </div>
+                </section>
+            </div>
+
+            <div id="overview-page" data-admin-page class="hidden space-y-6">
+                <section id="dashboard-section" data-admin-section>
+                    <div class="mb-4">
+                        <p class="text-sm font-semibold text-blue-600">Dashboard</p>
+                        <h1 class="mt-1 text-3xl font-black tracking-tight text-slate-950">仪表盘</h1>
+                        <p class="mt-1 text-sm text-slate-500">查看代理负载、告警和 API 测试样例。</p>
+                    </div>
+                </section>
+
+                <section class="grid gap-5 xl:grid-cols-3">
+                    <div class="glass-panel rounded-3xl p-5 xl:col-span-2">
+                        <div class="mb-4 flex items-center justify-between gap-3">
+                            <h2 class="text-lg font-black text-slate-950">IP 负载概览</h2>
+                            <div class="text-sm text-slate-500">映射同步到 <code>fp_map.json</code></div>
+                        </div>
+                        <div id="ipGrid" class="grid gap-4 md:grid-cols-2"></div>
+                    </div>
+                    <div class="glass-panel rounded-3xl p-5">
+                        <h2 class="mb-4 text-lg font-black text-slate-950">告警中心</h2>
+                        <div id="alertsList" class="space-y-3"></div>
+                    </div>
+                </section>
+
+                <section class="glass-panel rounded-3xl p-5">
+                    <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <h2 class="text-lg font-black text-slate-950">接口测试样例</h2>
+                            <p class="mt-1 text-sm text-slate-500">一键复制模型探测和聊天测试命令。</p>
+                        </div>
+                        <div id="copyToast" class="hidden rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">测试命令已复制到剪贴板</div>
+                    </div>
+                    <div class="grid gap-4 lg:grid-cols-2">
+                        <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                            <div class="mb-3 flex items-center justify-between">
+                                <div class="font-semibold">模型列表测试</div>
+                                <button id="copyModelsButton" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">复制</button>
+                            </div>
+                            <pre id="modelsTestCommand" class="whitespace-pre-wrap break-all text-xs leading-6 text-slate-700"></pre>
+                        </div>
+                        <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                            <div class="mb-3 flex items-center justify-between">
+                                <div class="font-semibold">聊天接口测试</div>
+                                <button id="copyChatButton" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">复制</button>
+                            </div>
+                            <pre id="apiTestCommand" class="whitespace-pre-wrap break-all text-xs leading-6 text-slate-700"></pre>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="routing-page" data-admin-page class="hidden space-y-6">
+                <section class="glass-panel rounded-3xl p-5">
+                    <div class="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <p class="text-sm font-semibold text-blue-600">Routing</p>
+                            <h2 class="mt-1 text-3xl font-black tracking-tight text-slate-950">代理与路由</h2>
+                            <p class="mt-1 text-sm text-slate-500">一容器一账号一出口，只维护当前账号使用的代理。</p>
+                        </div>
+                        <div class="text-sm text-slate-500">保存后自动绑定到当前账号</div>
+                    </div>
+
+                    <div id="proxy-panel" data-routing-panel class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+                        <div id="proxy-section" data-admin-section class="rounded-3xl border border-slate-200 bg-white p-5">
+                            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <h3 class="text-lg font-black text-slate-950">出口代理</h3>
+                                    <p class="mt-1 text-sm text-slate-500">格式支持 <code>名称 | socks5h://host:port</code>。</p>
+                                </div>
+                                <button id="testProxyButton" class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">测试代理</button>
+                            </div>
+                            <textarea id="proxyInput" class="min-h-44 w-full rounded-3xl border border-slate-200 bg-slate-50 p-4 font-mono text-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100" placeholder="出口代理 | socks5h://user:pass@host:port"></textarea>
+                            <div id="proxyTestResult" class="mt-3 text-sm text-slate-500"></div>
+                        </div>
+
+                        <div id="routing-section" data-admin-section class="rounded-3xl border border-slate-200 bg-white p-5">
+                            <h3 class="text-lg font-black text-slate-950">保存绑定</h3>
+                            <p class="mt-1 text-sm text-slate-500">发布固定映射：当前账号 → 当前代理。</p>
+                            <input id="groupSizeInput" type="hidden" value="1">
+                            <button id="saveButton" class="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-3 font-semibold text-white shadow-lg shadow-slate-900/10">保存当前代理</button>
+                            <p class="mt-3 text-xs text-slate-400">操作结果会显示在顶部状态栏。</p>
+                        </div>
+                    </div>
+
+                    <table class="hidden"><tbody id="rulesTable"></tbody></table>
+                </section>
+            </div>
+
+            <div id="harvester-page" data-admin-page class="hidden space-y-6">
+                <section class="glass-panel rounded-3xl p-5">
+                    <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-semibold text-blue-600">Harvester</p>
+                            <h2 class="mt-1 text-3xl font-black tracking-tight text-slate-950">账号采集</h2>
+                            <p class="mt-1 text-sm text-slate-500">服务器端不存密码；粘贴 ChatGPT 浏览器 Cookie 即可导入。</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button id="harvAddButton" class="rounded-2xl bg-slate-950 px-3 py-2 text-sm font-semibold text-white">新增账号</button>
+                            <button id="harvBulkImportButton" class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">批量导入</button>
+                            <button id="harvRefreshButton" class="rounded-2xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">刷新</button>
+                        </div>
+                    </div>
+                    <div id="harvStats" class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-5"></div>
+                    <div id="harvStatusText" class="mb-2 text-xs text-slate-500">--</div>
+                    <div class="overflow-x-auto rounded-3xl border border-slate-200 bg-white">
+                        <table class="w-full min-w-[760px] text-sm">
+                            <thead class="bg-slate-50">
+                                <tr class="text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                                    <th class="py-3 pl-4 pr-3">Email</th>
+                                    <th class="px-3 py-3">备注</th>
+                                    <th class="px-3 py-3">代理</th>
+                                    <th class="px-3 py-3">最近 rt</th>
+                                    <th class="px-3 py-3">上次采集</th>
+                                    <th class="px-3 py-3">状态</th>
+                                    <th class="py-3 pl-3 pr-4">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="harvAccountsTable"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <div id="logs-page" data-admin-page class="hidden space-y-6">
+                <section id="logs-section" data-admin-section class="glass-panel rounded-3xl p-5">
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-semibold text-blue-600">Logs</p>
+                            <h2 class="mt-1 text-3xl font-black tracking-tight text-slate-950">运行日志</h2>
+                            <p class="mt-1 text-sm text-slate-500">每 <span id="logsIntervalLabel">3</span> 秒自动刷新。<span id="logsCapacityHint" class="text-slate-400"></span></p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <select id="logsLevelSelect" class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                                <option value="ALL">全部级别</option>
+                                <option value="DEBUG">DEBUG+</option>
+                                <option value="INFO" selected>INFO+</option>
+                                <option value="WARNING">WARNING+</option>
+                                <option value="ERROR">ERROR+</option>
+                            </select>
+                            <input id="logsKeywordInput" type="text" placeholder="关键字筛选" class="w-52 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                            <label class="flex items-center gap-1 text-xs text-slate-600"><input id="logsAutoScroll" type="checkbox" checked class="accent-slate-700">自动滚底</label>
+                            <label class="flex items-center gap-1 text-xs text-slate-600"><input id="logsAutoRefresh" type="checkbox" checked class="accent-slate-700">自动刷新</label>
+                            <button id="logsRefreshButton" class="rounded-2xl bg-slate-950 px-3 py-2 text-sm font-semibold text-white">手动刷新</button>
+                            <button id="logsClearButton" class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">清屏</button>
+                            <button id="logsDownloadFilteredButton" class="rounded-2xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white">下载当前</button>
+                            <button id="logsDownloadAllButton" class="rounded-2xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">下载全部</button>
+                        </div>
+                    </div>
+                    <div id="logsStatus" class="mb-2 text-xs text-slate-500">--</div>
+                    <pre id="logsViewer" class="overflow-auto rounded-3xl bg-slate-950 p-4 font-mono text-xs leading-5 text-slate-100" style="max-height: 540px; white-space: pre-wrap; word-break: break-all;"></pre>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <div id="importAccountsModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-6">
+        <div class="w-full max-w-2xl bg-white rounded-3xl shadow-xl p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 id="importModalTitle" class="text-xl font-semibold">新增账号</h3>
+                    <p id="importModalDesc" class="text-sm text-slate-500 mt-1">一行一个 token，支持 AccessToken / RefreshToken 批量导入；也可上传文件自动解析。</p>
+                </div>
+                <button id="importModalClose" class="px-3 py-2 rounded-xl bg-slate-100 text-sm">关闭</button>
+            </div>
+
+            <!-- 输入模式 Tab -->
+            <div id="importTabs" class="flex gap-2 mb-4 border-b border-slate-200">
+                <button id="importTabText" data-mode="text" class="px-4 py-2 text-sm font-medium border-b-2 border-slate-900">粘贴文本</button>
+                <button id="importTabFile" data-mode="file" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-900">上传文件</button>
+            </div>
+
+            <!-- 文本模式 -->
+            <div id="importTextSection">
+                <textarea id="importAccountsTextarea" class="w-full min-h-72 p-4 rounded-2xl border border-slate-200 font-mono text-sm" placeholder="eyJhbGciOi...&#10;xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"></textarea>
+            </div>
+
+            <!-- 文件模式 -->
+            <div id="importFileSection" class="hidden">
+                <input type="file" id="importFileInput" accept=".txt,.json" class="hidden">
+                <div id="importFileDropzone" class="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center cursor-pointer hover:bg-slate-50">
+                    <p class="text-slate-700 font-medium">点击或拖拽文件到此处</p>
+                    <p class="text-xs text-slate-500 mt-1">支持 .txt / .json，单文件最大 2 MB</p>
+                    <p id="importFileName" class="text-xs text-slate-700 mt-3"></p>
+                </div>
+
+                <div id="importFilePreview" class="hidden mt-4 space-y-3">
+                    <div class="rounded-2xl bg-slate-50 p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-sm font-semibold">解析结果</h4>
+                            <span id="importPreviewSource" class="text-xs text-slate-500"></span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3 text-center text-sm">
+                            <div class="bg-white rounded-xl p-3">
+                                <div class="text-2xl font-bold text-emerald-600" id="statsRefresh">0</div>
+                                <div class="text-xs text-slate-500">RefreshToken</div>
+                            </div>
+                            <div class="bg-white rounded-xl p-3">
+                                <div class="text-2xl font-bold text-amber-600" id="statsAccess">0</div>
+                                <div class="text-xs text-slate-500">AccessToken</div>
+                            </div>
+                            <div class="bg-white rounded-xl p-3">
+                                <div class="text-2xl font-bold text-slate-400" id="statsUnknown">0</div>
+                                <div class="text-xs text-slate-500">未知</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <label class="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 cursor-pointer">
+                        <input type="checkbox" id="previewPickRefresh" checked class="accent-emerald-600">
+                        <span class="text-sm">导入 RefreshToken（<strong class="text-emerald-700">推荐</strong>）</span>
+                    </label>
+                    <label class="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 cursor-pointer">
+                        <input type="checkbox" id="previewPickAccess" class="accent-amber-600">
+                        <span class="text-sm">导入 AccessToken（默认不选，2 小时后失效）</span>
+                    </label>
+                    <label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 cursor-pointer">
+                        <input type="checkbox" id="previewPickUnknown" class="accent-slate-500">
+                        <span class="text-sm">导入未知类型（谨慎）</span>
+                    </label>
+
+                    <details class="rounded-xl border border-slate-200">
+                        <summary class="cursor-pointer px-4 py-3 text-sm font-medium">查看识别明细（token 已脱敏）</summary>
+                        <div id="previewTokenList" class="px-4 pb-4 text-xs font-mono text-slate-600 space-y-2"></div>
+                    </details>
+
+                    <div id="previewWarnings" class="hidden rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"></div>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-4 mt-4">
+                <div>
+                    <label class="block text-sm text-slate-500 mb-2">备注</label>
+                    <input id="accountNoteInput" class="w-full px-4 py-3 rounded-2xl border border-slate-200" placeholder="例如：A组-主账号">
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-500 mb-2">分组名称</label>
+                    <input id="accountGroupInput" class="w-full px-4 py-3 rounded-2xl border border-slate-200" placeholder="例如：Group A">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm text-slate-500 mb-2">固定代理</label>
+                    <select id="accountProxySelect" class="w-full px-4 py-3 rounded-2xl border border-slate-200">
+                        <option value="">不绑定固定代理</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-4">
+                <button id="importSubmitButton" class="px-5 py-3 rounded-2xl bg-slate-900 text-white">保存账号</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Harvester 账号新增/编辑弹窗 -->
+    <div id="harvEditModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-6">
+        <div class="w-full max-w-md bg-white rounded-3xl shadow-xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="harvEditTitle" class="text-xl font-semibold">新增账号</h3>
+                <button id="harvEditClose" class="px-3 py-2 rounded-xl bg-slate-100 text-sm">关闭</button>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">
+                ⚠️ 服务器端<b>不存储密码</b>。密码请在本地 <code>harvester/accounts.csv</code> 单独维护。
+                本页面只负责同步 email 清单到"要跑 Harvester 的账号列表"。
+            </p>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-sm text-slate-500 mb-1">Email</label>
+                    <input id="harvEmailInput" class="w-full px-3 py-2 rounded-xl border border-slate-200" placeholder="alice@example.com">
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-500 mb-1">备注</label>
+                    <input id="harvNoteInput" class="w-full px-3 py-2 rounded-xl border border-slate-200" placeholder="Team-01 HK">
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-500 mb-1">代理名（可选，需是已配置的代理名）</label>
+                    <input id="harvProxyInput" class="w-full px-3 py-2 rounded-xl border border-slate-200" placeholder="HK-Resi-01">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-4">
+                <button id="harvEditSubmit" class="px-5 py-3 rounded-2xl bg-slate-900 text-white">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Harvester 批量导入弹窗 -->
+    <div id="harvBulkModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-6">
+        <div class="w-full max-w-2xl bg-white rounded-3xl shadow-xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-semibold">批量导入账号清单</h3>
+                <button id="harvBulkClose" class="px-3 py-2 rounded-xl bg-slate-100 text-sm">关闭</button>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">
+                上传 CSV（表头 <code>email,note,proxy_name</code>），或粘贴 JSON 数组。仅接受元数据，不含密码。
+            </p>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-sm text-slate-500 mb-1">上传 CSV</label>
+                    <input id="harvBulkFile" type="file" accept=".csv" class="block text-sm">
+                </div>
+                <div class="text-center text-slate-400 text-xs">—— 或 ——</div>
+                <div>
+                    <label class="block text-sm text-slate-500 mb-1">粘贴 JSON</label>
+                    <textarea id="harvBulkJson" class="w-full min-h-40 p-3 rounded-xl border border-slate-200 font-mono text-xs" placeholder='[{"email":"a@b.com","note":"Team-01","proxy_name":"HK-Resi-01"}]'></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-4">
+                <button id="harvBulkSubmit" class="px-5 py-3 rounded-2xl bg-slate-900 text-white">导入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Harvester 浏览器登录弹窗 -->
+    <div id="harvAuthModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-6">
+        <div class="w-full max-w-2xl bg-white rounded-3xl shadow-xl p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="harvAuthTitle" class="text-xl font-semibold">浏览器登录</h3>
+                <button id="harvAuthClose" class="px-3 py-2 rounded-xl bg-slate-100 text-sm">关闭</button>
+            </div>
+
+            <div class="rounded-2xl bg-blue-50 border border-blue-200 p-4 text-sm text-slate-700 mb-4">
+                <div class="font-semibold mb-2">操作步骤</div>
+                <ol class="list-decimal ml-5 space-y-1">
+                    <li>点下方 <b>[复制 URL]</b> 按钮</li>
+                    <li>到浏览器（Chrome / Safari / Firefox）新开标签页粘贴打开</li>
+                    <li>输入 OpenAI 邮箱 + 密码，完成 Arkose / 2FA（如有）</li>
+                    <li>登录后浏览器会跳转到 <code>http://localhost:1455/auth/callback?code=...</code>，页面可能显示"无法访问"，属于正常——<b>地址栏的完整 URL 依然可见</b></li>
+                    <li>从地址栏<b>完整</b>复制该 URL，粘贴到下方输入框，点 <b>[完成]</b></li>
+                </ol>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-sm text-slate-500 mb-1">① 授权 URL（复制到浏览器打开）</label>
+                    <div class="flex gap-2">
+                        <input id="harvAuthUrlInput" readonly class="flex-1 px-3 py-2 rounded-xl border border-slate-200 font-mono text-xs bg-slate-50">
+                        <button id="harvAuthCopyUrlButton" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm whitespace-nowrap">复制 URL</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-500 mb-1">② 粘贴登录后地址栏 URL（<code>http://localhost:1455/auth/callback?code=...&state=...</code>）</label>
+                    <textarea id="harvAuthCallbackInput" class="w-full min-h-20 p-3 rounded-xl border border-slate-200 font-mono text-xs" placeholder="http://localhost:1455/auth/callback?code=ac_xxxx&state=yyyy"></textarea>
+                </div>
+                <div id="harvAuthSessionInfo" class="text-xs text-slate-500">--</div>
+                <div id="harvAuthErrorBox" class="hidden rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"></div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-4">
+                <button id="harvAuthCancel" class="px-4 py-2 rounded-2xl bg-white border border-slate-200 text-sm">取消</button>
+                <button id="harvAuthSubmitButton" class="px-5 py-3 rounded-2xl bg-emerald-600 text-white">完成</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Harvester 粘贴 Cookie 弹窗（主流程）-->
+    <div id="harvCookieModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-6">
+        <div class="w-full max-w-2xl bg-white rounded-3xl shadow-xl p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="harvCookieTitle" class="text-xl font-semibold">🍪 粘贴 ChatGPT Session Cookie</h3>
+                <button id="harvCookieClose" class="px-3 py-2 rounded-xl bg-slate-100 text-sm">关闭</button>
+            </div>
+
+            <div class="rounded-2xl bg-blue-50 border border-blue-200 p-4 text-sm text-slate-700 mb-4">
+                <div class="font-semibold mb-2">操作步骤（推荐法：整段粘贴）</div>
+                <ol class="list-decimal ml-5 space-y-1">
+                    <li>在你的 Mac 浏览器登录 <b>https://chatgpt.com</b>（走代理）</li>
+                    <li>F12 → <b>Console</b> → 输入 <code>document.cookie</code> 回车 → <b>右键 → Copy string contents</b></li>
+                    <li>粘贴到下方输入框，后端自动识别 <code>__Secure-next-auth.session-token.0 / .1 / .2</code> 全部分片</li>
+                    <li>点 <b>[验证并导入]</b></li>
+                </ol>
+                <div class="font-semibold mt-3 mb-1">或分段粘贴（繁琐但精确）</div>
+                <ol class="list-decimal ml-5 space-y-1 text-xs">
+                    <li>Application → Cookies → https://chatgpt.com</li>
+                    <li>找到 <code>__Secure-next-auth.session-token.0</code> 和 <code>.1</code>（甚至 .2）</li>
+                    <li>把它们<b>全部</b>按 <code>name.0=value0; name.1=value1</code> 格式拼接粘贴</li>
+                </ol>
+                <div class="text-xs text-slate-600 mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                    ⚠️ <b>必须带上所有 .N 分片</b>。NextAuth 的 JWE session token 超过 4KB 时被浏览器自动切成多段，
+                    只粘一段会导致解密失败，报错"session cookie 无效或过期"。
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-sm text-slate-500 mb-1">Cookie 字符串 / Session Token 值</label>
+                    <textarea id="harvCookieInput" class="w-full min-h-40 p-3 rounded-xl border border-slate-200 font-mono text-xs" placeholder="粘贴 document.cookie 的完整输出，或者所有 __Secure-next-auth.session-token.N=... 片段用分号连接"></textarea>
+                </div>
+                <div id="harvCookieInfo" class="text-xs text-slate-500">--</div>
+                <div id="harvCookieErrorBox" class="hidden rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"></div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-4">
+                <button id="harvCookieCancel" class="px-4 py-2 rounded-2xl bg-white border border-slate-200 text-sm">取消</button>
+                <button id="harvCookieSubmit" class="px-5 py-3 rounded-2xl bg-emerald-600 text-white">验证并导入</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

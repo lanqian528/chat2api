@@ -1,0 +1,238 @@
+:root {
+    --panel: rgba(255, 255, 255, 0.88);
+    --line: #e6edf7;
+    --brand: #2563eb;
+    --text-strong: #0f172a;
+    --text-body: #334155;
+    --text-soft: #64748b;
+}
+body {
+    background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 34rem),
+        linear-gradient(135deg, #f8fbff 0%, #eef4fb 48%, #f8fafc 100%);
+    font-family: "SF Pro Display", "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+    color: var(--text-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+.glass-panel {
+    background: var(--panel);
+    border: 1px solid rgba(226, 232, 240, 0.88);
+    box-shadow: 0 14px 40px rgba(15, 23, 42, 0.055);
+    backdrop-filter: blur(18px);
+}
+.metric-card {
+    min-height: 112px;
+    border: 1px solid var(--line);
+    border-radius: 1.25rem;
+    background: linear-gradient(145deg, #fff, #f8fbff);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.045);
+}
+.metric-card > div:first-child,
+.metric-card > div:last-child {
+    letter-spacing: 0.01em;
+}
+.orch-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    border-radius: 1rem;
+    padding: 0.78rem 0.9rem;
+    color: #526179;
+    transition: 160ms ease;
+    text-align: left;
+}
+.orch-nav-item:hover {
+    background: #f1f5f9;
+    color: var(--brand);
+}
+.orch-nav-active {
+    background: linear-gradient(90deg, #eaf2ff, #f8fbff);
+    color: var(--brand);
+    box-shadow: inset 3px 0 0 var(--brand);
+    font-weight: 700;
+}
+.admin-table th {
+    color: var(--text-soft);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.admin-table tbody tr { transition: 140ms ease; }
+.admin-table tbody tr:hover { background: #f8fbff; }
+.status-dot, .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    margin-right: 6px;
+}
+.dot-healthy { background: #10b981; }
+.dot-unhealthy { background: #ef4444; }
+.dot-starting { background: #f59e0b; }
+.dot-na { background: #9ca3af; }
+.kbd-row { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.row-action-btn {
+    padding: 0.45rem 0.65rem;
+    font-size: 0.75rem;
+    border-radius: 0.75rem;
+    margin-right: 0.2rem;
+    font-weight: 600;
+}
+.row-action-btn:hover { background: #f1f5f9; }
+.model-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.72rem;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    background: #eef2ff;
+    color: #4338ca;
+    border: 1px solid #c7d2fe;
+    border-radius: 9999px;
+    line-height: 1.2;
+}
+.usage-control {
+    width: 100%;
+    height: 2.5rem;
+    border-radius: 1rem;
+    border: 1px solid #dbe4ef;
+    background: rgba(255, 255, 255, 0.92);
+    padding: 0 0.85rem;
+    font-size: 0.875rem;
+    color: var(--text-body);
+    outline: none;
+}
+.usage-control:focus {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 4px rgba(147, 197, 253, 0.28);
+}
+.usage-dot {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    margin-right: 0.35rem;
+}
+.usage-chart {
+    min-height: 220px;
+    border-radius: 1.5rem;
+    background:
+        linear-gradient(to bottom, transparent 0 24%, rgba(203, 213, 225, 0.55) 24% 25%, transparent 25% 49%, rgba(203, 213, 225, 0.55) 49% 50%, transparent 50% 74%, rgba(203, 213, 225, 0.55) 74% 75%, transparent 75% 100%),
+        linear-gradient(180deg, rgba(248, 250, 252, 0.92), rgba(255,255,255,0.92));
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+.usage-bar-track {
+    height: 0.55rem;
+    border-radius: 999px;
+    background: #edf2f7;
+    overflow: hidden;
+}
+.usage-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2563eb, #14b8a6);
+}
+.usage-row {
+    cursor: pointer;
+}
+.usage-row:hover {
+    background: #f8fbff;
+}
+.usage-status-ok {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #047857;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.usage-status-error {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: #fee2e2;
+    color: #b91c1c;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.usage-mode-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.usage-mode-pill-normal {
+    background: #f1f5f9;
+    color: #475569;
+}
+.orch-title,
+.orch-section-title,
+.orch-metric-value,
+.orch-detail-title {
+    color: var(--text-strong);
+    letter-spacing: -0.015em;
+}
+.orch-title {
+    font-weight: 700;
+}
+.orch-section-title {
+    font-weight: 650;
+}
+.orch-metric-value {
+    font-weight: 700;
+}
+.orch-label-strong {
+    font-weight: 600;
+}
+.orch-subtle {
+    color: var(--text-soft);
+}
+.code-block {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    line-height: 1.45;
+    white-space: pre;
+}
+.pg-loading-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: pg-spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+@keyframes pg-spin { to { transform: rotate(360deg); } }
+@media (max-width: 1023px) {
+    .orch-shell { display: block; }
+    .orch-sidebar {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        width: 100%;
+        min-height: 0;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+    }
+    .orch-nav {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+    }
+    .orch-nav-item { white-space: nowrap; }
+}

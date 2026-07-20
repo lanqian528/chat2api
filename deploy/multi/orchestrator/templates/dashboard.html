@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>chat2api Orchestrator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./static/styles.css?v={{ static_version }}">
+</head>
+<body class="min-h-screen text-slate-900">
+<div class="orch-shell flex min-h-screen">
+    <aside class="orch-sidebar w-64 shrink-0 border-r border-slate-200 bg-white/85 p-4 lg:min-h-screen">
+        <div class="mb-6 flex items-center gap-3 px-2">
+            <div class="grid h-10 w-10 place-items-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">◎</div>
+            <div>
+                <h1 class="orch-title text-lg tracking-tight">chat2api</h1>
+                <p class="text-xs font-medium text-slate-400">Orchestrator</p>
+            </div>
+        </div>
+        <nav class="orch-nav space-y-1 text-sm font-semibold">
+            <button type="button" class="orch-nav-item orch-nav-active" data-panel="instances"><span>▣</span><span>账号实例</span></button>
+            <button type="button" id="btn-summary" class="orch-nav-item"><span>☷</span><span>调用汇总</span></button>
+            <button type="button" id="btn-playground" class="orch-nav-item"><span>▶</span><span>试调用</span></button>
+            <button type="button" id="btn-unified-api" class="orch-nav-item"><span>◆</span><span>统一 API</span></button>
+            <button type="button" class="orch-nav-item" data-panel="usage"><span>◷</span><span>使用日志</span></button>
+            <button type="button" id="btn-audit" class="orch-nav-item"><span>◴</span><span>审计日志</span></button>
+            <button type="button" id="btn-diag-logs" class="orch-nav-item"><span>☰</span><span>诊断日志</span></button>
+            <button type="button" id="btn-admin-center" class="orch-nav-item"><span>⚙</span><span>管理中心</span></button>
+        </nav>
+        <div class="mt-8 hidden rounded-3xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500 lg:block">
+            <div class="orch-label-strong mb-2 text-slate-700">系统状态</div>
+            <div class="flex items-center gap-2 text-emerald-600"><span class="status-dot bg-emerald-500"></span>运行正常</div>
+            <div id="server-status" class="mt-3 leading-5">加载中...</div>
+        </div>
+    </aside>
+
+    <main class="min-w-0 flex-1 p-4 lg:p-6">
+        <header class="glass-panel sticky top-0 z-30 mb-6 rounded-3xl px-4 py-3">
+            <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <div class="flex flex-wrap items-center gap-3 text-sm">
+                    <span class="inline-flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 font-semibold text-emerald-700"><span class="status-dot bg-emerald-500"></span>生产环境</span>
+                    <span class="text-slate-500">服务器时间 <span id="server-time" class="font-semibold text-slate-700">--</span></span>
+                </div>
+                <div class="flex flex-1 flex-col gap-2 sm:flex-row xl:max-w-3xl">
+                    <label class="relative flex-1">
+                        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
+                        <input id="instance-search" type="search" placeholder="搜索账号、别名、代理、IP 或模型..." class="w-full rounded-2xl border border-slate-200 bg-white/90 py-2.5 pl-9 pr-4 text-sm shadow-sm outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100">
+                    </label>
+                    <button id="btn-refresh" class="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">刷新</button>
+                    <form method="POST" action="./logout" class="inline">
+                        <button type="submit" class="w-full rounded-2xl border border-red-100 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-100 sm:w-auto">退出</button>
+                    </form>
+                </div>
+            </div>
+        </header>
+
+        <div id="panel-instances" class="orch-panel" data-panel-body="instances">
+            <section class="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <p class="text-sm font-medium text-blue-600">Account Instances</p>
+                    <h2 class="orch-title mt-1 text-3xl tracking-tight">账号实例</h2>
+                    <p class="mt-1 text-sm text-slate-500">集中查看实例健康、代理、Cookie 鲜度和模型可用性。</p>
+                </div>
+                <button id="btn-add" class="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-600/20">+ 新增账号</button>
+            </section>
+
+            <section class="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+                <div class="metric-card p-4"><div class="text-sm font-medium text-slate-500">总实例数</div><div id="metric-total" class="orch-metric-value mt-2 text-2xl">0</div><div class="mt-2 text-xs text-slate-500">全部账号</div></div>
+                <div class="metric-card p-4"><div class="text-sm font-medium text-slate-500">健康实例</div><div id="metric-healthy" class="orch-metric-value mt-2 text-2xl">0</div><div class="mt-2 text-xs text-emerald-600">Healthy</div></div>
+                <div class="metric-card p-4"><div class="text-sm font-medium text-slate-500">异常实例</div><div id="metric-degraded" class="orch-metric-value mt-2 text-2xl">0</div><div class="mt-2 text-xs text-orange-600">需关注</div></div>
+                <div class="metric-card p-4"><div class="text-sm font-medium text-slate-500">代理绑定</div><div id="metric-proxy" class="orch-metric-value mt-2 text-2xl">0</div><div class="mt-2 text-xs text-slate-500">已配置出口</div></div>
+                <div class="metric-card p-4"><div class="text-sm font-medium text-slate-500">模型可用</div><div id="metric-models" class="orch-metric-value mt-2 text-2xl">0</div><div class="mt-2 text-xs text-slate-500">模型总数</div></div>
+                <div class="metric-card p-4"><div class="text-sm font-medium text-slate-500">Cookie 新鲜</div><div id="metric-cookie" class="orch-metric-value mt-2 text-2xl">0</div><div class="mt-2 text-xs text-slate-500">1 小时内</div></div>
+            </section>
+
+            <section class="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
+                <div class="glass-panel overflow-hidden rounded-3xl">
+                    <div class="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <h3 class="orch-section-title text-lg">实例列表</h3>
+                            <p id="table-count" class="mt-1 text-xs text-slate-500">--</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2 text-xs font-semibold">
+                            <span class="rounded-xl bg-blue-50 px-3 py-2 text-blue-700">全部</span>
+                            <span class="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-700">Healthy</span>
+                            <span class="rounded-xl bg-orange-50 px-3 py-2 text-orange-700">Degraded</span>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="admin-table w-full min-w-[1100px] text-sm">
+                            <thead class="bg-slate-50/80">
+                                <tr class="text-left">
+                                    <th class="py-3 pl-4 pr-3">账号</th>
+                                    <th class="px-3 py-3">套餐/模型</th>
+                                    <th class="px-3 py-3">代理</th>
+                                    <th class="px-3 py-3">状态</th>
+                                    <th class="px-3 py-3">出口 IP</th>
+                                    <th class="px-3 py-3">Cookie</th>
+                                    <th class="px-3 py-3">运行时长</th>
+                                    <th class="py-3 pl-3 pr-4 text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody">
+                                <tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">加载中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <aside id="instance-detail" class="glass-panel rounded-3xl p-4 2xl:sticky 2xl:top-28 2xl:self-start">
+                    <div class="mb-4 flex items-center justify-between">
+                        <h3 class="orch-detail-title text-base">实例详情</h3>
+                        <button id="btn-clear-detail" class="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500">清空</button>
+                    </div>
+                    <div id="detail-empty" class="rounded-3xl border border-dashed border-slate-300 bg-white/70 p-8 text-center text-sm text-slate-500">点击左侧实例行查看详情。</div>
+                    <div id="detail-body" class="hidden"></div>
+                </aside>
+            </section>
+        </div>
+
+        <div id="panel-usage" class="orch-panel hidden" data-panel-body="usage">
+            <section class="mb-5 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+                <div>
+                    <p class="text-sm font-medium text-blue-600">Usage Logs</p>
+                    <h2 class="orch-title mt-1 text-3xl tracking-tight">使用日志</h2>
+                    <p class="mt-1 text-sm text-slate-500">查看统一入口调用命中的容器、tokens、耗时和错误分布。</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button id="btn-usage-refresh" class="rounded-2xl bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-700/20">刷新日志</button>
+                    <button id="btn-usage-export" class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">导出 CSV</button>
+                </div>
+            </section>
+
+            <section class="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+                <div class="metric-card p-4"><div class="text-sm font-medium text-slate-500">请求数</div><div id="usage-total" class="orch-metric-value mt-2 text-2xl">0</div><div class="mt-2 text-xs text-slate-500">当前筛选</div></div>
+                <div class="metric-card p-4"><div class="text-sm font-medium text-slate-500">成功率</div><div id="usage-success-rate" class="orch-metric-value mt-2 text-2xl">0%</div><div id="usage-success-note" class="mt-2 text-xs text-emerald-600">0 成功</div></div>
+                <div class="metric-card p-4"><div class="text-sm font-medium text-slate-500">总 Tokens</div><div id="usage-tokens" class="orch-metric-value mt-2 text-2xl">0</div><div id="usage-tokens-note" class="mt-2 text-xs text-slate-500">prompt 0 · output 0</div></div>
+                <div class="metric-card p-4"><div class="text-sm font-medium text-slate-500">平均耗时</div><div id="usage-avg-duration" class="orch-metric-value mt-2 text-2xl">0ms</div><div id="usage-p95-duration" class="mt-2 text-xs text-slate-500">p95 0ms</div></div>
+                <div class="metric-card p-4"><div class="text-sm font-medium text-slate-500">最常用容器</div><div id="usage-top-slug" class="orch-metric-value mt-2 text-2xl">-</div><div class="mt-2 text-xs text-slate-500">按请求数</div></div>
+                <div class="metric-card p-4"><div class="text-sm font-medium text-slate-500">失败请求</div><div id="usage-failed" class="orch-metric-value mt-2 text-2xl">0</div><div class="mt-2 text-xs text-orange-600">非 2xx / 异常</div></div>
+            </section>
+
+            <section class="glass-panel mb-5 rounded-3xl p-4">
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_1.4fr_auto]">
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-500">时间范围</label>
+                        <select id="usage-range" class="usage-control">
+                            <option value="900">近 15 分钟</option>
+                            <option value="3600">近 1 小时</option>
+                            <option value="86400" selected>近 24 小时</option>
+                            <option value="604800">近 7 天</option>
+                            <option value="all">全部</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-500">容器</label>
+                        <select id="usage-slug" class="usage-control"><option value="">全部容器</option></select>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-500">模型</label>
+                        <select id="usage-model" class="usage-control"><option value="">全部模型</option></select>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-500">接口</label>
+                        <select id="usage-endpoint" class="usage-control"><option value="">全部接口</option></select>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-500">状态</label>
+                        <select id="usage-ok" class="usage-control">
+                            <option value="">全部</option>
+                            <option value="true">成功</option>
+                            <option value="false">失败</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-500">模式</label>
+                        <select id="usage-stream" class="usage-control">
+                            <option value="">全部</option>
+                            <option value="true">stream</option>
+                            <option value="false">normal</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-500">搜索</label>
+                        <input id="usage-search" type="search" class="usage-control" placeholder="Request ID / 模型 / 容器 / 错误">
+                    </div>
+                    <div class="flex items-end">
+                        <button id="btn-usage-clear" class="h-10 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600">清空</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mb-5 grid gap-4 2xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,1fr)]">
+                <div class="glass-panel rounded-3xl p-4">
+                    <div class="mb-3 flex items-center justify-between">
+                        <h3 class="orch-section-title text-lg">请求量与 Tokens 趋势</h3>
+                        <div class="flex flex-wrap gap-3 text-xs text-slate-500">
+                            <span><i class="usage-dot bg-blue-600"></i>请求数</span>
+                            <span><i class="usage-dot bg-teal-600"></i>Tokens</span>
+                            <span><i class="usage-dot bg-amber-500"></i>平均耗时</span>
+                        </div>
+                    </div>
+                    <div id="usage-trend" class="usage-chart"></div>
+                </div>
+                <div class="glass-panel rounded-3xl p-4">
+                    <div class="mb-3 flex items-center justify-between">
+                        <h3 class="orch-section-title text-lg">容器消耗排行</h3>
+                        <span class="text-xs text-slate-500">按 total tokens</span>
+                    </div>
+                    <div id="usage-slug-bars" class="space-y-3"></div>
+                </div>
+            </section>
+
+            <section class="glass-panel overflow-hidden rounded-3xl">
+                <div class="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h3 class="orch-section-title text-lg">调用明细</h3>
+                        <p id="usage-table-count" class="mt-1 text-xs text-slate-500">--</p>
+                    </div>
+                    <div id="usage-meta" class="text-xs text-slate-500"></div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="admin-table w-full min-w-[1180px] text-sm">
+                        <thead class="bg-slate-50/80">
+                            <tr class="text-left">
+                                <th class="py-3 pl-4 pr-3">时间</th>
+                                <th class="px-3 py-3">容器</th>
+                                <th class="px-3 py-3">模型</th>
+                                <th class="px-3 py-3">接口</th>
+                                <th class="px-3 py-3">模式</th>
+                                <th class="px-3 py-3">Prompt</th>
+                                <th class="px-3 py-3">Completion</th>
+                                <th class="px-3 py-3">Total</th>
+                                <th class="px-3 py-3">耗时</th>
+                                <th class="px-3 py-3">状态</th>
+                                <th class="py-3 pl-3 pr-4">错误</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usage-body">
+                            <tr><td colspan="11" class="px-4 py-8 text-center text-slate-400">尚未加载</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+
+<!-- 模态：使用日志详情 -->
+<div id="modal-usage-detail" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6">
+        <div class="mb-4 flex items-center justify-between">
+            <h3 class="text-lg font-semibold">请求详情</h3>
+            <button id="btn-close-usage-detail" class="text-gray-400 hover:text-gray-600">×</button>
+        </div>
+        <div id="usage-detail-body" class="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2"></div>
+    </div>
+</div>
+
+<!-- 模态：新增/编辑 -->
+<div id="modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <h3 id="modal-title" class="text-lg font-semibold mb-4">新增账号</h3>
+        <form id="modal-form" class="space-y-3">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">slug</label>
+                <input id="f-slug" type="text" required pattern="[a-z0-9-]{1,16}" class="w-full px-3 py-2 border border-gray-300 rounded">
+                <p id="slug-help" class="text-xs text-gray-500 mt-1">小写字母 / 数字 / 连字符，最多 16 位</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">proxy_url（可空）</label>
+                <input id="f-proxy" type="text" placeholder="socks5://user:pass@host:port" class="w-full px-3 py-2 border border-gray-300 rounded">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                <input id="f-note" type="text" class="w-full px-3 py-2 border border-gray-300 rounded">
+            </div>
+            <div id="modal-error" class="text-sm text-red-600 hidden"></div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" id="btn-cancel" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">取消</button>
+                <button type="submit" id="btn-submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 模态：凭证查看 -->
+<div id="modal-secret" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold">实例凭证</h3>
+            <button id="btn-close-secret" class="text-gray-400 hover:text-gray-600">×</button>
+        </div>
+        <div id="secret-body" class="space-y-2 text-sm"></div>
+    </div>
+</div>
+
+<!-- 模态：管理中心 -->
+<div id="modal-admin-center" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold">管理中心</h3>
+            <button id="btn-close-admin-center" class="text-gray-400 hover:text-gray-600">×</button>
+        </div>
+        <form id="admin-center-form" class="space-y-3">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">登录用户名</label>
+                <input id="admin-username" type="text" required autocomplete="username" class="w-full px-3 py-2 border border-gray-300 rounded">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">当前密码</label>
+                <input id="admin-current-password" type="password" required autocomplete="current-password" class="w-full px-3 py-2 border border-gray-300 rounded">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">新密码</label>
+                <input id="admin-new-password" type="password" required minlength="8" autocomplete="new-password" class="w-full px-3 py-2 border border-gray-300 rounded">
+            </div>
+            <div id="admin-center-error" class="text-sm text-red-600 hidden"></div>
+            <p class="text-xs text-gray-500">保存后当前登录会失效，需要使用新用户名和新密码重新登录。</p>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" id="btn-cancel-admin-center" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">取消</button>
+                <button type="submit" id="btn-save-admin-center" class="px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 模态：统一 API -->
+<div id="modal-unified-api" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold">统一 API（自动均衡）</h3>
+            <button id="btn-close-unified-api" class="text-gray-400 hover:text-gray-600">×</button>
+        </div>
+        <div class="space-y-3 text-sm">
+            <div class="text-xs text-gray-500">外部系统只需要配置下面这一组 URL / Key；Orchestrator 会在后端容器之间自动选择实例。</div>
+            <div>
+                <div class="text-xs text-gray-500 mb-1">Base URL</div>
+                <div class="flex gap-2">
+                    <code id="unified-base-url" class="bg-gray-100 px-2 py-1 rounded text-xs break-all flex-1"></code>
+                    <button class="copy-btn text-xs px-2 py-1 bg-green-600 text-white rounded" data-copy-target="unified-base-url">复制</button>
+                </div>
+            </div>
+            <div>
+                <div class="text-xs text-gray-500 mb-1">API Key</div>
+                <div class="flex gap-2">
+                    <code id="unified-api-key" class="bg-gray-100 px-2 py-1 rounded text-xs break-all flex-1"></code>
+                    <button class="copy-btn text-xs px-2 py-1 bg-green-600 text-white rounded" data-copy-target="unified-api-key">复制</button>
+                </div>
+            </div>
+            <div>
+                <div class="text-xs text-gray-500 mb-1">已支持接口</div>
+                <div class="space-y-2">
+                    <div class="flex gap-2 items-center">
+                        <span class="w-44 text-xs text-gray-600">Chat Completions</span>
+                        <code id="unified-chat-url" class="bg-gray-100 px-2 py-1 rounded text-xs break-all flex-1"></code>
+                        <button class="copy-btn text-xs px-2 py-1 bg-green-600 text-white rounded" data-copy-target="unified-chat-url">复制</button>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="w-44 text-xs text-gray-600">Responses</span>
+                        <code id="unified-responses-url" class="bg-gray-100 px-2 py-1 rounded text-xs break-all flex-1"></code>
+                        <button class="copy-btn text-xs px-2 py-1 bg-green-600 text-white rounded" data-copy-target="unified-responses-url">复制</button>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <span class="w-44 text-xs text-gray-600">Responses Compact</span>
+                        <code id="unified-compact-url" class="bg-gray-100 px-2 py-1 rounded text-xs break-all flex-1"></code>
+                        <button class="copy-btn text-xs px-2 py-1 bg-green-600 text-white rounded" data-copy-target="unified-compact-url">复制</button>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="text-xs text-gray-500 mb-1">curl 示例</div>
+                <pre id="unified-curl" class="code-block bg-gray-900 text-gray-100 p-3 rounded text-xs overflow-auto"></pre>
+            </div>
+            <div id="unified-strategy" class="text-xs text-gray-500"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 模态：审计 -->
+<div id="modal-audit" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b">
+            <h3 class="text-lg font-semibold">操作审计日志</h3>
+            <button id="btn-close-audit" class="text-gray-400 hover:text-gray-600">×</button>
+        </div>
+        <div class="overflow-auto flex-1 p-4">
+            <table class="w-full text-xs">
+                <thead class="text-gray-500 sticky top-0 bg-white">
+                    <tr>
+                        <th class="text-left px-2 py-1">时间</th>
+                        <th class="text-left px-2 py-1">IP</th>
+                        <th class="text-left px-2 py-1">动作</th>
+                        <th class="text-left px-2 py-1">slug</th>
+                        <th class="text-left px-2 py-1">结果</th>
+                        <th class="text-left px-2 py-1">详情</th>
+                    </tr>
+                </thead>
+                <tbody id="audit-body"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 模态：诊断日志 -->
+<div id="modal-logs" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[88vh] flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b">
+            <h3 class="text-lg font-semibold">诊断日志</h3>
+            <button id="btn-close-logs" class="text-gray-400 hover:text-gray-600">×</button>
+        </div>
+        <div class="p-4 border-b bg-gray-50 flex flex-wrap items-center gap-2">
+            <label class="text-xs text-gray-500">目标</label>
+            <select id="log-target" class="px-2 py-1.5 border border-gray-300 rounded text-sm"></select>
+            <label class="text-xs text-gray-500 ml-2">行数</label>
+            <select id="log-tail" class="px-2 py-1.5 border border-gray-300 rounded text-sm">
+                <option value="100">100</option>
+                <option value="200" selected>200</option>
+                <option value="500">500</option>
+                <option value="1000">1000</option>
+            </select>
+            <button id="btn-refresh-logs" class="text-sm px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded">刷新日志</button>
+            <button class="copy-btn text-sm px-3 py-1.5 bg-gray-700 hover:bg-gray-800 text-white rounded" data-copy-target="logs-body">复制日志</button>
+            <span id="logs-meta" class="text-xs text-gray-500"></span>
+        </div>
+        <div class="overflow-auto flex-1 p-4 bg-gray-950">
+            <pre id="logs-body" class="text-xs text-gray-100 whitespace-pre-wrap break-words">(未加载)</pre>
+        </div>
+    </div>
+</div>
+
+<!-- 模态：单实例调用信息 -->
+<div id="modal-invoke" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b">
+            <h3 class="text-lg font-semibold">📡 调用信息 <span id="invoke-slug-label" class="text-blue-600"></span></h3>
+            <button id="btn-close-invoke" class="text-gray-400 hover:text-gray-600">×</button>
+        </div>
+        <div class="overflow-auto flex-1 p-5 space-y-4">
+            <!-- 基础调用信息 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">base_url</div>
+                    <div class="flex gap-2">
+                        <code id="invoke-base-url" class="bg-gray-100 px-2 py-1 rounded text-xs break-all flex-1"></code>
+                        <button class="copy-btn text-xs px-2 py-1 bg-blue-600 text-white rounded" data-copy-target="invoke-base-url">复制</button>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">api_key (Authorization)</div>
+                    <div class="flex gap-2">
+                        <code id="invoke-auth-key" class="bg-gray-100 px-2 py-1 rounded text-xs break-all flex-1"></code>
+                        <button class="copy-btn text-xs px-2 py-1 bg-blue-600 text-white rounded" data-copy-target="invoke-auth-key">复制</button>
+                    </div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">账号套餐</div>
+                    <div><span id="invoke-plan" class="inline-block px-2 py-1 rounded text-xs"></span> <span id="invoke-plan-source" class="text-xs text-gray-400"></span></div>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-1">缓存状态</div>
+                    <div id="invoke-cached-state" class="text-xs text-gray-500"></div>
+                </div>
+            </div>
+
+            <!-- 模型 chip -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs text-gray-500">可用模型 <span id="invoke-models-source-hint" class="text-gray-400"></span></div>
+                    <button id="btn-probe-models" class="text-xs px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded">🔄 实时探测</button>
+                </div>
+                <div id="invoke-models-chips" class="flex flex-wrap gap-1.5"></div>
+                <pre id="invoke-error" class="hidden mt-3 text-xs text-red-800 bg-red-50 border border-red-200 rounded p-3 whitespace-pre-wrap break-words max-h-72 overflow-auto"></pre>
+            </div>
+
+            <!-- 代码示例（tabs）-->
+            <div>
+                <div class="flex gap-1 border-b mb-2">
+                    <button class="snippet-tab text-xs px-3 py-1.5 border-b-2 border-blue-600 text-blue-600" data-snippet="curl">curl</button>
+                    <button class="snippet-tab text-xs px-3 py-1.5 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-snippet="python">Python</button>
+                    <button class="snippet-tab text-xs px-3 py-1.5 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-snippet="node">Node.js</button>
+                </div>
+                <div class="relative">
+                    <pre id="invoke-snippet" class="code-block bg-gray-900 text-gray-100 p-3 rounded text-xs overflow-auto max-h-60"></pre>
+                    <button class="copy-btn absolute top-2 right-2 text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded" data-copy-target="invoke-snippet">复制</button>
+                </div>
+                <div class="text-xs text-gray-400 mt-1">使用第一个模型作为示例；可在 playground 选其它模型测试</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 模态：调用汇总（跨实例看板 + 导出）-->
+<div id="modal-summary" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b">
+            <h3 class="text-lg font-semibold">📊 调用汇总</h3>
+            <button id="btn-close-summary" class="text-gray-400 hover:text-gray-600">×</button>
+        </div>
+        <div class="overflow-auto flex-1 p-4">
+            <table class="w-full text-sm">
+                <thead class="text-xs uppercase text-gray-500 bg-gray-50">
+                    <tr>
+                        <th class="px-3 py-2 text-left">slug</th>
+                        <th class="px-3 py-2 text-left">套餐</th>
+                        <th class="px-3 py-2 text-left">endpoint</th>
+                        <th class="px-3 py-2 text-left">api_key</th>
+                        <th class="px-3 py-2 text-left">模型</th>
+                        <th class="px-3 py-2 text-left">健康</th>
+                    </tr>
+                </thead>
+                <tbody id="summary-body"></tbody>
+            </table>
+            <div id="summary-empty" class="hidden text-center text-gray-400 py-8 text-sm">尚无任何实例</div>
+        </div>
+        <div class="p-4 border-t bg-gray-50 flex items-center justify-between flex-wrap gap-2">
+            <div class="text-xs text-gray-500">⚠️ 导出文件包含真实 api_key，下载后请妥善保管</div>
+            <div class="flex gap-2">
+                <button class="btn-export text-sm px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded" data-fmt="litellm">⬇ LiteLLM</button>
+                <button class="btn-export text-sm px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded" data-fmt="oneapi">⬇ OneAPI</button>
+                <button class="btn-export text-sm px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded" data-fmt="librechat">⬇ LibreChat</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 模态：Playground 试调用 -->
+<div id="modal-playground" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[92vh] flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b">
+            <h3 class="text-lg font-semibold">🎮 Playground 试调用</h3>
+            <button id="btn-close-playground" class="text-gray-400 hover:text-gray-600">×</button>
+        </div>
+        <div class="overflow-auto flex-1 p-4 space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">实例</label>
+                    <select id="pg-slug" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"></select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">模型</label>
+                    <select id="pg-model" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"></select>
+                    <input id="pg-custom-model" type="text" class="mt-2 w-full px-2 py-1.5 border border-gray-300 rounded text-sm font-mono" placeholder="自定义模型 ID（可选）">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">system prompt（可空）</label>
+                <textarea id="pg-system" rows="2" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm font-mono" placeholder="You are a helpful assistant."></textarea>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">user prompt <span class="text-red-500">*</span></label>
+                <textarea id="pg-user" rows="4" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm font-mono" placeholder="say hello in JSON format"></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">temperature: <span id="pg-temp-label">0.7</span></label>
+                    <input id="pg-temp" type="range" min="0" max="2" step="0.1" value="0.7" class="w-full">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">max_tokens (1–4096)</label>
+                    <input id="pg-max-tokens" type="number" min="1" max="4096" value="512" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button id="btn-pg-run" class="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded text-sm">▶ 运行</button>
+            </div>
+            <!-- 结果 -->
+            <div id="pg-result" class="hidden border-t pt-3">
+                <div class="text-xs text-gray-500 mb-1 flex gap-3 flex-wrap">
+                    <span>状态: <span id="pg-result-status"></span></span>
+                    <span>延迟: <span id="pg-result-latency" class="font-mono"></span></span>
+                    <span>tokens: <span id="pg-result-usage" class="font-mono"></span></span>
+                </div>
+                <pre id="pg-result-content" class="code-block bg-gray-50 border border-gray-200 p-3 rounded text-xs overflow-auto max-h-72"></pre>
+                <div id="pg-result-error" class="hidden mt-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- toast -->
+<div id="toast" class="fixed bottom-6 right-6 hidden bg-gray-900 text-white text-sm px-4 py-2 rounded shadow-lg z-50"></div>
+
+<script src="./static/app.js?v={{ static_version }}"></script>
+</body>
+</html>

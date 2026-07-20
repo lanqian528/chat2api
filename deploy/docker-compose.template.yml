@@ -1,0 +1,61 @@
+services:
+  chat2api:
+    image: ${CHAT2API_IMAGE:-ghcr.io/nanashiwang/chat2api:latest}
+    container_name: chat2api
+    restart: unless-stopped
+    pull_policy: always
+    env_file:
+      - .env
+    ports:
+      - '${CHAT2API_PORT:-60403}:5005'
+    volumes:
+      - ./data:/app/data
+    environment:
+      # ============ 基础（从 .env 读敏感项） ============
+      TZ: '${TZ:-Asia/Shanghai}'
+      CHATGPT_BASE_URL: 'https://chatgpt.com'
+
+      # ============ 功能开关 ============
+      HISTORY_DISABLED: 'true'
+      RETRY_TIMES: '3'
+      RANDOM_TOKEN: 'false'
+      SCHEDULED_REFRESH: 'true'
+      ENABLE_LIMIT: 'true'
+      CHECK_MODEL: 'false'
+      UPLOAD_BY_URL: 'false'
+      OAI_LANGUAGE: 'zh-CN'
+      ENABLE_GATEWAY: 'false'
+      AUTO_SEED: 'true'
+
+      # ============ Antiban 风控规避层 ============
+      ENABLE_ANTIBAN: 'true'
+      STRICT_IP_BINDING: 'false'
+      BUCKET_MAX_ACCOUNTS_PER_IP: '30'
+      ACCOUNT_MIN_INTERVAL_SECONDS: '60'
+      ACCOUNT_COOLDOWN_JITTER: '0.3'
+      ACCOUNT_MAX_WAIT_SECONDS: '30'
+      IP_GEO_PROVIDER: 'ip-api'
+      CIRCUIT_429_COOLDOWN: '1800'
+      CIRCUIT_403_COOLDOWN: '3600'
+      CIRCUIT_BUCKET_HEAL_MINUTES: '30'
+
+      # ============ 日志 ============
+      LOG_BUFFER_SIZE: '3000'
+
+      # ============ 冷启动初始化 ============
+      INIT_APPLY_ON_EMPTY: 'true'
+      INIT_FORCE: 'false'
+
+      # ============ Session Sticky（LibreChat → New-API → chat2api 链路下的窗口级会话续接） ============
+      # 默认开启；仅在 request body 携带 librechat_conversation_id 时生效，对裸 OpenAI 客户端无影响
+      ENABLE_SESSION_STICKY: 'true'
+      SESSION_TTL_DAYS: '30'
+      SESSION_LC_FIELD: 'librechat_conversation_id'
+      SESSION_TRIM_TO_LAST_USER: 'true'
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5005/${API_PREFIX}/admin/login > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

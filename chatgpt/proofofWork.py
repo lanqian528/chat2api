@@ -11,7 +11,7 @@ import pybase64
 import diskcache as dc
 
 from utils.Logger import logger
-from utils.configs import conversation_only
+from utils.configs import conversation_only, client_timezone, client_timezone_offset_min, accept_language, oai_language
 
 cores = [8, 16, 24, 32]
 timeLayout = "%a %b %d %Y %H:%M:%S"
@@ -92,7 +92,7 @@ navigator_key = [
     "requestMediaKeySystemAccess−function requestMediaKeySystemAccess() { [native code] }",
     "vendor−Google Inc.",
     "pdfViewerEnabled−true",
-    "language−zh-CN",
+    "language−en-US",
     "setAppBadge−function setAppBadge() { [native code] }",
     "geolocation−[object Geolocation]",
     "userAgentData−[object NavigatorUAData]",
@@ -408,6 +408,12 @@ async def get_dpl(service):
     if int(time.time()) - cached_time < 15 * 60:
         return True
     headers = service.base_headers.copy()
+    # T4: 首页 GET 用 HTML Accept（真实浏览器导航请求）
+    headers["accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+    headers["sec-fetch-dest"] = "document"
+    headers["sec-fetch-mode"] = "navigate"
+    headers["sec-fetch-site"] = "none"
+    headers["sec-fetch-user"] = "?1"
     cached_scripts = []
     cached_dpl = ""
     try:
@@ -427,32 +433,80 @@ async def get_dpl(service):
         return False
 
 
-def get_parse_time():
-    now = datetime.now(timezone(timedelta(hours=-5)))
-    return now.strftime(timeLayout) + " GMT-0500 (Eastern Standard Time)"
+def get_parse_time(tz_offset_min=None, tz_name=None):
+    """支持 antiban 动态覆盖时区，默认沿用全局配置。"""
+    offset = tz_offset_min if tz_offset_min is not None else client_timezone_offset_min
+    name = tz_name if tz_name else client_timezone
+    now = datetime.now(timezone(timedelta(minutes=offset)))
+    offset_hours = int(offset / 60)
+    offset_label = f"GMT{offset_hours:+03d}00"
+    timezone_name = name.split("/")[-1].replace("_", " ")
+    return now.strftime(timeLayout) + f" {offset_label} ({timezone_name})"
 
 
 @cache.memoize(expire=3600 * 24 * 7)
-def get_config(user_agent, req_token=None):
+def _get_static_config_meta(req_token):
+    """Token 级缓存：仅缓存稳定的静态 metadata，避免每次重读 fp_map。
+
+    动态字段（time / perf_counter / uuid / 随机 navigator key）NOT cached，每次重算。
+    旧实现把整个 config 缓存了 7 天，导致同一 token 多次 PoW 输入完全一致 → 重放特征。
+    """
+    screen_sum = None
+    cores_val = None
+    page_load_ms = None
+    try:
+        from utils import configs as _configs
+        if _configs.enable_antiban and req_token:
+            from utils.antiban import fingerprint as _fp
+            screen_sum = _fp.get_screen_resolution_sum(req_token)
+            cores_val = _fp.get_hardware_concurrency(req_token)
+            page_load_ms = _fp.get_virtual_page_load_ms(req_token)
+    except Exception:
+        pass
+    return {"screen_sum": screen_sum, "cores": cores_val, "page_load_ms": page_load_ms}
+
+
+def get_config(user_agent, req_token=None, tz_offset_min=None, tz_name=None):
+    """生成 PoW config。静态字段 token 级缓存；动态字段（时间/UUID/随机 key）每次重算。"""
+    meta = _get_static_config_meta(req_token)
+    screen_sum = meta.get("screen_sum")
+    cores_val = meta.get("cores")
+    page_load_ms = meta.get("page_load_ms")
+
+    # perf_counter：真实浏览器从 page load 起算（秒级到分钟级），不是进程级累加
+    now_perf_ms = time.perf_counter() * 1000
+    if page_load_ms is not None:
+        # 用 token 级稳定的"虚拟页面加载偏移"：模拟用户已在页面停留若干秒
+        perf_relative = now_perf_ms - page_load_ms
+    else:
+        perf_relative = now_perf_ms
+
+    # T6: navigator_key 池含 "hardwareConcurrency−32" 等硬编码键；
+    # 若随机选中这类与 fp.hardware_concurrency 不一致的字符串，会暴露指纹矛盾。
+    # 优先选不含数值的键（vendor/cookieEnabled 等），仅当抽中 hardwareConcurrency-* 时改写为真实值。
+    chosen_nav_key = random.choice(navigator_key)
+    if cores_val is not None and chosen_nav_key.startswith("hardwareConcurrency−"):
+        chosen_nav_key = f"hardwareConcurrency−{cores_val}"
+
     config = [
-        random.choice([1920 + 1080, 2560 + 1440, 1920 + 1200, 2560 + 1600]),
-        get_parse_time(),
+        screen_sum if screen_sum is not None else random.choice([1920 + 1080, 2560 + 1440, 1920 + 1200, 2560 + 1600]),
+        get_parse_time(tz_offset_min, tz_name),
         4294705152,
         0,
         user_agent,
         random.choice(cached_scripts) if cached_scripts else "",
         cached_dpl,
-        "en-US",
-        "en-US,es-US,en,es",
+        oai_language,
+        accept_language,
         0,
-        random.choice(navigator_key),
+        chosen_nav_key,
         random.choice(document_key),
         random.choice(window_key),
-        time.perf_counter() * 1000,
+        perf_relative,
         str(uuid.uuid4()),
         "",
-        random.choice(cores),
-        time.time() * 1000 - (time.perf_counter() * 1000),
+        cores_val if cores_val is not None else random.choice(cores),
+        time.time() * 1000 - now_perf_ms,
     ]
     return config
 

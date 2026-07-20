@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Admin Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-100 flex items-center justify-center p-6">
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-sm border border-slate-200 p-8">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-slate-900">管理后台登录</h1>
+            <p class="text-sm text-slate-500 mt-2">优先使用 `ADMIN_PASSWORD`，未配置时回退到 `AUTHORIZATION`。</p>
+        </div>
+
+        {% if error %}
+        <div class="mb-4 rounded-2xl border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% if api_prefix and api_prefix != 'None' %}/{{ api_prefix }}/admin/login{% else %}/admin/login{% endif %}" class="space-y-4">
+            <div>
+                <label class="block text-sm text-slate-600 mb-2">授权码</label>
+                <input
+                    class="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                    name="password"
+                    placeholder="sk-..."
+                    type="password"
+                    required
+                >
+            </div>
+            <button class="w-full rounded-2xl bg-slate-900 text-white py-3 font-medium" type="submit">
+                登录后台
+            </button>
+        </form>
+    </div>
+</body>
+</html>

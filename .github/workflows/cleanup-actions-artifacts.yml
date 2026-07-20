@@ -1,0 +1,64 @@
+name: Cleanup old Actions artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/cleanup-actions-artifacts.yml"
+  schedule:
+    # Sunday 02:17 UTC = Sunday 10:17 Singapore time.
+    - cron: "17 2 * * 0"
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Delete artifacts older than 7 days
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RETENTION_DAYS: "7"
+          BATCH_LIMIT: "300"
+        run: |
+          set -uo pipefail
+          api_version="2022-11-28"
+          cutoff=$(date -u -d "${RETENTION_DAYS} days ago" +%Y-%m-%dT%H:%M:%SZ)
+          snapshot=$(mktemp)
+          trap 'rm -f "$snapshot"' EXIT
+
+          gh api --paginate \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: ${api_version}" \
+            "/repos/${REPOSITORY}/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | [.id, .created_at, .name, .size_in_bytes] | @tsv' > "$snapshot"
+
+          deleted=0
+          freed=0
+          failed=0
+          while IFS=$'\t' read -r artifact_id created_at artifact_name size_bytes; do
+            [[ -z "${artifact_id:-}" ]] && continue
+            [[ "$created_at" < "$cutoff" ]] || continue
+            (( deleted + failed < BATCH_LIMIT )) || break
+
+            if gh api --method DELETE \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: ${api_version}" \
+              "/repos/${REPOSITORY}/actions/artifacts/${artifact_id}"; then
+              echo "Deleted id=${artifact_id} name=${artifact_name} size=${size_bytes}"
+              deleted=$((deleted + 1))
+              freed=$((freed + size_bytes))
+            else
+              echo "::warning::Unable to delete id=${artifact_id}; a later run will retry."
+              failed=$((failed + 1))
+            fi
+            sleep 2
+          done < "$snapshot"
+
+          echo "Deleted ${deleted}; failed ${failed}; requested release of ${freed} bytes."
+          exit 0

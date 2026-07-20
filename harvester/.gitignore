@@ -1,0 +1,29 @@
+# Runtime data
+profiles/
+state/
+logs/
+failed_imports.json
+tokens.json
+
+# Secrets - 禁止入库
+.env
+accounts.csv
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp

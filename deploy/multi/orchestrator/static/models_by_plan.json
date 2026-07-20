@@ -1,0 +1,37 @@
+{
+  "version": 3,
+  "updated_at": "2026-05-16",
+  "comment": "每个套餐能用的模型清单。OpenAI 改版后只需更新此文件，无需改 Python。plan_type 从 access_token JWT 的 chatgpt_plan_type 字段解码得到；deep-research 项是 chat2api 支持的调用别名。",
+  "plans": {
+    "free": {
+      "label": "Free",
+      "color": "slate",
+      "models": ["gpt-5-5", "gpt-5-mini", "gpt-4o-mini", "o4-mini"]
+    },
+    "plus": {
+      "label": "Plus",
+      "color": "blue",
+      "models": ["gpt-5-5", "gpt-5", "gpt-5-thinking", "gpt-4o", "o4-mini", "o3", "o3-deep-research", "o4-mini-deep-research", "gpt-4o-deep-research", "deep-research", "gpt-4o-mini"]
+    },
+    "team": {
+      "label": "Team",
+      "color": "emerald",
+      "models": ["gpt-5-5", "gpt-5", "gpt-5-thinking", "gpt-5-pro", "o3", "o4-mini", "o3-deep-research", "o4-mini-deep-research", "gpt-4o-deep-research", "deep-research", "gpt-4o"]
+    },
+    "pro": {
+      "label": "Pro",
+      "color": "amber",
+      "models": ["gpt-5-5", "gpt-5-pro", "gpt-5-thinking", "o3-pro", "gpt-5", "o3", "o3-deep-research", "o4-mini-deep-research", "gpt-4o-deep-research", "deep-research", "gpt-4o"]
+    },
+    "enterprise": {
+      "label": "Enterprise",
+      "color": "violet",
+      "models": ["gpt-5-5", "gpt-5", "gpt-5-thinking", "gpt-5-pro", "o3", "o4-mini", "o3-deep-research", "o4-mini-deep-research", "gpt-4o-deep-research", "deep-research", "gpt-4o"]
+    },
+    "unknown": {
+      "label": "未知",
+      "color": "rose",
+      "models": ["gpt-5-5", "gpt-4o-mini"]
+    }
+  }
+}

@@ -2,10 +2,11 @@ import json
 from urllib.parse import quote
 
 from fastapi import Request
-from fastapi.responses import Response
+from fastapi.responses import RedirectResponse, Response
 
 from app import app
 from gateway.chatgpt import chatgpt_html
+from gateway.login import login_html
 from utils.kv_utils import set_value_for_key_list
 
 with open("templates/gpts_context.json", "r", encoding="utf-8") as f:
@@ -28,7 +29,11 @@ async def get_gpts(request: Request):
 async def get_gizmo_json(request: Request, gizmo_id: str):
     params = request.query_params
     if params.get("_routes") == "routes/g.$gizmoId._index":
-        token = request.cookies.get("token")
+        # 安全：未登录访问应返回登录页而非 500。
+        # 原实现直接 len(token)/token.startswith(...) 对 None 调用会抛 TypeError。
+        token = request.cookies.get("token") or ""
+        if not token:
+            return await login_html(request)
         if len(token) != 45 and not token.startswith("eyJhbGciOi"):
             token = quote(token)
         user_gpts_context = gpts_context.copy()

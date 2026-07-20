@@ -1,0 +1,4 @@
+slug,proxy_url,note
+acc1,socks5://user1:pass1@residential1.example:8000,plus 主号
+acc2,socks5://user2:pass2@residential2.example:8000,plus 备号
+acc3,,免代理直连示例

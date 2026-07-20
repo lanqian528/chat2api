@@ -1,0 +1,12 @@
+# 真实账号清单（含代理凭证），不入库
+accounts.csv
+
+# 生成产物（含密钥），不入库
+generated/
+
+# 每实例数据目录（含 cookie / token），不入库
+data/
+
+# 本地临时
+*.tmp
+*.bak

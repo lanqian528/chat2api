@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import json
 import random
@@ -7,16 +6,17 @@ import uuid
 from fastapi import HTTPException
 from starlette.concurrency import run_in_threadpool
 
-from api.files import get_image_size, get_file_extension, determine_file_use_case
-from api.models import model_proxy
-from chatgpt.authorization import get_req_token, verify_token
+from chatgpt.authorization import get_req_token
 from chatgpt.chatFormat import api_messages_to_chat, stream_response, format_not_stream_response, head_process_response
 from chatgpt.chatLimit import check_is_limit, handle_request_limit
 from chatgpt.fp import get_fp
 from chatgpt.proofofWork import get_config, get_dpl, get_answer_token, get_requirements_token
+from chatgpt.services import AuthMixin, FileMixin, ModelMixin
+from chatgpt.services._helpers import _sanitize_headers, _stringify_header_value
 
 from utils.Client import Client
 from utils.Logger import logger
+from utils import antiban
 from utils.configs import (
     chatgpt_base_url_list,
     ark0se_token_url_list,
@@ -29,10 +29,18 @@ from utils.configs import (
     auth_key,
     turnstile_solver_url,
     oai_language,
+    accept_language,
+    chat_requirements_timeout,
+    chat_request_timeout,
+    client_timezone,
+    client_timezone_offset_min,
+    enable_antiban,
+    oai_client_version,
+    oai_client_build_number,
 )
 
 
-class ChatService:
+class ChatService(AuthMixin, ModelMixin, FileMixin):
     def __init__(self, origin_token=None):
         # self.user_agent = random.choice(user_agents_list) if user_agents_list else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
         self.req_token = get_req_token(origin_token)
@@ -40,54 +48,41 @@ class ChatService:
         self.s = None
         self.ss = None
         self.ws = None
+        self.dynamic_model = False
+        self.antiban_ctx = None
+        # 深度研究相关：system_hints 与请求体透传 / 模型名后缀双模式触发
+        self.system_hints = []
+        # Session sticky: 由 api 层 inject 后挂载，stream_response 嗅探时用于回写映射
+        self.librechat_conv_id = None
 
-    async def set_dynamic_data(self, data):
-        if self.req_token:
-            req_len = len(self.req_token.split(","))
-            if req_len == 1:
-                self.access_token = await verify_token(self.req_token)
-                self.account_id = None
-            else:
-                self.access_token = await verify_token(self.req_token.split(",")[0])
-                self.account_id = self.req_token.split(",")[1]
-        else:
-            logger.info("Request token is empty, use no-auth 3.5")
-            self.access_token = None
-            self.account_id = None
+    async def initialize_request_context(self):
+        # Antiban: 在读取 fp 之前获取上下文（bucket/geo/冷却/熔断）
+        self.antiban_ctx = await antiban.acquire_context(self.req_token)
 
         self.fp = get_fp(self.req_token).copy()
         self.proxy_url = self.fp.pop("proxy_url", None)
         self.impersonate = self.fp.pop("impersonate", "safari15_3")
         self.user_agent = self.fp.get("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0")
+
+        # Antiban 强制粘性 IP：以桶内 proxy 覆盖 fp 中的 proxy_url（若已分配）
+        if self.antiban_ctx and self.antiban_ctx.enabled and self.antiban_ctx.proxy_url:
+            if self.proxy_url != self.antiban_ctx.proxy_url:
+                logger.info(
+                    f"[antiban] proxy overridden by bucket: "
+                    f"{self.proxy_url} -> {self.antiban_ctx.proxy_url}"
+                )
+            self.proxy_url = self.antiban_ctx.proxy_url
+
         logger.info(f"Request token: {self.req_token}")
         logger.info(f"Request proxy: {self.proxy_url}")
         logger.info(f"Request UA: {self.user_agent}")
         logger.info(f"Request impersonate: {self.impersonate}")
 
-        self.data = data
-        await self.set_model()
-        if enable_limit and self.req_token:
-            limit_response = await handle_request_limit(self.req_token, self.req_model)
-            if limit_response:
-                raise HTTPException(status_code=429, detail=limit_response)
-
-        self.account_id = self.data.get('Chatgpt-Account-Id', self.account_id)
-        self.parent_message_id = self.data.get('parent_message_id')
-        self.conversation_id = self.data.get('conversation_id')
-        self.history_disabled = self.data.get('history_disabled', history_disabled)
-
-        self.api_messages = self.data.get("messages", [])
-        self.prompt_tokens = 0
-        self.max_tokens = self.data.get("max_tokens", 2147483647)
-        if not isinstance(self.max_tokens, int):
-            self.max_tokens = 2147483647
-
-        # self.proxy_url = random.choice(proxy_url_list) if proxy_url_list else None
-
         self.host_url = random.choice(chatgpt_base_url_list) if chatgpt_base_url_list else "https://chatgpt.com"
         self.ark0se_token_url = random.choice(ark0se_token_url_list) if ark0se_token_url_list else None
 
-        session_id = hashlib.md5(self.req_token.encode()).hexdigest()
+        session_source = self.req_token or "no-auth"
+        session_id = hashlib.md5(session_source.encode()).hexdigest()
         proxy_url = self.proxy_url.replace("{}", session_id) if self.proxy_url else None
         self.s = Client(proxy=proxy_url, impersonate=self.impersonate)
         if sentinel_proxy_url_list:
@@ -107,7 +102,7 @@ class ChatService:
         self.base_headers = {
             'accept': '*/*',
             'accept-encoding': 'gzip, deflate, br, zstd',
-            'accept-language': 'en-US,en;q=0.9',
+            'accept-language': accept_language,
             'content-type': 'application/json',
             'oai-language': oai_language,
             'origin': self.host_url,
@@ -117,7 +112,37 @@ class ChatService:
             'sec-fetch-mode': 'cors',
             'sec-fetch-site': 'same-origin'
         }
-        self.base_headers.update(self.fp)
+        # 反降智关键头：让请求看起来像真实 ChatGPT 前端发出
+        if oai_client_version:
+            self.base_headers['oai-client-version'] = oai_client_version
+        if oai_client_build_number:
+            self.base_headers['oai-client-build-number'] = str(oai_client_build_number)
+        # oai-session-id：与 oai-device-id 类似，token 级稳定（fp.py 在生成 fp 时填入）
+        session_id_header = self.fp.get("oai-session-id")
+        if session_id_header:
+            self.base_headers['oai-session-id'] = session_id_header
+        # T1: 注入用户偏好相关 CH 头（Chromium 真实浏览器在 same-origin 请求中默认携带）
+        _pref_color = self.fp.get("color_scheme")
+        if _pref_color in ("light", "dark"):
+            self.base_headers['sec-ch-prefers-color-scheme'] = _pref_color
+        _pref_motion = self.fp.get("prefers_reduced_motion")
+        if _pref_motion in ("no-preference", "reduce"):
+            self.base_headers['sec-ch-prefers-reduced-motion'] = _pref_motion
+        # 过滤掉 fp 中的非 HTTP-header 内部指纹字段（screen/viewport 等仅供 PoW 与 contextual_info 使用）
+        for _internal_key in (
+            "screen", "hardware_concurrency", "device_memory", "pixel_ratio", "viewport",
+            # 扩展指纹字段：仅供 client_contextual_info / 未来 sentinel 字段使用，绝不能进 HTTP 头
+            "nav_platform", "languages", "max_touch_points", "webgl",
+            "color_scheme", "prefers_reduced_motion", "color_gamut",
+            "connection", "audio",
+            # T2/T3/T5/M1/M2 等纯指纹字段
+            "canvas_hash", "font_list_hash", "font_list_count", "audio_fp_hash",
+            "timezone", "intl_locale", "user_pace", "virtual_page_load_ms",
+            # D2/D3 深耕字段
+            "webgpu", "webrtc",
+        ):
+            self.fp.pop(_internal_key, None)
+        self.base_headers.update(_sanitize_headers(self.fp))
 
         if self.access_token:
             self.base_url = self.host_url + "/backend-api"
@@ -130,52 +155,56 @@ class ChatService:
         if auth_key:
             self.base_headers['authkey'] = auth_key
 
+        # Antiban: 用 geo 结果覆盖 accept-language / oai-language
+        if self.antiban_ctx and self.antiban_ctx.enabled and self.antiban_ctx.header_overrides:
+            for k, v in self.antiban_ctx.header_overrides.items():
+                if k.startswith("_") or not v:
+                    continue
+                normalized = _stringify_header_value(v)
+                if normalized is not None:
+                    self.base_headers[k] = normalized
+            logger.info(
+                f"[antiban] headers overridden by geo: "
+                f"accept-language={self.base_headers.get('accept-language')} "
+                f"oai-language={self.base_headers.get('oai-language')}"
+            )
+
+    async def set_dynamic_data(self, data):
+        await self.resolve_auth_context()
+
+        self.data = data
+        # 深度研究：双模式触发字段提取（必须在 set_model 之前，便于模型名识别合并）
+        # 1) 显式透传 system_hints；2) 支持别名 hints；3) 支持 deep_research:bool 快捷开关
+        raw_hints = self.data.get("system_hints")
+        if raw_hints is None:
+            raw_hints = self.data.get("hints", [])
+        if not isinstance(raw_hints, list):
+            raw_hints = []
+        if self.data.get("deep_research") is True and "research" not in raw_hints:
+            raw_hints = raw_hints + ["research"]
+        self.system_hints = raw_hints
+
+        await self.set_model()
+
+        self.account_id = self.data.get('Chatgpt-Account-Id', self.account_id)
+        self.parent_message_id = self.data.get('parent_message_id')
+        self.conversation_id = self.data.get('conversation_id')
+        self.history_disabled = self.data.get('history_disabled', history_disabled)
+
+        self.api_messages = self.data.get("messages", [])
+        self.prompt_tokens = 0
+        self.max_tokens = self.data.get("max_tokens", 2147483647)
+        if not isinstance(self.max_tokens, int):
+            self.max_tokens = 2147483647
+
+        await self.initialize_request_context()
         await get_dpl(self)
+        await self.validate_model_access()
 
-    async def set_model(self):
-        self.origin_model = self.data.get("model", "gpt-3.5-turbo-0125")
-        self.resp_model = model_proxy.get(self.origin_model, self.origin_model)
-        if "gizmo" in self.origin_model or "g-" in self.origin_model:
-            self.gizmo_id = "g-" + self.origin_model.split("g-")[-1]
-        else:
-            self.gizmo_id = None
-
-        if "o3-mini-high" in self.origin_model:
-            self.req_model = "o3-mini-high"
-        elif "o3-mini-medium" in self.origin_model:
-            self.req_model = "o3-mini-medium"
-        elif "o3-mini-low" in self.origin_model:
-            self.req_model = "o3-mini-low"
-        elif "o3-mini" in self.origin_model:
-            self.req_model = "o3-mini"
-        elif "o3" in self.origin_model:
-            self.req_model = "o3"
-        elif "o1-preview" in self.origin_model:
-            self.req_model = "o1-preview"
-        elif "o1-pro" in self.origin_model:
-            self.req_model = "o1-pro"
-        elif "o1-mini" in self.origin_model:
-            self.req_model = "o1-mini"
-        elif "o1" in self.origin_model:
-            self.req_model = "o1"
-        elif "gpt-4.5o" in self.origin_model:
-            self.req_model = "gpt-4.5o"
-        elif "gpt-4o-canmore" in self.origin_model:
-            self.req_model = "gpt-4o-canmore"
-        elif "gpt-4o-mini" in self.origin_model:
-            self.req_model = "gpt-4o-mini"
-        elif "gpt-4o" in self.origin_model:
-            self.req_model = "gpt-4o"
-        elif "gpt-4-mobile" in self.origin_model:
-            self.req_model = "gpt-4-mobile"
-        elif "gpt-4" in self.origin_model:
-            self.req_model = "gpt-4"
-        elif "gpt-3.5" in self.origin_model:
-            self.req_model = "text-davinci-002-render-sha"
-        elif "auto" in self.origin_model:
-            self.req_model = "auto"
-        else:
-            self.req_model = "gpt-4o"
+        if enable_limit and self.req_token:
+            limit_response = await handle_request_limit(self.req_token, self.req_model)
+            if limit_response:
+                raise HTTPException(status_code=429, detail=limit_response)
 
     async def get_chat_requirements(self):
         if conversation_only:
@@ -183,10 +212,11 @@ class ChatService:
         url = f'{self.base_url}/sentinel/chat-requirements'
         headers = self.base_headers.copy()
         try:
-            config = get_config(self.user_agent, self.req_token)
+            tz_offset = self.antiban_ctx.tz_offset_min if (self.antiban_ctx and self.antiban_ctx.enabled) else None
+            config = get_config(self.user_agent, self.req_token, tz_offset)
             p = get_requirements_token(config)
             data = {'p': p}
-            r = await self.ss.post(url, headers=headers, json=data, timeout=5)
+            r = await self.ss.post(url, headers=headers, json=data, timeout=chat_requirements_timeout)
             if r.status_code == 200:
                 resp = r.json()
 
@@ -194,15 +224,7 @@ class ChatService:
                 if self.persona != "chatgpt-paid":
                     if self.req_model == "gpt-4" or self.req_model == "o1-preview":
                         logger.error(f"Model {self.resp_model} not support for {self.persona}")
-                        raise HTTPException(
-                            status_code=404,
-                            detail={
-                                "message": f"The model `{self.origin_model}` does not exist or you do not have access to it.",
-                                "type": "invalid_request_error",
-                                "param": None,
-                                "code": "model_not_found",
-                            },
-                        )
+                        raise self.model_not_found()
 
                 turnstile = resp.get('turnstile', {})
                 turnstile_required = turnstile.get('required')
@@ -266,6 +288,8 @@ class ChatService:
                     detail = r.json().get("detail", r.json())
                 else:
                     detail = r.text
+                # Antiban: 分级上报错误（IP 降级 / 账号冷却延长 / 黑名单）
+                await antiban.report_error(self.antiban_ctx, r.status_code, detail)
                 if "cf_chl_opt" in detail:
                     raise HTTPException(status_code=r.status_code, detail="cf_chl_opt")
                 if r.status_code == 429:
@@ -274,6 +298,11 @@ class ChatService:
         except HTTPException as e:
             raise HTTPException(status_code=e.status_code, detail=e.detail)
         except Exception as e:
+            # M3: transport 层失败（连接被拒/超时/DNS）→ 告知 antiban 桶降级
+            try:
+                await antiban.report_network_error(self.antiban_ctx, type(e).__name__)
+            except Exception:
+                pass
             raise HTTPException(status_code=500, detail=str(e))
 
     async def prepare_send_conversation(self):
@@ -308,18 +337,62 @@ class ChatService:
         else:
             conversation_mode = {"kind": "primary_assistant"}
 
+        # 深度研究强制 primary_assistant 模式（原生协议约束）
+        if "research" in self.system_hints and self.gizmo_id:
+            logger.warning("Deep research forces primary_assistant mode, ignoring gizmo_id")
+            conversation_mode = {"kind": "primary_assistant"}
+            self.gizmo_id = None
+
         logger.info(f"Model mapping: {self.origin_model} -> {self.req_model}")
+        if self.system_hints:
+            logger.info(f"System hints: {self.system_hints}")
+
+        # client_contextual_info：token 级稳定（首选）；同账号多次请求保持一致，避免抖动暴露自动化
+        ctx_info = None
+        pace_range = None
+        try:
+            if enable_antiban:
+                from utils.antiban import fingerprint as _fp_mod
+                # H3 双保险：即使上游 acquire_context 未触发，也保证扩展字段齐全
+                _fp_mod.ensure_extended(self.req_token)
+                ctx_info = _fp_mod.get_contextual_info(self.req_token)
+                pace_range = _fp_mod.get_user_pace_range(self.req_token)
+        except Exception:
+            ctx_info = None
+            pace_range = None
+
+        # M1: time_since_loaded 按 user_pace 抽样（fast/normal/slow），同账号节奏一致
+        if pace_range:
+            time_since_loaded = random.randint(pace_range[0], pace_range[1])
+        else:
+            time_since_loaded = random.randint(3000, 30000)
+
+        if ctx_info:
+            # is_dark_mode 不再硬编码 False，改为 token 级稳定的 color_scheme 派生（约 30% 用户偏好暗色）
+            client_contextual_info = {
+                "is_dark_mode": ctx_info.get("color_scheme") == "dark",
+                "time_since_loaded": time_since_loaded,
+                "page_height": ctx_info["page_height"],
+                "page_width": ctx_info["page_width"],
+                "pixel_ratio": ctx_info["pixel_ratio"],
+                "screen_height": ctx_info["screen_height"],
+                "screen_width": ctx_info["screen_width"],
+            }
+        else:
+            # antiban 未启用：保持原行为但修正 pixel_ratio 取真实值（1.0/2.0 而非 1.5）
+            client_contextual_info = {
+                "is_dark_mode": False,
+                "time_since_loaded": time_since_loaded,
+                "page_height": random.randint(700, 1200),
+                "page_width": random.randint(1200, 2000),
+                "pixel_ratio": random.choice([1.0, 2.0]),
+                "screen_height": random.randint(900, 1440),
+                "screen_width": random.randint(1440, 2560),
+            }
+
         self.chat_request = {
             "action": "next",
-            "client_contextual_info": {
-                "is_dark_mode": False,
-                "time_since_loaded": random.randint(50, 500),
-                "page_height": random.randint(500, 1000),
-                "page_width": random.randint(1000, 2000),
-                "pixel_ratio": 1.5,
-                "screen_height": random.randint(800, 1200),
-                "screen_width": random.randint(1200, 2200),
-            },
+            "client_contextual_info": client_contextual_info,
             "conversation_mode": conversation_mode,
             "conversation_origin": None,
             "force_paragen": False,
@@ -335,23 +408,44 @@ class ChatService:
             "reset_rate_limits": False,
             "suggestions": [],
             "supported_encodings": [],
-            "system_hints": [],
-            "timezone": "America/Los_Angeles",
-            "timezone_offset_min": -480,
+            "system_hints": self.system_hints,
+            "timezone": client_timezone,
+            "timezone_offset_min": client_timezone_offset_min,
             "variant_purpose": "comparison_implicit",
             "websocket_request_id": f"{uuid.uuid4()}",
         }
+        # Antiban: 按 IP 地域覆盖时区（与 UA / accept-language 一致）
+        if self.antiban_ctx and self.antiban_ctx.enabled and self.antiban_ctx.tz_offset_min is not None:
+            self.chat_request["timezone_offset_min"] = self.antiban_ctx.tz_offset_min
+            if self.antiban_ctx.header_overrides.get("_timezone_name"):
+                self.chat_request["timezone"] = self.antiban_ctx.header_overrides["_timezone_name"]
         if self.conversation_id:
             self.chat_request['conversation_id'] = self.conversation_id
+            # 真实浏览器的 referer 是具体会话 URL（如 /c/<conv_id>），不是首页
+            self.chat_headers['referer'] = f"{self.host_url}/c/{self.conversation_id}"
         return self.chat_request
 
     async def send_conversation(self):
         try:
             url = f'{self.base_url}/conversation'
             stream = self.data.get("stream", False)
-            r = await self.s.post_stream(url, headers=self.chat_headers, json=self.chat_request, timeout=10, stream=True)
+            r = await self.s.post_stream(
+                url,
+                headers=self.chat_headers,
+                json=self.chat_request,
+                timeout=chat_request_timeout,
+                stream=True,
+            )
             if r.status_code != 200:
                 rtext = await r.atext()
+                # Session sticky: 注入的 conv_id 触发 4xx → 清理映射，让重试新建对话
+                if 400 <= r.status_code < 500 and self.data.get("librechat_conversation_id") \
+                        and self.conversation_id:
+                    try:
+                        from chatgpt import session_sticky as _ss
+                        _ss.drop_mapping(self.data.get("librechat_conversation_id"))
+                    except Exception:
+                        pass
                 if "application/json" == r.headers.get("Content-Type", ""):
                     detail = json.loads(rtext).get("detail", json.loads(rtext))
                     if r.status_code == 429:
@@ -359,13 +453,20 @@ class ChatService:
                 else:
                     if "cf_chl_opt" in rtext:
                         # logger.error(f"Failed to send conversation: cf_chl_opt")
+                        await antiban.report_error(self.antiban_ctx, r.status_code, "cf_chl_opt")
                         raise HTTPException(status_code=r.status_code, detail="cf_chl_opt")
                     if r.status_code == 429:
                         # logger.error(f"Failed to send conversation: rate-limit")
+                        await antiban.report_error(self.antiban_ctx, r.status_code, "rate-limit")
                         raise HTTPException(status_code=r.status_code, detail="rate-limit")
                     detail = r.text[:100]
                 # logger.error(f"Failed to send conversation: {detail}")
+                await antiban.report_error(self.antiban_ctx, r.status_code, detail)
                 raise HTTPException(status_code=r.status_code, detail=detail)
+
+            # 200 OK: 立即标记账号使用（真正 success 在响应流完成后由上游调度更稳，
+            # 但 200 即可代表风控校验通过，此处记录冷却足够）
+            await antiban.report_success(self.antiban_ctx)
 
             content_type = r.headers.get("Content-Type", "")
             if "text/event-stream" in content_type:
@@ -394,157 +495,12 @@ class ChatService:
         except HTTPException as e:
             raise HTTPException(status_code=e.status_code, detail=e.detail)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-
-    async def get_download_url(self, file_id):
-        url = f"{self.base_url}/files/{file_id}/download"
-        headers = self.base_headers.copy()
-        try:
-            r = await self.s.get(url, headers=headers, timeout=10)
-            if r.status_code == 200:
-                download_url = r.json().get('download_url')
-                return download_url
-            else:
-                raise HTTPException(status_code=r.status_code, detail=r.text)
-        except Exception as e:
-            logger.error(f"Failed to get download url: {e}")
-            return ""
-
-    async def get_attachment_url(self, file_id, conversation_id):
-        url = f"{self.base_url}/conversation/{conversation_id}/attachment/{file_id}/download"
-        headers = self.base_headers.copy()
-        try:
-            r = await self.s.get(url, headers=headers, timeout=10)
-            if r.status_code == 200:
-                download_url = r.json().get('download_url')
-                return download_url
-            else:
-                raise HTTPException(status_code=r.status_code, detail=r.text)
-        except Exception as e:
-            logger.error(f"Failed to get download url: {e}")
-            return ""
-
-    async def get_download_url_from_upload(self, file_id):
-        url = f"{self.base_url}/files/{file_id}/uploaded"
-        headers = self.base_headers.copy()
-        try:
-            r = await self.s.post(url, headers=headers, json={}, timeout=10)
-            if r.status_code == 200:
-                download_url = r.json().get('download_url')
-                return download_url
-            else:
-                raise HTTPException(status_code=r.status_code, detail=r.text)
-        except Exception as e:
-            logger.error(f"Failed to get download url from upload: {e}")
-            return ""
-
-    async def get_upload_url(self, file_name, file_size, use_case="multimodal"):
-        url = f'{self.base_url}/files'
-        headers = self.base_headers.copy()
-        try:
-            r = await self.s.post(
-                url,
-                headers=headers,
-                json={"file_name": file_name, "file_size": file_size, "reset_rate_limits": False, "timezone_offset_min": -480, "use_case": use_case},
-                timeout=5,
-            )
-            if r.status_code == 200:
-                res = r.json()
-                file_id = res.get('file_id')
-                upload_url = res.get('upload_url')
-                logger.info(f"file_id: {file_id}, upload_url: {upload_url}")
-                return file_id, upload_url
-            else:
-                raise HTTPException(status_code=r.status_code, detail=r.text)
-        except Exception as e:
-            logger.error(f"Failed to get upload url: {e}")
-            return "", ""
-
-    async def upload(self, upload_url, file_content, mime_type):
-        headers = self.base_headers.copy()
-        headers.update(
-            {
-                'accept': 'application/json, text/plain, */*',
-                'content-type': mime_type,
-                'x-ms-blob-type': 'BlockBlob',
-                'x-ms-version': '2020-04-08',
-            }
-        )
-        headers.pop('authorization', None)
-        headers.pop('oai-device-id', None)
-        headers.pop('oai-language', None)
-        try:
-            r = await self.s.put(upload_url, headers=headers, data=file_content, timeout=60)
-            if r.status_code == 201:
-                return True
-            else:
-                raise HTTPException(status_code=r.status_code, detail=r.text)
-        except Exception as e:
-            logger.error(f"Failed to upload file: {e}")
-            return False
-
-    async def upload_file(self, file_content, mime_type):
-        if not file_content or not mime_type:
-            return None
-
-        width, height = None, None
-        if mime_type.startswith("image/"):
+            # M3: send_conversation transport 层失败也上报，三次连续将触发桶降级
             try:
-                width, height = await get_image_size(file_content)
-            except Exception as e:
-                logger.error(f"Error image mime_type, change to text/plain: {e}")
-                mime_type = 'text/plain'
-        file_size = len(file_content)
-        file_extension = await get_file_extension(mime_type)
-        file_name = f"{uuid.uuid4()}{file_extension}"
-        use_case = await determine_file_use_case(mime_type)
-
-        file_id, upload_url = await self.get_upload_url(file_name, file_size, use_case)
-        if file_id and upload_url:
-            if await self.upload(upload_url, file_content, mime_type):
-                download_url = await self.get_download_url_from_upload(file_id)
-                if download_url:
-                    file_meta = {
-                        "file_id": file_id,
-                        "file_name": file_name,
-                        "size_bytes": file_size,
-                        "mime_type": mime_type,
-                        "width": width,
-                        "height": height,
-                        "use_case": use_case,
-                    }
-                    logger.info(f"File_meta: {file_meta}")
-                    return file_meta
-
-    async def check_upload(self, file_id):
-        url = f'{self.base_url}/files/{file_id}'
-        headers = self.base_headers.copy()
-        try:
-            for i in range(30):
-                r = await self.s.get(url, headers=headers, timeout=5)
-                if r.status_code == 200:
-                    res = r.json()
-                    retrieval_index_status = res.get('retrieval_index_status', '')
-                    if retrieval_index_status == "success":
-                        break
-                await asyncio.sleep(1)
-            return True
-        except HTTPException:
-            return False
-
-    async def get_response_file_url(self, conversation_id, message_id, sandbox_path):
-        try:
-            url = f"{self.base_url}/conversation/{conversation_id}/interpreter/download"
-            params = {"message_id": message_id, "sandbox_path": sandbox_path}
-            headers = self.base_headers.copy()
-            r = await self.s.get(url, headers=headers, params=params, timeout=10)
-            if r.status_code == 200:
-                return r.json().get("download_url")
-            else:
-                return None
-        except Exception:
-            logger.info("Failed to get response file url")
-            return None
+                await antiban.report_network_error(self.antiban_ctx, type(e).__name__)
+            except Exception:
+                pass
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def close_client(self):
         if self.s:

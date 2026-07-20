@@ -13,7 +13,7 @@ from chatgpt.authorization import verify_token, get_req_token
 from chatgpt.fp import get_fp
 from utils.Client import Client
 from utils.Logger import logger
-from utils.configs import chatgpt_base_url_list, sentinel_proxy_url_list, force_no_history, file_host, voice_host
+from utils.configs import chatgpt_base_url_list, sentinel_proxy_url_list, force_no_history, file_host, voice_host, accept_language
 
 
 def generate_current_time():
@@ -220,7 +220,7 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
         headers.update(fp)
 
         headers.update({
-            "accept-language": "en-US,en;q=0.9",
+            "accept-language": accept_language,
             "host": base_url.replace("https://", "").replace("http://", ""),
             "origin": base_url,
             "referer": f"{base_url}/"
@@ -323,8 +323,13 @@ async def chatgpt_reverse_proxy(request: Request, path: str):
                     response = Response(content=content, headers=rheaders,
                                         status_code=r.status_code, background=background)
                 return response
+        except HTTPException as e:
+            await client.close()
+            raise HTTPException(status_code=e.status_code, detail=e.detail)
         except Exception as e:
             await client.close()
+            logger.error(f"Reverse proxy failed for {path}: {str(e)}")
+            raise HTTPException(status_code=502, detail="Upstream request failed")
     except HTTPException as e:
         raise e
     except Exception as e:

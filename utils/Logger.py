@@ -1,6 +1,14 @@
 import logging
 
+from utils.log_buffer import log_buffer
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)s | %(message)s')
+
+# 附加：把所有日志同时送进内存环形缓冲，供管理后台 UI 读取
+# 不替换 stdout handler，仅增加一份内存副本
+_root = logging.getLogger()
+if not any(isinstance(h, type(log_buffer)) for h in _root.handlers):
+    _root.addHandler(log_buffer)
 
 
 class Logger:

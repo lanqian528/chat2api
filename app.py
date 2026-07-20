@@ -37,13 +37,14 @@ security_scheme = HTTPBearer()
 from app import app
 
 import api.chat2api
+import api.image_generations
+import gateway.admin
 
 if enable_gateway:
-    import gateway.share
     import gateway.login
     import gateway.chatgpt
     import gateway.gpts
-    import gateway.admin
+    import gateway.share
     import gateway.v1
     import gateway.backend
 else:

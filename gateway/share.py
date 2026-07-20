@@ -15,14 +15,15 @@ from chatgpt.fp import get_fp
 from gateway.reverseProxy import get_real_req_token
 from utils.Client import Client
 from utils.Logger import logger
-from utils.configs import proxy_url_list, chatgpt_base_url_list, authorization_list
+from utils.configs import proxy_url_list, chatgpt_base_url_list, authorization_list, accept_language, oai_language
+from utils.routing import get_bound_proxy
 
 base_headers = {
     'accept': '*/*',
     'accept-encoding': 'gzip, deflate, br, zstd',
-    'accept-language': 'en-US,en;q=0.9',
+    'accept-language': accept_language,
     'content-type': 'application/json',
-    'oai-language': 'en-US',
+    'oai-language': oai_language,
     'priority': 'u=1, i',
     'sec-fetch-dest': 'empty',
     'sec-fetch-mode': 'cors',
@@ -138,7 +139,7 @@ async def chatgpt_account_check(access_token):
         headers.update({"authorization": f"Bearer {access_token}"})
 
         session_id = hashlib.md5(access_token.encode()).hexdigest()
-        proxy_url = random.choice(proxy_url_list).replace("{}", session_id) if proxy_url_list else None
+        proxy_url = proxy_url.replace("{}", session_id) if proxy_url else None
         client = Client(proxy=proxy_url, impersonate=impersonate)
         r = await client.get(f"{host_url}/backend-api/models?history_and_training_disabled=false", headers=headers,
                              timeout=10)
@@ -186,7 +187,10 @@ async def chatgpt_account_check(access_token):
 
 async def chatgpt_refresh(refresh_token):
     session_id = hashlib.md5(refresh_token.encode()).hexdigest()
-    proxy_url = random.choice(proxy_url_list).replace("{}", session_id) if proxy_url_list else None
+    bound_proxy = get_bound_proxy(refresh_token)
+    proxy_url = bound_proxy or (random.choice(proxy_url_list).replace("{}", session_id) if proxy_url_list else None)
+    if proxy_url:
+        proxy_url = proxy_url.replace("{}", session_id)
     client = Client(proxy=proxy_url)
     try:
         data = {
@@ -252,5 +256,3 @@ async def refresh(request: Request):
             return Response(content=json.dumps(auth_info), media_type="application/json")
 
     raise HTTPException(status_code=401, detail="Unauthorized")
-
-

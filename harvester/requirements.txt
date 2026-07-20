@@ -1,0 +1,5 @@
+playwright==1.47.0
+pyotp==2.9.0
+httpx==0.27.0
+click==8.1.7
+python-dotenv==1.0.1
